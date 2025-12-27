@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"teaching_manage/service"
 )
 
 // App struct
 type App struct {
-	ctx context.Context
+	ctx            context.Context
+	StudentManager service.StudentManager
 }
 
 // NewApp creates a new App application struct

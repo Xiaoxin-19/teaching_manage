@@ -1,18 +1,20 @@
 <script setup lang="ts">
+
 import { useStudentManage } from './StudentManage.logic'
+import DetailsDialog from './DetailsDialog.vue'
 
 const {
   search,
   dialog,
   dialogRecharge,
   dialogDelete,
+  dialogDetails,
   editedIndex,
   editedItem,
   rechargeItem,
   rechargeForm,
   students,
   headers,
-  formTitle,
   getStatusColor,
   getStatusText,
   openEdit,
@@ -71,6 +73,14 @@ const {
                   </v-btn>
                 </template>
               </v-tooltip>
+              <v-tooltip location="top" text="明细记录">
+                <template v-slot:activator="{ props }">
+                  <v-btn icon size="small" variant="text" color="primary" v-bind="props"
+                    @click="editedItem.id = item.id; dialogDetails = true">
+                    <v-icon>mdi-cash-plus</v-icon>
+                  </v-btn>
+                </template>
+              </v-tooltip>
 
               <v-tooltip location="top" text="编辑信息">
                 <template v-slot:activator="{ props }">
@@ -102,45 +112,9 @@ const {
       </v-card>
 
       <!-- 3. 弹窗组件：新增/编辑学生 -->
-      <v-dialog v-model="dialog" max-width="500px">
-        <v-card class="rounded-lg">
-          <v-card-title class="pa-4 bg-primary text-white d-flex align-center">
-            <v-icon class="mr-2">{{ editedIndex === -1 ? 'mdi-account-plus' : 'mdi-account-edit' }}</v-icon>
-            <span class="text-h6">{{ formTitle }}</span>
-          </v-card-title>
-
-          <v-card-text class="pt-6">
-            <v-row dense>
-              <v-col cols="12">
-                <v-text-field v-model="editedItem.name" label="学生姓名" required variant="outlined" density="comfortable"
-                  prepend-inner-icon="mdi-account"></v-text-field>
-              </v-col>
-              <v-col cols="12">
-                <v-text-field v-model="editedItem.phone" label="联系电话" required variant="outlined" density="comfortable"
-                  prepend-inner-icon="mdi-phone"></v-text-field>
-              </v-col>
-              <!-- 仅在新增时显示初始课时 -->
-              <v-col cols="12" v-if="editedIndex === -1">
-                <v-text-field v-model.number="editedItem.balance" label="初始课时" type="number" variant="outlined"
-                  density="comfortable" hint="老学员补录时可填写" persistent-hint
-                  prepend-inner-icon="mdi-clock-outline"></v-text-field>
-              </v-col>
-              <v-col cols="12">
-                <v-textarea v-model="editedItem.note" label="备注信息" variant="outlined" density="comfortable" rows="3"
-                  auto-grow placeholder="例如：每周六上午10点钢琴课"></v-textarea>
-              </v-col>
-            </v-row>
-          </v-card-text>
-
-          <v-divider></v-divider>
-
-          <v-card-actions class="pa-4">
-            <v-spacer></v-spacer>
-            <v-btn color="grey-darken-1" variant="text" @click="closeDialog">取消</v-btn>
-            <v-btn color="primary" variant="elevated" @click="saveStudent" class="px-6">保存</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+      <ModifyStudent v-model:modelValue="dialog" :is-edit="editedIndex >= 0" :initial-data="editedItem"
+        @save="saveStudent" @update:modelValue="dialog = $event">
+      </ModifyStudent>
 
       <!-- 4. 弹窗组件：课时充值 -->
       <v-dialog v-model="dialogRecharge" max-width="450px">
@@ -191,6 +165,8 @@ const {
         </v-card>
       </v-dialog>
 
+      <!-- 弹窗组件：课程充值明细（可导出Excel） -->
+      <DetailsDialog v-model:modelValue="dialogDetails" :student-id="editedItem.id"></DetailsDialog>
     </div>
   </v-sheet>
 </template>

@@ -1,11 +1,20 @@
 import { ref, computed, nextTick } from 'vue'
-
+import { GetStudentList} from '../../../wailsjs/go/service/StudentManager'
+import type { ResponseWrapper } from '../../types/appModels'
+import type { StudentDTO } from '../../types/response'
+import { useToast } from '../../composables/useToast'
+import { LogError } from '../../../wailsjs/runtime/runtime'
 // --- 类型定义 (TypeScript Interface) ---
+
+const toast = useToast()
+
 interface Student {
   id: number
   name: string
   phone: string
   balance: number
+  gender: string
+  teacher_id: number
   note: string
 }
 
@@ -15,6 +24,7 @@ export function useStudentManage() {
   const dialog = ref(false)         // 新增/编辑弹窗状态
   const dialogRecharge = ref(false) // 充值弹窗状态
   const dialogDelete = ref(false)   // 删除确认弹窗状态
+  const dialogDetails = ref(false) // 详情弹窗状态
 
   // --- 表单状态 ---
   const editedIndex = ref(-1) // -1 表示新增模式，>=0 表示编辑模式
@@ -23,6 +33,8 @@ export function useStudentManage() {
     name: '',
     phone: '',
     balance: 0,
+    gender: '',
+    teacher_id: 0,
     note: ''
   }
 
@@ -37,23 +49,49 @@ export function useStudentManage() {
     note: ''
   })
 
-  // --- 模拟数据 (Mock Data) ---
   // 实际开发中，这里会替换为从 Go 后端获取的数据
-  const students = ref<Student[]>([
-    { id: 1, name: '张子轩', phone: '13812345678', balance: 24, note: '钢琴基础' },
-    { id: 2, name: '李梓涵', phone: '13987654321', balance: 3, note: '周六上午班' },
-    { id: 3, name: '王浩宇', phone: '15011112222', balance: -2, note: '需催费' },
-    { id: 4, name: '陈思睿', phone: '13666668888', balance: 45, note: '' },
-    { id: 5, name: '刘一诺', phone: '18999990000', balance: 10, note: '' },
-  ])
+  const students = ref<Student[]>([])
+
+  // 从后端中获取学生列表（使用 Promise .then() 风格）
+  const fetchStudents = () => {
+
+    const reqData = {
+      Key: search.value,
+      Offset: 0,
+      Limit: 100,
+    }
+
+
+    GetStudentList(JSON.stringify(reqData))
+      .then((result: any) => {
+        // ResponseWrapper<StudentDTO[]> 解析
+        const resp = JSON.parse(result) as ResponseWrapper<StudentDTO[]>
+        if (resp.code === 200) {
+          students.value = resp.data.map((item) => ({
+            id: item.id,
+            name: item.name,
+            phone: item.phone,
+            balance: item.hours,
+            gender: item.gender,
+            teacher_id: item.teacher_id,
+            note: '', // 后端暂无 remark 字段
+          }))
+        } else {
+          LogError('获取学生列表失败:' + resp.message)
+          toast.error('获取学生列表失败: ' + resp.message, 'top-right')
+        }
+        
+      })
+  }
+
+  // 初始化获取学生列表
+  fetchStudents()
 
   // --- 表格配置 ---
   const headers: any = [
-    { title: '姓名', key: 'name', align: 'start', width: '120px' },
-    { title: '联系电话', key: 'phone', width: '150px' },
-    { title: '剩余课时', key: 'balance', sortable: true, width: '120px' },
+    { title: '姓名', key: 'name', align: 'start', sortable: false,width: '120px' },
+    { title: '剩余课时', key: 'balance', sortable: false, width: '120px' },
     { title: '状态', key: 'status', sortable: false, width: '100px' }, // 虚拟列
-    { title: '备注', key: 'note' },
     { title: '操作', key: 'actions', sortable: false, align: 'end', width: '150px' },
   ]
 
@@ -152,6 +190,7 @@ export function useStudentManage() {
     dialog,
     dialogRecharge,
     dialogDelete,
+    dialogDetails,
     editedIndex,
     editedItem,
     rechargeItem,
