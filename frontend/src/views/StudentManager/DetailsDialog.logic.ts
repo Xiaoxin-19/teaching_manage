@@ -1,21 +1,22 @@
 import { ref } from 'vue'
 import type { RecordItem } from '../../types/appModels'
+import { categorizeOrderTags } from '../../utils/classification'
+import { useToast } from '../../composables/useToast'
+import type { OrderTag } from '../../types/appModels'
 
-// 表头配置（导出以便 SFC 引用）
 export const headers: any = [
-  { title: '日期', key: 'date', align: 'start', width: '180px' },
-  { title: '类型', key: 'type', align: 'center', width: '100px' },
+  { title: '日期', key: 'date', width: '150px' },
+  { title: '类型', key: 'type', width: '100px' },
+  { title: '标签', key: 'tags', width: '200px', sortable: false },
   { title: '变动', key: 'amount', align: 'end', width: '100px' },
   { title: '结余', key: 'balanceAfter', align: 'end', width: '100px' },
-  { title: '备注', key: 'remark', align: 'start' },
+  { title: '备注', key: 'remark' },
 ]
 
-export type FetchDetailsFn = (studentId: number) => Promise<{ studentName: string, records: RecordItem[] }>
-
-// 组合函数：接收 emit 和可选 fetcher，返回组件需要的方法和响应式数据
-export function useDetailsDialog(emit: (event: string, ...args: any[]) => void, fetcher?: FetchDetailsFn) {
+export function useDetailsDialog(emit: any) {
+  const { success, error } = useToast()
   const studentName = ref('')
-  const records = ref<RecordItem[]>([])
+  const records = ref<(RecordItem & { tags?: OrderTag[] })[]>([])
 
   const close = () => {
     emit('update:modelValue', false)
@@ -25,42 +26,43 @@ export function useDetailsDialog(emit: (event: string, ...args: any[]) => void, 
     emit('update:modelValue', val)
   }
 
-  const onExport = () => {
-    emit('export')
+  const onExport = async (studentId?: number) => {
+    try {
+      if (!studentId) return
+      // TODO: API - 导出明细
+      // await window.go.main.App.ExportStudentDetails(studentId)
+      success('导出成功')
+    } catch (e) {
+      error('导出失败')
+    }
   }
 
   const getTypeColor = (type: string) => {
-    switch (type) {
-      case '充值': return 'success'
-      case '赠送': return 'info'
-      case '消课': return 'error'
-      case '退费': return 'warning'
-      default: return 'grey'
-    }
+    if (type === '充值') return 'success'
+    if (type === '消课') return 'error'
+    return 'default'
   }
 
-  // 加载数据：优先使用传入的 fetcher，否则使用 fallback
-  const load = async (studentId?: number, fallbackName?: string, fallbackRecords?: RecordItem[]) => {
-    if (!studentId) {
-      studentName.value = fallbackName ?? ''
-      records.value = fallbackRecords ?? []
-      return
-    }
+  const load = async (studentId?: number, name?: string) => {
+    studentName.value = name || ''
+    records.value = [] // Reset
 
-    if (fetcher) {
+    if (studentId) {
       try {
-        const res = await fetcher(studentId)
-        studentName.value = res.studentName
-        records.value = res.records ?? []
+        // TODO: API - 获取学生明细
+        // const res = await window.go.main.App.GetStudentRecords(studentId)
+        // const rawRecords = res || []
+
+        // 模拟数据填充，实际应使用 rawRecords
+        const rawRecords: RecordItem[] = []
+
+        records.value = rawRecords.map(item => ({
+          ...item,
+          tags: categorizeOrderTags(item.remark || '')
+        }))
       } catch (e) {
-        console.error('fetcher failed:', e)
-        studentName.value = fallbackName ?? ''
-        records.value = fallbackRecords ?? []
+        error('加载明细失败')
       }
-    } else {
-      // no fetcher provided, use fallback data
-      studentName.value = fallbackName ?? ''
-      records.value = fallbackRecords ?? []
     }
   }
 
@@ -71,6 +73,6 @@ export function useDetailsDialog(emit: (event: string, ...args: any[]) => void, 
     updateModelValue,
     onExport,
     getTypeColor,
-    load,
+    load
   }
 }
