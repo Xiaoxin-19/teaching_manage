@@ -35,5 +35,3 @@ func ExportToExcel(path string, headers []string, rows [][]string) error {
 	}
 	return nil
 }
-
-// NOTE: Teacher-specific conversion moved to service layer. Use ExportToExcel for generic exports.

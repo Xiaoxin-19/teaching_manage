@@ -26,6 +26,8 @@ func main() {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
+	dao.InitDB(db)
+
 	// Setup student manager
 	studentDao := dao.NewStudentDao(db)
 	studentRepository := repository.NewStudentRepository(studentDao)
