@@ -28,16 +28,21 @@ func main() {
 
 	dao.InitDB(db)
 
-	// Setup student manager
-	studentDao := dao.NewStudentDao(db)
-	studentRepository := repository.NewStudentRepository(studentDao)
-	studentManager := service.NewStudentManager(studentRepository)
-
 	// Setup teacher manager
 	teacherDao := dao.NewTeacherDao(db)
 	teacherRepository := repository.NewTeacherRepository(teacherDao)
 	teacherManager := service.NewTeacherManager(teacherRepository)
 
+	// Setup student manager
+	studentDao := dao.NewStudentDao(db)
+	studentRepository := repository.NewStudentRepository(studentDao)
+	studentManager := service.NewStudentManager(studentRepository, teacherRepository)
+
+	// Setup order manager
+	orderDao := dao.NewOrderDao(db)
+	orderRepository := repository.NewOrderRepository(orderDao)
+	orderManager := service.NewOrderManager(orderRepository, studentRepository)
+	// Setup dispatcher
 	dispatcher := dispatcher.New()
 
 	// Create an instance of the app structure
@@ -57,9 +62,11 @@ func main() {
 			app.startup(ctx)
 			teacherManager.Ctx = ctx
 			studentManager.Ctx = ctx
+			orderManager.Ctx = ctx
 			// Register routes
 			studentManager.RegisterRoute(dispatcher)
 			teacherManager.RegisterRoute(dispatcher)
+			orderManager.RegisterRoute(dispatcher)
 		},
 		Bind: []interface{}{
 			app,

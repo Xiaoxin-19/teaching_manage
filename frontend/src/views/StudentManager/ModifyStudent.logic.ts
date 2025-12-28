@@ -7,7 +7,7 @@ export function useModifyStudent(props: { isEdit: boolean, initialData?: Student
   const formData = ref<StudentData>({
     name: '',
     phone: '',
-    gender: '男',
+    gender: 'male',
     balance: 0,
     teacher_id: null,
     note: ''
@@ -23,7 +23,7 @@ export function useModifyStudent(props: { isEdit: boolean, initialData?: Student
       formData.value = {
         name: '',
         phone: '',
-        gender: '男',
+        gender: 'male',
         balance: 0,
         teacher_id: null,
         note: ''

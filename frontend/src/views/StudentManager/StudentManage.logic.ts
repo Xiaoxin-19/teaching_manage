@@ -5,7 +5,8 @@ import { useConfirm } from '../../composables/useConfirm'
 import { categorizeOrderTags } from '../../utils/classification'
 import type { OrderTag } from '../../types/appModels'
 import { Dispatch } from '../../../wailsjs/go/main/App'
-import { GetStudentListResponse, StudentDTO } from '../../types/response'
+import { GetStudentListResponse, GetTeacherListResponse, StudentDTO } from '../../types/response'
+import { LogError } from '../../../wailsjs/runtime/runtime'
 
 const { success, error, info } = useToast()
 const { confirmDelete } = useConfirm()
@@ -26,7 +27,7 @@ const dialogRecharge = ref(false)
 const dialogDetails = ref(false)
 
 // 数据对象
-const defaultItem: StudentData = { id: 0, name: '', phone: '', balance: 0, gender: '男', teacher_id: null, note: '' }
+const defaultItem: StudentData = { id: 0, name: '', phone: '', balance: 0, gender: 'male', teacher_id: null, note: '' }
 const editedItem = reactive<StudentData>({ ...defaultItem })
 const editedIndex = ref(-1)
 
@@ -41,6 +42,10 @@ const teacherOptions = ref<TeacherOption[]>([])
 
 // --- 初始化加载 ---
 const loadData = async () => {
+  await loadStudents()
+}
+
+function loadStudents() {
   loading.value = true
   try {
     // TODO: API - 调用后端获取学生列表
@@ -77,21 +82,58 @@ const loadData = async () => {
 
     loading.value = false
 
-    // TODO: API - 调用后端获取教师列表
-    // const teachers = await window.go.main.App.GetAllTeachers()
-    // teacherOptions.value = teachers || []
 
-    console.log('Fetching student data...')
+    console.log('Fetching data...')
   } catch (e) {
     error('加载数据失败')
   }
+}
+
+
+function loadTeacherOptions() {
+  const requestData = {
+    key: "",
+    offset: 0,
+    limit: -1,
+  }
+
+  console.log('Fetching teacher list with request:' + JSON.stringify(requestData))
+  Dispatch('teacher_manager:get_teacher_list', JSON.stringify(requestData))
+    .then((result: any) => {
+      console.log('Received teacher list response:' + result)
+      const resp = JSON.parse(result) as ResponseWrapper<GetTeacherListResponse>
+      if (resp.code === 200) {
+        // 如果teacher为null则赋值为空数组
+        if (!resp.data.teachers) {
+          resp.data.teachers = []
+        }
+
+
+        teacherOptions.value = resp.data.teachers.map((item) => ({
+          id: item.id,
+          name: item.name,
+          phone: item.phone,
+          gender: item.gender,
+          remark: item.remark,
+          lastModified: new Date(item.updated_at).toLocaleString(),
+        }))
+        totalItems.value = resp.data.total
+      } else {
+        LogError('获取教师列表失败:' + resp.message)
+        toast.error('获取教师列表失败: ' + resp.message, 'top-right')
+      }
+    })
+    .finally(() => {
+      loading.value = false
+    })
+
 }
 
 function loadItems({ page: newPage, itemsPerPage: newItemsPerPage, sortBy }: { page: number; itemsPerPage: number; sortBy?: string[] | string | undefined }): void {
   console.log('Loading items with params:', { page: newPage, itemsPerPage: newItemsPerPage, sortBy })
   page.value = newPage
   itemsPerPage.value = newItemsPerPage
-  
+
   loadData()
 }
 
@@ -107,12 +149,14 @@ const headers: any = [
   { title: '状态', key: 'status', sortable: false, width: '100px' },
   { title: '操作', key: 'actions', sortable: false, align: 'end', width: '180px' },
 ]
+
+// --- 辅助函数 ---
+const getStatusColor = (bal: number) => bal < 0 ? 'error' : (bal < 5 ? 'warning' : 'success')
+const getStatusText = (bal: number) => bal < 0 ? '欠费' : (bal < 5 ? '余额不足' : '正常')
 export function useStudentManage() {
 
 
-  // --- 辅助函数 ---
-  const getStatusColor = (bal: number) => bal < 0 ? 'error' : (bal < 5 ? 'warning' : 'success')
-  const getStatusText = (bal: number) => bal < 0 ? '欠费' : (bal < 5 ? '余额不足' : '正常')
+
 
   // --- 充值逻辑计算 ---
   const rechargeType = computed(() => {
@@ -139,12 +183,14 @@ export function useStudentManage() {
   // --- 操作方法 ---
   const openAdd = () => {
     editedIndex.value = -1
+    loadTeacherOptions()
     Object.assign(editedItem, defaultItem)
     dialog.value = true
   }
 
   const openEdit = (item: StudentItem) => {
     editedIndex.value = students.value.findIndex(s => s.id === item.id)
+    loadTeacherOptions()
     Object.assign(editedItem, item)
     dialog.value = true
   }
@@ -191,13 +237,27 @@ export function useStudentManage() {
         }
         success('更新成功')
       } else {
-        // TODO: API - 新增学生
-        // const newId = await window.go.main.App.CreateStudent(data)
-        // data.id = newId
+        let reqData = {
+          Name: data.name,
+          Gender: data.gender,
+          Hours: data.balance,
+          Phone: data.phone,
+          Teacher_Id: data.teacher_id,
+          Note: data.note,
+        }
 
-        // 前端模拟新增
-        students.value.push({ ...data } as StudentItem)
-        success('添加成功')
+        console.log('Creating student with data:', reqData)
+        Dispatch('student_manager:create_student', JSON.stringify(reqData))
+          .then((result: any) => {
+            const resp = JSON.parse(result) as ResponseWrapper<string>
+            if (resp.code === 200) {
+              loadData()
+              success('添加成功')
+            } else {
+              console.error('添加学生失败:', resp.message)
+              toast.error('添加学生失败: ' + resp.message, 'top-right')
+            }
+          })
       }
       dialog.value = false
     } catch (e) {

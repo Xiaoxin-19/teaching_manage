@@ -25,8 +25,8 @@
             <v-col cols="12" sm="6" class="d-flex align-center mb-3">
               <span class="text-caption text-medium-emphasis mr-3 ml-2">性别:</span>
               <v-radio-group v-model="formData.gender" inline hide-details density="compact" class="mt-0">
-                <v-radio label="男" value="男" color="primary"></v-radio>
-                <v-radio label="女" value="女" color="pink"></v-radio>
+                <v-radio label="男" value="male" color="primary"></v-radio>
+                <v-radio label="女" value="female" color="pink"></v-radio>
               </v-radio-group>
             </v-col>
 

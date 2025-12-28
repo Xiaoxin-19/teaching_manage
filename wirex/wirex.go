@@ -12,8 +12,9 @@ func NewGormDB() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	
 	// Auto migrate the Student and Teacher models
-	err = db.AutoMigrate(&dao.Student{}, &dao.Teacher{})
+	err = db.AutoMigrate(&dao.Student{}, &dao.Teacher{}, &dao.Order{})
 	if err != nil {
 		return nil, err
 	}
