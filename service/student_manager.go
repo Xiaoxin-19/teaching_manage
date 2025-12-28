@@ -6,6 +6,7 @@ import (
 	"teaching_manage/pkg/dispatcher"
 	"teaching_manage/repository"
 	requestx "teaching_manage/service/request"
+	responsex "teaching_manage/service/response"
 )
 
 type StudentManager struct {
@@ -17,8 +18,8 @@ func NewStudentManager(repo repository.StudentRepository) *StudentManager {
 	return &StudentManager{repo: repo}
 }
 
-func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetStudentListRequest) ([]entity.Student, error) {
-	studentDs, err := sm.repo.GetStudentList(ctx, req.Key, req.Offset, req.Limit)
+func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetStudentListRequest) (*responsex.GetStudentListResponse, error) {
+	studentDs, total, err := sm.repo.GetStudentList(ctx, req.Key, req.Offset, req.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +37,10 @@ func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetSt
 			TeacherID: stu.TeacherID,
 		})
 	}
-	return result, nil
+	return &responsex.GetStudentListResponse{
+		Students: result,
+		Total:    total,
+	}, nil
 }
 
 func (sm StudentManager) RegisterRoute(d *dispatcher.Dispatcher) {

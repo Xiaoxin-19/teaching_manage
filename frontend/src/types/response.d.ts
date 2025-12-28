@@ -14,3 +14,8 @@ export interface GetTeacherListResponse {
   teachers: TeacherDTO[]
   total: number
 }
+
+export interface GetStudentListResponse {
+  students: StudentDTO[]
+  total: number
+}

@@ -11,7 +11,7 @@ type StudentDao interface {
 	UpdateStudent(ctx context.Context, stu *Student) error
 	DeleteStudent(ctx context.Context, id uint) error
 	GetStudentByID(ctx context.Context, id uint) (*Student, error)
-	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, error)
+	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error)
 }
 
 type StudentGormDao struct {
@@ -59,15 +59,20 @@ func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*Student, 
 	return &stu, nil
 }
 
-func (s StudentGormDao) GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, error) {
+func (s StudentGormDao) GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error) {
 	var students []Student
-	query := gorm.G[Student](s.db).Offset(offset).Limit(limit)
+	var total int64
+	query := gorm.G[Student](s.db).Where("")
 	if key != "" {
 		query = query.Where("name LIKE ?", "%"+key+"%")
 	}
-	students, err := query.Find(ctx)
+	total, err := query.Count(ctx, "*")
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return students, nil
+	students, err = query.Offset(offset).Limit(limit).Find(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	return students, total, nil
 }

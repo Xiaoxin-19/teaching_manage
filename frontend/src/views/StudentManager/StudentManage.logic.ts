@@ -1,63 +1,114 @@
 import { ref, reactive, computed, onMounted } from 'vue'
-import type { StudentData, StudentItem, TeacherOption } from '../../types/appModels'
+import type { ResponseWrapper, StudentData, StudentItem, TeacherOption } from '../../types/appModels'
 import { useToast } from '../../composables/useToast'
 import { useConfirm } from '../../composables/useConfirm'
 import { categorizeOrderTags } from '../../utils/classification'
 import type { OrderTag } from '../../types/appModels'
+import { Dispatch } from '../../../wailsjs/go/main/App'
+import { GetStudentListResponse, StudentDTO } from '../../types/response'
 
-export function useStudentManage() {
-  const { success, error, info } = useToast()
-  const { confirmDelete } = useConfirm()
+const { success, error, info } = useToast()
+const { confirmDelete } = useConfirm()
 
-  const search = ref('')
+const search = ref('')
+const toast = useToast()
+const confirm = useConfirm()
 
-  // 弹窗状态
-  const dialog = ref(false)
-  const dialogRecharge = ref(false)
-  const dialogDetails = ref(false)
+// 分页状态
+const page = ref(1)
+const itemsPerPage = ref(10)
+const totalItems = ref(0) // 需要后端支持返回总数
+const loading = ref(false)
 
-  // 数据对象
-  const defaultItem: StudentData = { id: 0, name: '', phone: '', balance: 0, gender: '男', teacher_id: null, note: '' }
-  const editedItem = reactive<StudentData>({ ...defaultItem })
-  const editedIndex = ref(-1)
+// 弹窗状态
+const dialog = ref(false)
+const dialogRecharge = ref(false)
+const dialogDetails = ref(false)
 
-  const rechargeItem = reactive<StudentData>({ ...defaultItem })
-  const rechargeForm = reactive({ amount: 10, note: '' })
+// 数据对象
+const defaultItem: StudentData = { id: 0, name: '', phone: '', balance: 0, gender: '男', teacher_id: null, note: '' }
+const editedItem = reactive<StudentData>({ ...defaultItem })
+const editedIndex = ref(-1)
 
-  // 列表数据 (初始化为空)
-  const students = ref<StudentItem[]>([])
+const rechargeItem = reactive<StudentData>({ ...defaultItem })
+const rechargeForm = reactive({ amount: 10, note: '' })
 
-  // 教师列表 (用于搜索)
-  const teacherOptions = ref<TeacherOption[]>([])
+// 列表数据 (初始化为空)
+const students = ref<StudentItem[]>([])
 
-  // --- 初始化加载 ---
-  const loadData = async () => {
-    try {
-      // TODO: API - 调用后端获取学生列表
-      // const res = await window.go.main.App.GetAllStudents()
-      // students.value = res || []
+// 教师列表 (用于搜索)
+const teacherOptions = ref<TeacherOption[]>([])
 
-      // TODO: API - 调用后端获取教师列表
-      // const teachers = await window.go.main.App.GetAllTeachers()
-      // teacherOptions.value = teachers || []
-
-      console.log('Fetching student data...')
-    } catch (e) {
-      error('加载数据失败')
+// --- 初始化加载 ---
+const loadData = async () => {
+  loading.value = true
+  try {
+    // TODO: API - 调用后端获取学生列表
+    const reqData = {
+      Key: search.value,
+      Offset: (page.value - 1) * itemsPerPage.value,
+      Limit: itemsPerPage.value,
     }
+
+    console.log('Request Data:', reqData)
+
+
+    Dispatch('student_manager:get_student_list', JSON.stringify(reqData))
+      .then((result: any) => {
+        // ResponseWrapper<StudentDTO[]> 解析
+        const resp = JSON.parse(result) as ResponseWrapper<GetStudentListResponse>
+        if (resp.code === 200) {
+          students.value = (resp.data.students || []).map((item) => ({
+            id: item.id,
+            name: item.name,
+            phone: item.phone,
+            balance: item.hours,
+            gender: item.gender,
+            teacher_id: item.teacher_id,
+            note: '', // 后端暂无 remark 字段
+          }))
+          totalItems.value = resp.data.total // 需要后端支持返回总数
+        } else {
+          console.error('获取学生列表失败:', resp.message)
+          toast.error('获取学生列表失败: ' + resp.message, 'top-right')
+        }
+
+      })
+
+    loading.value = false
+
+    // TODO: API - 调用后端获取教师列表
+    // const teachers = await window.go.main.App.GetAllTeachers()
+    // teacherOptions.value = teachers || []
+
+    console.log('Fetching student data...')
+  } catch (e) {
+    error('加载数据失败')
   }
+}
 
-  onMounted(() => {
-    loadData()
-  })
+function loadItems({ page: newPage, itemsPerPage: newItemsPerPage, sortBy }: { page: number; itemsPerPage: number; sortBy?: string[] | string | undefined }): void {
+  console.log('Loading items with params:', { page: newPage, itemsPerPage: newItemsPerPage, sortBy })
+  page.value = newPage
+  itemsPerPage.value = newItemsPerPage
+  
+  loadData()
+}
 
-  // --- 表头定义 ---
-  const headers: any = [
-    { title: '姓名', key: 'name', align: 'center', sortable: false, width: '120px' },
-    { title: '剩余课时', key: 'balance', sortable: false, width: '120px' },
-    { title: '状态', key: 'status', sortable: false, width: '100px' },
-    { title: '操作', key: 'actions', sortable: false, align: 'end', width: '180px' },
-  ]
+// 组件挂载时加载数据
+onMounted(() => {
+  loadData()
+})
+
+// --- 表头定义 ---
+const headers: any = [
+  { title: '姓名', key: 'name', align: 'center', sortable: false, width: '120px' },
+  { title: '剩余课时', key: 'balance', sortable: false, width: '120px' },
+  { title: '状态', key: 'status', sortable: false, width: '100px' },
+  { title: '操作', key: 'actions', sortable: false, align: 'end', width: '180px' },
+]
+export function useStudentManage() {
+
 
   // --- 辅助函数 ---
   const getStatusColor = (bal: number) => bal < 0 ? 'error' : (bal < 5 ? 'warning' : 'success')
@@ -187,11 +238,16 @@ export function useStudentManage() {
 
   return {
     search,
+    page,
+    itemsPerPage,
+    totalItems,
+    loading,
     dialog, dialogRecharge, dialogDetails,
     editedIndex, editedItem, rechargeItem, rechargeForm,
     students, teacherOptions,
     headers,
     rechargeType, rechargeColor, inferredTags,
+    loadItems,
     getStatusColor, getStatusText,
     openAdd, openEdit, openRecharge, openDetails, openDelete,
     saveStudent, saveRecharge, exportStudents

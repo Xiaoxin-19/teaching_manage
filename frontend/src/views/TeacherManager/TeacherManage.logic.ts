@@ -177,8 +177,10 @@ function exportTeacher2Excel() {
   })
 }
 
-function loadItems({ page, itemsPerPage, sortBy }: { page: number; itemsPerPage: number; sortBy?: string[] | string | undefined }): void {
+function loadItems({ page: newPage, itemsPerPage: newItemsPerPage, sortBy }: { page: number; itemsPerPage: number; sortBy?: string[] | string | undefined }): void {
   loading.value = true
+  page.value = newPage
+  itemsPerPage.value = newItemsPerPage
   fetchTeachers()
   loading.value = false
 }

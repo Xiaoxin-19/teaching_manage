@@ -5,6 +5,10 @@ import ModifyStudent from './ModifyStudent.vue'
 
 const {
   search,
+  page,
+  itemsPerPage,
+  totalItems,
+  loading,
   dialog,
   dialogRecharge,
   dialogDetails,
@@ -27,7 +31,8 @@ const {
   saveRecharge,
   openAdd,
   exportStudents,
-  openDetails
+  openDetails,
+  loadItems,
 } = useStudentManage()
 </script>
 
@@ -37,7 +42,7 @@ const {
 
       <!-- 1. 顶部操作栏 -->
       <div class="d-flex justify-space-between align-center mb-4 flex-shrink-0">
-        <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" label="搜索姓名或电话" single-line hide-details
+        <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" label="搜索学生姓名" single-line hide-details
           density="compact" variant="outlined" class="rounded" style="max-width: 300px"></v-text-field>
 
         <div class="d-flex">
@@ -54,8 +59,9 @@ const {
 
       <!-- 2. 数据表格区域 -->
       <v-card elevation="2" class="flex-grow-1 d-flex flex-column rounded-lg overflow-hidden border">
-        <v-data-table :headers="headers" :items="students" :search="search" hover fixed-header density="comfortable"
-          class="h-100">
+        <v-data-table-server :headers="headers" :items="students" :search="search" :page="page"
+          :items-per-page="itemsPerPage" :loading="loading" hover fixed-header density="comfortable"
+          :items-length="totalItems" @update:options="loadItems" class="h-100">
           <template v-slot:item.balance="{ item }">
             <span :class="item.balance < 0 ? 'text-error font-weight-bold' : 'font-weight-medium'">
               {{ item.balance }} 课时
@@ -112,7 +118,7 @@ const {
               <v-btn color="primary" variant="text" class="mt-2" @click="dialog = true">点击添加第一位学生</v-btn>
             </div>
           </template>
-        </v-data-table>
+        </v-data-table-server>
       </v-card>
 
       <!-- 3. 新增/编辑弹窗 -->

@@ -6,7 +6,7 @@ import (
 )
 
 type StudentRepository interface {
-	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]dao.Student, error)
+	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]dao.Student, int64, error)
 	GetStudentByID(ctx context.Context, id uint) (*dao.Student, error)
 	UpdateStudentByID(ctx context.Context, stu *dao.Student) error
 }
@@ -18,12 +18,12 @@ type StudentRepositoryImpl struct {
 func NewStudentRepository(dao dao.StudentDao) StudentRepository {
 	return &StudentRepositoryImpl{dao: dao}
 }
-func (sr StudentRepositoryImpl) GetStudentList(ctx context.Context, key string, offset int, limit int) ([]dao.Student, error) {
-	students, err := sr.dao.GetStudentList(ctx, key, offset, limit)
+func (sr StudentRepositoryImpl) GetStudentList(ctx context.Context, key string, offset int, limit int) ([]dao.Student, int64, error) {
+	students, total, err := sr.dao.GetStudentList(ctx, key, offset, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return students, nil
+	return students, total, nil
 }
 
 func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*dao.Student, error) {
