@@ -2,13 +2,12 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"teaching_manage/dao"
 	"teaching_manage/entity"
 	"teaching_manage/pkg"
-	"teaching_manage/pkg/wraper"
+	"teaching_manage/pkg/dispatcher"
 	"teaching_manage/repository"
 	requestx "teaching_manage/service/request"
 	responsex "teaching_manage/service/response"
@@ -26,32 +25,24 @@ func NewTeacherManager(repo repository.TeacherRepository) *TeacherManager {
 	return &TeacherManager{repo: repo}
 }
 
-func (tm TeacherManager) CreateTeacher(r string) string {
-	var teacher entity.Teacher
-	err := json.NewDecoder(strings.NewReader(r)).Decode(&teacher)
+func (tm TeacherManager) CreateTeacher(ctx context.Context, teacher *requestx.CreateTeacherRequest) (string, error) {
+	err := tm.repo.CreateTeacher(ctx, entity.Teacher{
+		Name:   strings.TrimSpace(teacher.Name),
+		Phone:  strings.TrimSpace(teacher.Phone),
+		Gender: pkg.Gender(teacher.Gender),
+		Remark: strings.TrimSpace(teacher.Remark),
+	})
 	if err != nil {
-		return wraper.NewBadResponse("unkown json format").ToJSON()
+		return "", fmt.Errorf("create fail")
 	}
-
-	err = tm.repo.CreateTeacher(context.Background(), teacher)
-	if err != nil {
-		return wraper.NewBadResponse("internal server error").ToJSON()
-	}
-	return wraper.NewSuccessResponse("teacher created").ToJSON()
+	return "teacher created", nil
 }
 
-func (tm TeacherManager) GetTeacherList(r string) string {
-	ctx := context.Background()
-	// wails.LogDebugf(tm.Ctx, "service GetTeacherList request: %s", r)
-	var req requestx.GetTeacherListRequest
-	err := json.Unmarshal([]byte(r), &req)
-	if err != nil {
-		return wraper.NewBadResponse("unkown json format").ToJSON()
-	}
+func (tm TeacherManager) GetTeacherList(ctx context.Context, req *requestx.GetTeacherListRequest) (responsex.GetTeacherListResponse, error) {
 
 	teachers, total, err := tm.repo.GetTeacherList(ctx, req.Key, req.Offset, req.Limit)
 	if err != nil {
-		return wraper.NewBadResponse("internal server error").ToJSON()
+		return responsex.GetTeacherListResponse{}, fmt.Errorf("internal server error")
 	}
 
 	var result []entity.Teacher
@@ -66,32 +57,20 @@ func (tm TeacherManager) GetTeacherList(r string) string {
 			Remark:    t.Remark,
 		})
 	}
-	return wraper.NewSuccessResponse(responsex.GetTeacherListResponse{
+	return responsex.GetTeacherListResponse{
 		Teachers: result,
 		Total:    total,
-	}).ToJSON()
+	}, nil
 }
 
-func (tm TeacherManager) DeleteTeacher(r string) string {
-	var req requestx.DeleteTeacherRequest
-	err := json.Unmarshal([]byte(r), &req)
-	if err != nil {
-		return wraper.NewBadResponse("unkown json format").ToJSON()
+func (tm TeacherManager) DeleteTeacher(ctx context.Context, req *requestx.DeleteTeacherRequest) (string, error) {
+	if err := tm.repo.DeleteTeacher(ctx, req.Id); err != nil {
+		return "", err
 	}
-
-	err = tm.repo.DeleteTeacher(context.Background(), req.Id)
-	if err != nil {
-		return wraper.NewBadResponse("internal server error").ToJSON()
-	}
-	return wraper.NewSuccessResponse("teacher deleted").ToJSON()
+	return "teacher deleted", nil
 }
 
-func (tm TeacherManager) UpdateTeacher(r string) string {
-	var req requestx.UpdateTeacherRequest
-	err := json.Unmarshal([]byte(r), &req)
-	if err != nil {
-		return wraper.NewBadResponse("unkown json format").ToJSON()
-	}
+func (tm TeacherManager) UpdateTeacher(ctx context.Context, req *requestx.UpdateTeacherRequest) (string, error) {
 	teacher := entity.Teacher{
 		Id:     req.Id,
 		Name:   req.Name,
@@ -99,40 +78,34 @@ func (tm TeacherManager) UpdateTeacher(r string) string {
 		Gender: pkg.Gender(req.Gender),
 		Remark: req.Remark,
 	}
-	err = tm.repo.UpdateTeacher(context.Background(), teacher)
-	if err != nil {
-		return wraper.NewBadResponse("internal server error").ToJSON()
+	if err := tm.repo.UpdateTeacher(ctx, teacher); err != nil {
+		return "", err
 	}
-	return wraper.NewSuccessResponse("teacher updated").ToJSON()
+	return "teacher updated", nil
 }
 
-func (tm TeacherManager) ExportTeacher2Excel() string {
+func (tm TeacherManager) ExportTeacher2Excel(ctx context.Context) (string, error) {
 	filepath, err := wails.SaveFileDialog(tm.Ctx, wails.SaveDialogOptions{
 		Title:           "选择导出文件位置",
 		DefaultFilename: fmt.Sprintf("teachers_%s.xlsx", time.Now().Format("20060102_150405")),
-		Filters: []wails.FileFilter{
-			{DisplayName: "Excel 文件", Pattern: "*.xlsx"},
-		},
+		Filters:         []wails.FileFilter{{DisplayName: "Excel 文件", Pattern: "*.xlsx"}},
 	})
 	if err != nil {
-		return wraper.NewBadResponse("file dialog error").ToJSON()
+		return "", err
 	}
-
 	if filepath == "" {
-		return wraper.NewBadResponse("export cancelled").ToJSON()
+		return "", nil
 	}
 
-	teachers, _, err := tm.repo.GetTeacherList(context.Background(), "", 0, 1000000)
+	teachers, _, err := tm.repo.GetTeacherList(ctx, "", 0, 1000000)
 	if err != nil {
-		return wraper.NewBadResponse("internal server error").ToJSON()
+		return "", err
 	}
 
-	// 导出到 Excel using service-level conversion then generic exporter
 	if err := tm.exportTeachersToExcel(filepath, teachers); err != nil {
-		return wraper.NewBadResponse("failed to save excel: " + err.Error()).ToJSON()
+		return "", err
 	}
-
-	return wraper.NewSuccessResponse("exported").ToJSON()
+	return filepath, nil
 }
 
 // exportTeachersToExcel converts dao.Teacher to generic rows and calls pkg.ExportToExcel.
@@ -150,4 +123,12 @@ func (tm TeacherManager) exportTeachersToExcel(path string, teachers []dao.Teach
 		})
 	}
 	return pkg.ExportToExcel(path, headers, rows)
+}
+
+func (tm TeacherManager) RegisterRoute(d *dispatcher.Dispatcher) {
+	dispatcher.RegisterTyped(d, "teacher_manager:create_teacher", tm.CreateTeacher)
+	dispatcher.RegisterTyped(d, "teacher_manager:get_teacher_list", tm.GetTeacherList)
+	dispatcher.RegisterTyped(d, "teacher_manager:delete_teacher", tm.DeleteTeacher)
+	dispatcher.RegisterTyped(d, "teacher_manager:update_teacher", tm.UpdateTeacher)
+	dispatcher.RegisterNoReq(d, "teacher_manager:export_teacher_to_excel", tm.ExportTeacher2Excel)
 }

@@ -3,18 +3,20 @@ package main
 import (
 	"context"
 	"fmt"
-	"teaching_manage/service"
+	"teaching_manage/pkg/dispatcher"
 )
 
 // App struct
 type App struct {
-	ctx            context.Context
-	StudentManager service.StudentManager
+	ctx        context.Context
+	dispatcher *dispatcher.Dispatcher
 }
 
 // NewApp creates a new App application struct
-func NewApp() *App {
-	return &App{}
+func NewApp(dis *dispatcher.Dispatcher) *App {
+	return &App{
+		dispatcher: dis,
+	}
 }
 
 // startup is called when the app starts. The context is saved
@@ -26,4 +28,13 @@ func (a *App) startup(ctx context.Context) {
 // Greet returns a greeting for the given name
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
+}
+
+// Dispatch dispatches a method with payload to the registered handlers
+func (a *App) Dispatch(router string, payload string) string {
+	resp, err := a.dispatcher.Dispatch(a.ctx, router, []byte(payload))
+	if err != nil {
+		// Log the error
+	}
+	return resp
 }

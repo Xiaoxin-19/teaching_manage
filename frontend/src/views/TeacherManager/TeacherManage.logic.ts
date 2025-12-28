@@ -1,11 +1,11 @@
 import { onMounted, ref } from 'vue'
 import type { ResponseWrapper, TeacherData } from '../../types/appModels'
 import type { GetTeacherListResponse } from '../../types/response'
-import { CreateTeacher, DeleteTeacher, ExportTeacher2Excel, GetTeacherList, UpdateTeacher } from '../../../wailsjs/go/service/TeacherManager'
 
 import { useToast } from '../../composables/useToast'
 import { LogDebug, LogError, LogInfo } from '../../../wailsjs/runtime/runtime'
 import { useConfirm } from '../../composables/useConfirm'
+import { Dispatch } from '../../../wailsjs/go/main/App'
 
 
 const toast = useToast()
@@ -61,7 +61,7 @@ function fetchTeachers() {
 
   console.log('Fetching teacher list with request:' + JSON.stringify(reqData))
   LogDebug('Fetching teacher list with request:' + JSON.stringify(reqData))
-  GetTeacherList(JSON.stringify(reqData))
+  Dispatch('teacher_manager:get_teacher_list', JSON.stringify(reqData))
     .then((result: any) => {
       console.log('Received teacher list response:' + result)
       const resp = JSON.parse(result) as ResponseWrapper<GetTeacherListResponse>
@@ -104,7 +104,7 @@ function createTeacher(data: TeacherData) {
 
   // json 转换
   var reqStr: string = JSON.stringify(reqData)
-  CreateTeacher(reqStr).then((resp) => {
+  Dispatch('teacher_manager:create_teacher', reqStr).then((resp) => {
     // 使用ResponseWrapper解析响应
     const response = JSON.parse(resp) as ResponseWrapper<null>
     if (response.code === 200) {
@@ -132,7 +132,7 @@ function updateTeacher(data: TeacherData) {
   var reqStr: string = JSON.stringify(reqData)
   console.log('Updating teacher with data:' + reqStr)
   // 调用后端方法
-  UpdateTeacher(reqStr).then((resp) => {
+  Dispatch('teacher_manager:update_teacher', reqStr).then((resp) => {
     // 使用ResponseWrapper解析响应
     const response = JSON.parse(resp) as ResponseWrapper<string>
     if (response.code === 200) {
@@ -149,7 +149,7 @@ function updateTeacher(data: TeacherData) {
 function deleteTeacher(item: TeacherData) {
   confirm.confirmDelete(item.name).then((confirmed) => {
     if (confirmed) {
-      DeleteTeacher(JSON.stringify({ id: item.id })).then((resp) => {
+      Dispatch('teacher_manager:delete_teacher', JSON.stringify({ id: item.id })).then((resp) => {
         const response = JSON.parse(resp) as ResponseWrapper<string>
         if (response.code === 200) {
           toast.success('教师删除成功', 'top-right')
@@ -166,7 +166,7 @@ function deleteTeacher(item: TeacherData) {
 
 // 导出教师数据
 function exportTeacher2Excel() {
-  ExportTeacher2Excel().then((resp) => {
+  Dispatch('teacher_manager:export_teacher_to_excel', '').then((resp) => {
     const response = JSON.parse(resp) as ResponseWrapper<string>
     if (response.code === 200) {
       toast.success('教师数据已导出到: ' + response.data, 'top-right')

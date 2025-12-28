@@ -2,9 +2,8 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"teaching_manage/entity"
-	"teaching_manage/pkg/wraper"
+	"teaching_manage/pkg/dispatcher"
 	"teaching_manage/repository"
 	requestx "teaching_manage/service/request"
 )
@@ -18,13 +17,10 @@ func NewStudentManager(repo repository.StudentRepository) *StudentManager {
 	return &StudentManager{repo: repo}
 }
 
-func (sm StudentManager) GetStudentList(r string) string {
-	var req requestx.GetStudentListRequest
-	json.Unmarshal([]byte(r), &req)
-
-	studentDs, err := sm.repo.GetStudentList(context.Background(), req.Key, req.Offset, req.Limit)
+func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetStudentListRequest) ([]entity.Student, error) {
+	studentDs, err := sm.repo.GetStudentList(ctx, req.Key, req.Offset, req.Limit)
 	if err != nil {
-		return wraper.NewBadResponse("internal server error").ToJSON()
+		return nil, err
 	}
 
 	var result []entity.Student
@@ -40,7 +36,9 @@ func (sm StudentManager) GetStudentList(r string) string {
 			TeacherID: stu.TeacherID,
 		})
 	}
+	return result, nil
+}
 
-	// return json string
-	return wraper.NewSuccessResponse(result).ToJSON()
+func (sm StudentManager) RegisterRoute(d *dispatcher.Dispatcher) {
+	dispatcher.RegisterTyped(d, "student_manager:get_student_list", sm.GetStudentList)
 }

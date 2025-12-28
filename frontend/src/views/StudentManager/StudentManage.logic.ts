@@ -1,9 +1,9 @@
 import { ref, computed, nextTick } from 'vue'
-import { GetStudentList} from '../../../wailsjs/go/service/StudentManager'
 import type { ResponseWrapper } from '../../types/appModels'
 import type { StudentDTO } from '../../types/response'
 import { useToast } from '../../composables/useToast'
 import { LogError } from '../../../wailsjs/runtime/runtime'
+import { Dispatch } from '../../../wailsjs/go/main/App'
 // --- 类型定义 (TypeScript Interface) ---
 
 const toast = useToast()
@@ -40,7 +40,7 @@ export function useStudentManage() {
 
   // 当前操作的对象副本
   const editedItem = ref<Student>({ ...defaultItem })
-  const rechargeItem = ref<Student>({ ...defaultItem }) 
+  const rechargeItem = ref<Student>({ ...defaultItem })
 
   // 充值表单数据
   const rechargeForm = ref({
@@ -62,7 +62,7 @@ export function useStudentManage() {
     }
 
 
-    GetStudentList(JSON.stringify(reqData))
+    Dispatch('student_manager:get_student_list', JSON.stringify(reqData))
       .then((result: any) => {
         // ResponseWrapper<StudentDTO[]> 解析
         const resp = JSON.parse(result) as ResponseWrapper<StudentDTO[]>
@@ -80,7 +80,7 @@ export function useStudentManage() {
           LogError('获取学生列表失败:' + resp.message)
           toast.error('获取学生列表失败: ' + resp.message, 'top-right')
         }
-        
+
       })
   }
 
@@ -89,7 +89,7 @@ export function useStudentManage() {
 
   // --- 表格配置 ---
   const headers: any = [
-    { title: '姓名', key: 'name', align: 'start', sortable: false,width: '120px' },
+    { title: '姓名', key: 'name', align: 'start', sortable: false, width: '120px' },
     { title: '剩余课时', key: 'balance', sortable: false, width: '120px' },
     { title: '状态', key: 'status', sortable: false, width: '100px' }, // 虚拟列
     { title: '操作', key: 'actions', sortable: false, align: 'end', width: '150px' },
@@ -171,7 +171,7 @@ export function useStudentManage() {
     const index = students.value.findIndex(s => s.id === rechargeItem.value.id)
     if (index !== -1) {
       const amount = Number(rechargeForm.value.amount)
-      
+
       // 根据类型计算余额
       if (rechargeForm.value.type === '退费') {
         students.value[index].balance -= amount

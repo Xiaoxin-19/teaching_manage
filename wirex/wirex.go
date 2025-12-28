@@ -8,7 +8,7 @@ import (
 )
 
 func NewGormDB() (*gorm.DB, error) {
-	db, err := gorm.Open(sqlite.Open("teaching_manage.db"), &gorm.Config{TranslateError: true})
+	db, err := gorm.Open(sqlite.Open("./data/teaching_manage.db"), &gorm.Config{TranslateError: true})
 	if err != nil {
 		return nil, err
 	}

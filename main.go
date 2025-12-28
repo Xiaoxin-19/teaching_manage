@@ -5,6 +5,7 @@ import (
 	"embed"
 	"log"
 	"teaching_manage/dao"
+	"teaching_manage/pkg/dispatcher"
 	"teaching_manage/repository"
 	"teaching_manage/service"
 	"teaching_manage/wirex"
@@ -19,10 +20,6 @@ import (
 var assets embed.FS
 
 func main() {
-
-	// Create an instance of the app structure
-	app := NewApp()
-
 	// Setup database
 	db, err := wirex.NewGormDB()
 	if err != nil {
@@ -39,6 +36,11 @@ func main() {
 	teacherRepository := repository.NewTeacherRepository(teacherDao)
 	teacherManager := service.NewTeacherManager(teacherRepository)
 
+	dispatcher := dispatcher.New()
+
+	// Create an instance of the app structure
+	app := NewApp(dispatcher)
+
 	// Create application with options
 	err = wails.Run(&options.App{
 		Title:    "teaching_manage",
@@ -53,11 +55,12 @@ func main() {
 			app.startup(ctx)
 			teacherManager.Ctx = ctx
 			studentManager.Ctx = ctx
+			// Register routes
+			studentManager.RegisterRoute(dispatcher)
+			teacherManager.RegisterRoute(dispatcher)
 		},
 		Bind: []interface{}{
 			app,
-			teacherManager,
-			studentManager,
 		},
 	})
 

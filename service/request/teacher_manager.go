@@ -18,9 +18,9 @@ type UpdateTeacherRequest struct {
 type GetTeacherListRequest struct {
 	Key    string `json:"key"`
 	Offset int    `json:"offset" validate:"gte=0"`
-	Limit  int    `json:"limit" validate:"gte=1"`
+	Limit  int    `json:"limit" validate:"oneof=10 25 50 100 -1"`
 }
 
 type DeleteTeacherRequest struct {
-	Id uint `json:"id"`
+	Id uint `json:"id" validate:"required"`
 }
