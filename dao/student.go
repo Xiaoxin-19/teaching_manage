@@ -11,7 +11,8 @@ type StudentDao interface {
 	UpdateStudent(ctx context.Context, stu *Student) error
 	DeleteStudent(ctx context.Context, id uint) error
 	GetStudentByID(ctx context.Context, id uint) (*Student, error)
-	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, error)
+	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error)
+	UpdateStudentHours(ctx context.Context, id uint, hours int) error
 }
 
 type StudentGormDao struct {
@@ -29,6 +30,7 @@ type Student struct {
 	Hours     int    `gorm:"column:hours;default:0;comment:课时数" json:"hours"`
 	Phone     string `gorm:"column:phone;comment:学生电话号码" json:"phone"`
 	TeacherID uint   `gorm:"column:teacher_id;not null;comment:授课老师" json:"teacher_id"`
+	Remark    string `gorm:"column:remark;comment:备注" json:"remark"`
 }
 
 func (s StudentGormDao) CreateStudent(ctx context.Context, stu *Student) error {
@@ -36,7 +38,21 @@ func (s StudentGormDao) CreateStudent(ctx context.Context, stu *Student) error {
 }
 
 func (s StudentGormDao) UpdateStudent(ctx context.Context, stu *Student) error {
-	_, err := gorm.G[Student](s.db).Where("id = ?", stu.ID).Updates(ctx, *stu)
+	_, err := gorm.G[Student](s.db).Where("id = ?", stu.ID).Select(
+		"name",
+		"gender",
+		"phone",
+		"teacher_id",
+		"remark",
+	).Updates(ctx, *stu)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s StudentGormDao) UpdateStudentHours(ctx context.Context, id uint, diff int) error {
+	_, err := gorm.G[Student](s.db).Where("id = ?", id).Update(ctx, "hours", gorm.Expr("hours + ?", diff))
 	if err != nil {
 		return err
 	}
@@ -59,15 +75,20 @@ func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*Student, 
 	return &stu, nil
 }
 
-func (s StudentGormDao) GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, error) {
+func (s StudentGormDao) GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error) {
 	var students []Student
-	query := gorm.G[Student](s.db).Offset(offset).Limit(limit)
+	var total int64
+	query := gorm.G[Student](s.db).Where("")
 	if key != "" {
 		query = query.Where("name LIKE ?", "%"+key+"%")
 	}
-	students, err := query.Find(ctx)
+	total, err := query.Count(ctx, "*")
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return students, nil
+	students, err = query.Offset(offset).Limit(limit).Find(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	return students, total, nil
 }

@@ -8,7 +8,7 @@ import (
 
 type Order struct {
 	gorm.Model
-	StudentID uint   `gorm:"column:student_id;type:int(10) unsigned;comment:'学生主键'"`
+	StudentID uint   `gorm:"column:student_id;type:int(10);comment:'学生主键'"`
 	Hours     int    `gorm:"column:hours;type:int(11);not null;comment:'充值课时数'"`
 	Comment   string `gorm:"column:comment;type:varchar(50);comment:'备注'"`
 	Active    bool   `gorm:"column:active;;not null;default:true;comment:'是否生效'"`

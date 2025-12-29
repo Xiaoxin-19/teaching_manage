@@ -1,60 +1,55 @@
-import { ref, watch, Ref } from 'vue'
-import type { StudentData, TeacherOption } from '../../types/appModels'
+import { ref, watch } from 'vue'
+import type { StudentData } from '../../types/appModels'
 
-export type ModifyProps = {
-  modelValue: boolean
-  isEdit?: boolean
-  initialData?: StudentData
-  teacherOptions?: TeacherOption[]
-}
+export function useModifyStudent(props: { isEdit: boolean, initialData?: StudentData }, emit: any) {
+  const formRef = ref<any>(null)
 
-export type ModifyEmit = (event: 'update:modelValue' | 'save', ...args: any[]) => void
-
-export function useModifyStudent(props: ModifyProps, emit: ModifyEmit) {
-  const formRef: Ref<any> = ref(null)
-
-  // 本地表单数据
   const formData = ref<StudentData>({
     name: '',
-    gender: '男',
     phone: '',
-    teacherId: null,
-    remark: ''
+    gender: 'male',
+    balance: 0,
+    teacher_id: null,
+    note: ''
   })
 
-  // 监听弹窗开启，重置或填充数据
-  watch(() => props.modelValue, (val) => {
+  // 监听弹窗打开
+  watch(() => props.initialData, (val) => {
     if (val) {
-      if (props.isEdit && props.initialData) {
-        // 深度拷贝以断开引用
-        formData.value = JSON.parse(JSON.stringify(props.initialData))
-      } else {
-        // 重置为默认空状态
-        formData.value = {
-          name: '',
-          gender: '男',
-          phone: '',
-          teacherId: null,
-          remark: ''
-        }
+      // 深度拷贝，防止直接修改父组件数据
+      formData.value = JSON.parse(JSON.stringify(val))
+    } else {
+      // 重置
+      formData.value = {
+        name: '',
+        phone: '',
+        gender: 'male',
+        balance: 0,
+        teacher_id: null,
+        note: ''
       }
     }
-  })
+  }, { deep: true, immediate: true })
 
   const close = () => {
     emit('update:modelValue', false)
   }
 
-  const save = () => {
-    // 可以在此处添加表单校验逻辑
-    emit('save', formData.value)
-    close()
+  const save = async () => {
+    if (!formRef.value) return false
+    const { valid } = await formRef.value.validate()
+    if (valid) {
+      emit('save', formData.value)
+      close()
+      return true
+    }
+    return false
   }
 
   return {
     formRef,
     formData,
     close,
-    save,
+    save
   }
 }

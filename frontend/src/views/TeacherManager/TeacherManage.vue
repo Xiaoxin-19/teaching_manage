@@ -26,8 +26,9 @@
 
       <!-- 教师数据表格 -->
       <v-card class="rounded-lg elevation-2 border">
-        <v-data-table :headers="headers" :items="teachers" :search="search" density="compact"
-          v-model:items-per-page="itemsPerPage" v-model:page="page" @update:options="loadItems" hover>
+        <v-data-table-server :headers="headers" :items="teachers" :search="search" density="compact"
+          v-model:items-per-page="itemsPerPage" v-model:page="page" :items-length="totalItems" :loading="loading"
+          @update:options="loadItems" hover>
           <!-- 姓名列 -->
           <template v-slot:item.name="{ item }">
             <span class="font-weight-medium text-body-2">{{ item.name }}</span>
@@ -70,7 +71,7 @@
           <template v-slot:no-data>
             <div class="pa-4 text-center text-medium-emphasis">暂无教师数据</div>
           </template>
-        </v-data-table>
+        </v-data-table-server>
       </v-card>
 
 
@@ -93,6 +94,8 @@ const {
   dialogVisible,
   isEdit,
   currentData,
+  totalItems,
+  loading,
   headers,
   teachers,
   itemsPerPage,

@@ -169,6 +169,10 @@ function exportTeacher2Excel() {
   Dispatch('teacher_manager:export_teacher_to_excel', '').then((resp) => {
     const response = JSON.parse(resp) as ResponseWrapper<string>
     if (response.code === 200) {
+      if (response.data === 'cancel') {
+        toast.info('已取消导出', 'top-right')
+        return
+      }
       toast.success('教师数据已导出到: ' + response.data, 'top-right')
     } else {
       console.error('导出教师数据失败:', response.message)
@@ -177,8 +181,10 @@ function exportTeacher2Excel() {
   })
 }
 
-function loadItems({ page, itemsPerPage, sortBy }: { page: number; itemsPerPage: number; sortBy?: string[] | string | undefined }): void {
+function loadItems({ page: newPage, itemsPerPage: newItemsPerPage, sortBy }: { page: number; itemsPerPage: number; sortBy?: string[] | string | undefined }): void {
   loading.value = true
+  page.value = newPage
+  itemsPerPage.value = newItemsPerPage
   fetchTeachers()
   loading.value = false
 }

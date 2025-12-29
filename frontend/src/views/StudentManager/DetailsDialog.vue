@@ -1,57 +1,58 @@
 <template>
-  <v-dialog :model-value="modelValue" @update:model-value="updateModelValue" max-width="800px" scrollable
+  <v-dialog :model-value="modelValue" @update:model-value="updateModelValue" max-width="900px" scrollable
     transition="dialog-bottom-transition">
     <v-card class="rounded-lg elevation-4">
-      <!-- 1. 弹窗头部 (极简风格) -->
-      <v-card-title class="d-flex justify-space-between align-center py-2 px-4 bg-white border-b">
-        <div class="d-flex align-center text-subtitle-2 font-weight-bold text-grey-darken-3">
-          <!-- 图标替代姓名 -->
+      <v-card-title class="d-flex justify-space-between align-center py-3 px-4">
+        <div class="d-flex align-center text-subtitle-1 font-weight-bold">
           <v-icon icon="mdi-file-document-outline" color="primary" class="mr-2"></v-icon>
           课时明细
-          <!-- 姓名作为辅助信息 -->
-          <span class="text-caption text-medium-emphasis ml-1 font-weight-normal">({{ studentName }})</span>
+          <span class="text-caption text-medium-emphasis ml-2 font-weight-normal">({{ studentName }})</span>
         </div>
-        <v-btn icon="mdi-close" variant="text" size="small" color="grey" @click="close"></v-btn>
+        <v-btn icon="mdi-close" variant="text" size="small" density="comfortable" @click="close"></v-btn>
       </v-card-title>
 
-      <!-- 2. 课时变动记录表格 -->
+      <v-divider></v-divider>
+
       <v-card-text class="pa-0">
-        <v-data-table :headers="headers" :items="records" density="compact" hover fixed-header height="400px"
-          class="elevation-0">
-          <!-- 类型列：带颜色的Chip -->
+        <v-data-table-server :headers="headers" :items="records" :items-length="totalItems" :page="page"
+          :items-per-page="itemsPerPage" :loading="loading" @update:options="loadItems" density="compact" hover
+          fixed-header height="400px" class="elevation-0">
           <template v-slot:item.type="{ item }">
-            <v-chip :color="getTypeColor(item.type)" size="x-small" label class="font-weight-bold">
-              {{ item.type }}
+            <v-chip :color="getTypeColor(item.type)" size="x-small" label class="font-weight-bold" variant="tonal">
+              {{ getTypeLabel(item.type) }}
             </v-chip>
           </template>
 
-          <!-- 变动金额列：带颜色 -->
+          <template v-slot:item.tags="{ item }">
+            <div class="d-flex gap-1 flex-wrap" style="gap: 4px">
+              <v-chip v-for="(tag, index) in item.tags" :key="index" :color="tag.color" size="x-small" label
+                variant="outlined" class="font-weight-medium">
+                {{ tag.label }}
+              </v-chip>
+            </div>
+          </template>
+
           <template v-slot:item.amount="{ item }">
             <span :class="item.amount > 0 ? 'text-success' : 'text-error'" class="font-weight-bold">
               {{ item.amount > 0 ? '+' : '' }}{{ item.amount }}
             </span>
           </template>
 
-          <!-- 结余列：加粗 -->
-          <template v-slot:item.balanceAfter="{ item }">
-            <span class="font-weight-medium">{{ item.balanceAfter }}</span>
-          </template>
-
-          <!-- 无数据插槽 -->
           <template v-slot:no-data>
-            <div class="pa-4 text-center text-grey">暂无记录</div>
+            <div class="pa-4 text-center text-medium-emphasis">暂无记录</div>
           </template>
-        </v-data-table>
+        </v-data-table-server>
       </v-card-text>
 
-      <!-- 3. 底部操作栏 -->
-      <v-card-actions class="pa-2 bg-grey-lighten-4">
+      <v-divider></v-divider>
+
+      <v-card-actions class="pa-3">
         <v-spacer></v-spacer>
-        <v-btn color="grey-darken-1" size="small" variant="text" class="mr-2" @click="close">
+        <v-btn variant="text" class="mr-2" @click="close">
           关闭
         </v-btn>
-        <v-btn prepend-icon="mdi-export-variant" color="success" size="small" variant="elevated" elevation="1"
-          @click="onExport">
+        <v-btn prepend-icon="mdi-microsoft-excel" color="success" size="small" variant="outlined"
+          @click="() => onExport(studentId)">
           导出 Excel
         </v-btn>
       </v-card-actions>
@@ -61,43 +62,34 @@
 
 <script setup lang="ts">
 import { watch } from 'vue'
-import type { RecordItem, FetchDetailsFn } from '../../types/appModels'
-import { headers, useDetailsDialog } from './DetailsDialog.logic'
+import type { RecordItem } from '../../types/appModels'
+import { useDetailsDialog } from './DetailsDialog.logic'
 
-// === Props 定义 ===
 const props = defineProps<{
-  modelValue: boolean                // 控制显示/隐藏 (v-model)
-  studentId?: number                // 学生 ID（可选）
-  // 可选：父组件直接传入用于回退显示的数据
+  modelValue: boolean
+  studentId?: number
   studentName?: string
-  records?: RecordItem[]
-  // 可选：父组件注入实际的后端调用函数
-  fetchDetails?: FetchDetailsFn
 }>()
 
-// === Emits 定义 ===
 const emit = defineEmits(['update:modelValue', 'export', 'loaded'])
 
-// 使用逻辑层，传入可能的 fetcher
-const { studentName, records, close, updateModelValue, onExport, getTypeColor, load } = useDetailsDialog(emit as unknown as (event: string, ...args: any[]) => void, props.fetchDetails)
+const {
+  studentId, studentName, headers, records, page, itemsPerPage, totalItems, loading,
+  close, updateModelValue, onExport, getTypeColor, getTypeLabel, load, loadItems
+} = useDetailsDialog(emit)
 
-// 当 dialog 被打开时，尝试加载数据（优先使用 fetcher，否则使用 props 中的回退数据）
 watch(
   () => props.modelValue,
   (val) => {
     if (val) {
-      load(props.studentId, props.studentName, props.records).then(() => emit('loaded'))
+      studentId.value = Number(props.studentId)
+      load(props.studentId, props.studentName).then(() => emit('loaded'))
     }
   },
 )
 </script>
 
 <style scoped>
-.bg-grey-lighten-4 {
-  background-color: #f5f5f5 !important;
-}
-
-/* 强制让表格表头加粗，提升可读性 */
 :deep(.v-data-table--density-compact .v-data-table-header__content) {
   font-weight: bold;
 }

@@ -5,6 +5,7 @@ export interface StudentDTO {
   gender: string
   hours: number
   phone: string
+  remark: string
   teacher_id: number
   created_at: number
   updated_at: number
@@ -12,5 +13,15 @@ export interface StudentDTO {
 
 export interface GetTeacherListResponse {
   teachers: TeacherDTO[]
+  total: number
+}
+
+export interface GetStudentListResponse {
+  students: StudentDTO[]
+  total: number
+}
+
+export interface GetOrdersByStudentIdResponse {
+  orders: OrderDTO[]
   total: number
 }

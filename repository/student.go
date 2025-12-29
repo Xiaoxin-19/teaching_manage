@@ -3,12 +3,18 @@ package repository
 import (
 	"context"
 	"teaching_manage/dao"
+	"teaching_manage/entity"
+
+	"gorm.io/gorm"
 )
 
 type StudentRepository interface {
-	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]dao.Student, error)
-	GetStudentByID(ctx context.Context, id uint) (*dao.Student, error)
-	UpdateStudentByID(ctx context.Context, stu *dao.Student) error
+	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]entity.Student, int64, error)
+	GetStudentByID(ctx context.Context, id uint) (*entity.Student, error)
+	UpdateStudentByID(ctx context.Context, stu *entity.Student) error
+	CreateStudent(ctx context.Context, stu *entity.Student) error
+	DeleteStudentByID(ctx context.Context, id uint) error
+	UpdateStudentHoursByID(ctx context.Context, id uint, diff int) error
 }
 
 type StudentRepositoryImpl struct {
@@ -18,22 +24,74 @@ type StudentRepositoryImpl struct {
 func NewStudentRepository(dao dao.StudentDao) StudentRepository {
 	return &StudentRepositoryImpl{dao: dao}
 }
-func (sr StudentRepositoryImpl) GetStudentList(ctx context.Context, key string, offset int, limit int) ([]dao.Student, error) {
-	students, err := sr.dao.GetStudentList(ctx, key, offset, limit)
+func (sr StudentRepositoryImpl) GetStudentList(ctx context.Context, key string, offset int, limit int) ([]entity.Student, int64, error) {
+	students, total, err := sr.dao.GetStudentList(ctx, key, offset, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return students, nil
+	var result []entity.Student
+	for _, stu := range students {
+		result = append(result, entity.Student{
+			ID:        stu.ID,
+			CreatedAt: stu.CreatedAt.UnixMilli(),
+			UpdatedAt: stu.UpdatedAt.UnixMilli(),
+			Name:      stu.Name,
+			Gender:    stu.Gender,
+			Hours:     stu.Hours,
+			Phone:     stu.Phone,
+			Remark:    stu.Remark,
+			TeacherID: stu.TeacherID,
+		})
+	}
+	return result, total, nil
 }
 
-func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*dao.Student, error) {
+func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*entity.Student, error) {
 	student, err := sr.dao.GetStudentByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	return student, nil
+	return &entity.Student{
+		ID:        student.ID,
+		Name:      student.Name,
+		Gender:    student.Gender,
+		Hours:     student.Hours,
+		Phone:     student.Phone,
+		TeacherID: student.TeacherID,
+		Remark:    student.Remark,
+		CreatedAt: student.CreatedAt.UnixMilli(),
+		UpdatedAt: student.UpdatedAt.UnixMilli(),
+	}, nil
 }
 
-func (sr StudentRepositoryImpl) UpdateStudentByID(ctx context.Context, stu *dao.Student) error {
-	return sr.dao.UpdateStudent(ctx, stu)
+func (sr StudentRepositoryImpl) UpdateStudentByID(ctx context.Context, stu *entity.Student) error {
+	return sr.dao.UpdateStudent(ctx, &dao.Student{
+		Model:     gorm.Model{ID: stu.ID},
+		Name:      stu.Name,
+		Gender:    stu.Gender,
+		Hours:     stu.Hours,
+		Phone:     stu.Phone,
+		TeacherID: stu.TeacherID,
+		Remark:    stu.Remark,
+	})
+}
+
+func (sr StudentRepositoryImpl) UpdateStudentHoursByID(ctx context.Context, id uint, diff int) error {
+	return sr.dao.UpdateStudentHours(ctx, id, diff)
+}
+
+func (sr StudentRepositoryImpl) CreateStudent(ctx context.Context, stu *entity.Student) error {
+	return sr.dao.CreateStudent(ctx, &dao.Student{
+		Model:     gorm.Model{},
+		Name:      stu.Name,
+		Gender:    stu.Gender,
+		Hours:     stu.Hours,
+		Phone:     stu.Phone,
+		TeacherID: stu.TeacherID,
+		Remark:    stu.Remark,
+	})
+}
+
+func (sr StudentRepositoryImpl) DeleteStudentByID(ctx context.Context, id uint) error {
+	return sr.dao.DeleteStudent(ctx, id)
 }
