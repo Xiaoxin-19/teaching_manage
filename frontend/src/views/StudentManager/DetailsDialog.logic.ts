@@ -17,7 +17,7 @@ export const headers: any = [
 
 // studentId moved into the useDetailsDialog composable to avoid shared state across instances
 
-const { success, error } = useToast()
+const { success, error, info } = useToast()
 const studentName = ref('')
 
 // loadItems moved into the useDetailsDialog composable so it can reference the local studentId ref
@@ -30,6 +30,10 @@ function exportToExcel(studentId?: number) {
   Dispatch("order_manager:export_orders_by_student_id", JSON.stringify(reqData)).then((result: any) => {
     const res = JSON.parse(result) as ResponseWrapper<string>
     if (res.code === 200) {
+      if (res.data === 'cancel') {
+        info('已取消导出', 'top-right')
+        return
+      }
       success('导出成功，文件已保存至: ' + res.data, "top-right")
     } else {
       error('导出失败: ' + res.message, "top-right")
