@@ -12,6 +12,7 @@ type CreateStudentRequest struct {
 	Hours     int    `json:"hours" validate:"gte=0"`
 	Phone     string `json:"phone" validate:"max=20"`
 	TeacherID uint   `json:"teacher_id" validate:"required"`
+	Remark    string `json:"remark" validate:"max=255"`
 }
 
 type UpdateStudentRequest struct {
@@ -20,6 +21,7 @@ type UpdateStudentRequest struct {
 	Gender    string `json:"gender" validate:"required,oneof=male female"`
 	Phone     string `json:"phone" validate:"max=20"`
 	TeacherID uint   `json:"teacher_id" validate:"required"`
+	Remark    string `json:"remark" validate:"max=255"`
 }
 
 type DeleteStudentRequest struct {

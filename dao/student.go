@@ -29,6 +29,7 @@ type Student struct {
 	Hours     int    `gorm:"column:hours;default:0;comment:课时数" json:"hours"`
 	Phone     string `gorm:"column:phone;comment:学生电话号码" json:"phone"`
 	TeacherID uint   `gorm:"column:teacher_id;not null;comment:授课老师" json:"teacher_id"`
+	Remark    string `gorm:"column:remark;comment:备注" json:"remark"`
 }
 
 func (s StudentGormDao) CreateStudent(ctx context.Context, stu *Student) error {
@@ -36,7 +37,13 @@ func (s StudentGormDao) CreateStudent(ctx context.Context, stu *Student) error {
 }
 
 func (s StudentGormDao) UpdateStudent(ctx context.Context, stu *Student) error {
-	_, err := gorm.G[Student](s.db).Where("id = ?", stu.ID).Updates(ctx, *stu)
+	_, err := gorm.G[Student](s.db).Where("id = ?", stu.ID).Select(
+		"name",
+		"gender",
+		"phone",
+		"teacher_id",
+		"remark",
+	).Updates(ctx, *stu)
 	if err != nil {
 		return err
 	}

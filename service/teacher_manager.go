@@ -94,7 +94,7 @@ func (tm TeacherManager) ExportTeacher2Excel(ctx context.Context) (string, error
 		return "", err
 	}
 	if filepath == "" {
-		return "", nil
+		return "cancel", nil
 	}
 
 	teachers, _, err := tm.repo.GetTeacherList(ctx, "", 0, 1000000)
@@ -103,7 +103,7 @@ func (tm TeacherManager) ExportTeacher2Excel(ctx context.Context) (string, error
 	}
 
 	if err := tm.exportTeachersToExcel(filepath, teachers); err != nil {
-		return "", err
+		return "", fmt.Errorf("导出失败:请检查文件是否被占用或有读写权限")
 	}
 	return filepath, nil
 }

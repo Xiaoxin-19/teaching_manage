@@ -42,6 +42,7 @@ func (sm StudentManager) CreateStudent(ctx context.Context, req *requestx.Create
 		Hours:     req.Hours,
 		Phone:     req.Phone,
 		TeacherID: req.TeacherID,
+		Remark:    req.Remark,
 	})
 }
 
@@ -52,6 +53,7 @@ func (sm StudentManager) UpdateStudent(ctx context.Context, req *requestx.Update
 		Gender:    req.Gender,
 		Phone:     req.Phone,
 		TeacherID: req.TeacherID,
+		Remark:    req.Remark,
 	})
 }
 
@@ -69,7 +71,7 @@ func (sm StudentManager) Export2Excel(ctx context.Context) (string, error) {
 		return "", err
 	}
 	if filepath == "" {
-		return "cancelled", nil
+		return "cancel", nil
 	}
 
 	stus, _, err := sm.repo.GetStudentList(ctx, "", 0, -1)
@@ -97,14 +99,14 @@ func (sm StudentManager) Export2Excel(ctx context.Context) (string, error) {
 	// export to excel
 	err = sm.exportToExcel(filepath, stus)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("导出失败:请检查文件是否被占用或有读写权限")
 	}
 
 	return filepath, nil
 }
 
 func (sm StudentManager) exportToExcel(path string, students []entity.Student) error {
-	headers := []string{"学生姓名", "性别", "课时数", "电话号码", "授课老师"}
+	headers := []string{"学生姓名", "性别", "课时数", "电话号码", "授课老师", "备注"}
 	rows := make([][]string, 0, len(students))
 	for _, s := range students {
 		rows = append(rows, []string{
@@ -113,6 +115,7 @@ func (sm StudentManager) exportToExcel(path string, students []entity.Student) e
 			fmt.Sprintf("%d", s.Hours),
 			s.Phone,
 			s.TeacherName,
+			s.Remark,
 		})
 	}
 	return pkg.ExportToExcel(path, headers, rows)

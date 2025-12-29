@@ -36,11 +36,14 @@ export function useModifyStudent(props: { isEdit: boolean, initialData?: Student
   }
 
   const save = async () => {
-    if (!formRef.value) return
+    if (!formRef.value) return false
     const { valid } = await formRef.value.validate()
     if (valid) {
       emit('save', formData.value)
+      close()
+      return true
     }
+    return false
   }
 
   return {

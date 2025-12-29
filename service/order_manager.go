@@ -103,7 +103,7 @@ func (om OrderManager) Export2ExcelByID(ctx context.Context, req *requestx.Expor
 		return "", err
 	}
 	if filepath == "" {
-		return "cancelled", nil
+		return "cancel", nil
 	}
 
 	// get orders
@@ -120,7 +120,7 @@ func (om OrderManager) Export2ExcelByID(ctx context.Context, req *requestx.Expor
 	// export to excel
 	err = om.exportToExcel(filepath, student.Name, orders)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("导出失败:请检查文件是否被占用或有读写权限")
 	}
 	return filepath, nil
 }

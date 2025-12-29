@@ -5,6 +5,7 @@ export interface StudentDTO {
   gender: string
   hours: number
   phone: string
+  remark: string
   teacher_id: number
   created_at: number
   updated_at: number

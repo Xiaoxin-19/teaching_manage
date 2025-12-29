@@ -70,7 +70,7 @@ function loadStudents() {
             balance: item.hours,
             gender: item.gender,
             teacher_id: item.teacher_id,
-            note: '', // 后端暂无 remark 字段
+            note: item.remark, // 后端暂无 remark 字段
           }))
           totalItems.value = resp.data.total // 需要后端支持返回总数
         } else {
@@ -153,6 +153,89 @@ const headers: any = [
 // --- 辅助函数 ---
 const getStatusColor = (bal: number) => bal < 0 ? 'error' : (bal < 5 ? 'warning' : 'success')
 const getStatusText = (bal: number) => bal < 0 ? '欠费' : (bal < 5 ? '余额不足' : '正常')
+
+
+function createStudent(data: StudentData) {
+  let reqData = {
+    Name: data.name,
+    Gender: data.gender,
+    Hours: data.balance,
+    Phone: data.phone,
+    Teacher_Id: data.teacher_id,
+    Remark: data.note,
+  }
+
+  console.log('Creating student with data:', reqData)
+  Dispatch('student_manager:create_student', JSON.stringify(reqData))
+    .then((result: any) => {
+      const resp = JSON.parse(result) as ResponseWrapper<string>
+      if (resp.code === 200) {
+        loadData()
+        success('添加成功', 'top-right')
+      } else {
+        console.error('添加学生失败:', resp.message)
+        toast.error('添加学生失败: ' + resp.message, 'top-right')
+      }
+    })
+}
+
+function updateStudent(data: StudentData) {
+  let reqData = {
+    Id: data.id,
+    Name: data.name,
+    Gender: data.gender,
+    Hours: data.balance,
+    Phone: data.phone,
+    Teacher_Id: data.teacher_id,
+    Remark: data.note,
+  }
+  console.log('Updating student with data:', reqData)
+  Dispatch('student_manager:update_student', JSON.stringify(reqData))
+    .then((result: any) => {
+      const resp = JSON.parse(result) as ResponseWrapper<string>
+      if (resp.code === 200) {
+        loadData()
+        success('更新成功', 'top-right')
+      } else {
+        console.error('更新学生失败:', resp.message)
+        toast.error('更新学生失败: ' + resp.message, 'top-right')
+      }
+    })
+}
+
+function deleteStudent(item: StudentItem) {
+  console.log('Deleting student with ID:', item.id)
+  Dispatch('student_manager:delete_student', JSON.stringify({ Id: item.id }))
+    .then((result: any) => {
+      const resp = JSON.parse(result) as ResponseWrapper<string>
+      if (resp.code === 200) {
+        loadData()
+        success('删除成功', 'top-right')
+      } else {
+        console.error('删除学生失败:', resp.message)
+        toast.error('删除学生失败: ' + resp.message, 'top-right')
+      }
+    })
+}
+
+function exportStudents2Excel() {
+  console.log('Exporting student data...')
+  Dispatch('student_manager:export_students', '').then((result: any) => {
+    console.log('Received export response:' + result)
+    const resp = JSON.parse(result) as ResponseWrapper<string>
+    if (resp.code === 200) {
+      if (resp.data === 'cancel') {
+        info('已取消导出', 'top-right')
+        return
+      }
+      success('导出成功', 'top-right')
+    } else {
+      console.error('导出学生数据失败:', resp.message)
+      toast.error('导出学生数据失败: ' + resp.message, 'top-right')
+    }
+  })
+}
+
 export function useStudentManage() {
 
 
@@ -210,56 +293,17 @@ export function useStudentManage() {
   const openDelete = async (item: StudentItem) => {
     const ok = await confirmDelete(item.name)
     if (ok) {
-      try {
-        // TODO: API - 调用后端删除学生
-        // await window.go.main.App.DeleteStudent(item.id)
-
-        // 前端移除 (实际应重新加载列表)
-        const idx = students.value.findIndex(s => s.id === item.id)
-        if (idx > -1) students.value.splice(idx, 1)
-
-        success('删除成功')
-      } catch (e) {
-        error('删除失败')
-      }
+      deleteStudent(item)
     }
   }
 
   const saveStudent = async (data: StudentData) => {
     try {
       if (editedIndex.value > -1) {
-        // TODO: API - 更新学生
-        // await window.go.main.App.UpdateStudent(data)
-
-        // 前端模拟更新
-        if (students.value[editedIndex.value]) {
-          Object.assign(students.value[editedIndex.value], data)
-        }
-        success('更新成功')
+        updateStudent(data)
       } else {
-        let reqData = {
-          Name: data.name,
-          Gender: data.gender,
-          Hours: data.balance,
-          Phone: data.phone,
-          Teacher_Id: data.teacher_id,
-          Note: data.note,
-        }
-
-        console.log('Creating student with data:', reqData)
-        Dispatch('student_manager:create_student', JSON.stringify(reqData))
-          .then((result: any) => {
-            const resp = JSON.parse(result) as ResponseWrapper<string>
-            if (resp.code === 200) {
-              loadData()
-              success('添加成功')
-            } else {
-              console.error('添加学生失败:', resp.message)
-              toast.error('添加学生失败: ' + resp.message, 'top-right')
-            }
-          })
+        createStudent(data)
       }
-      dialog.value = false
     } catch (e) {
       error('操作失败')
     }
@@ -286,14 +330,7 @@ export function useStudentManage() {
   }
 
   const exportStudents = async () => {
-    try {
-      info('正在导出学生数据...')
-      // TODO: API - 调用后端导出 Excel
-      // await window.go.main.App.ExportStudentList()
-      success('导出成功')
-    } catch (e) {
-      error('导出失败')
-    }
+    exportStudents2Excel()
   }
 
   return {

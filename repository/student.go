@@ -38,6 +38,7 @@ func (sr StudentRepositoryImpl) GetStudentList(ctx context.Context, key string, 
 			Gender:    stu.Gender,
 			Hours:     stu.Hours,
 			Phone:     stu.Phone,
+			Remark:    stu.Remark,
 			TeacherID: stu.TeacherID,
 		})
 	}
@@ -56,6 +57,7 @@ func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*e
 		Hours:     student.Hours,
 		Phone:     student.Phone,
 		TeacherID: student.TeacherID,
+		Remark:    student.Remark,
 		CreatedAt: student.CreatedAt.UnixMilli(),
 		UpdatedAt: student.UpdatedAt.UnixMilli(),
 	}, nil
@@ -69,6 +71,7 @@ func (sr StudentRepositoryImpl) UpdateStudentByID(ctx context.Context, stu *enti
 		Hours:     stu.Hours,
 		Phone:     stu.Phone,
 		TeacherID: stu.TeacherID,
+		Remark:    stu.Remark,
 	})
 }
 
@@ -80,6 +83,7 @@ func (sr StudentRepositoryImpl) CreateStudent(ctx context.Context, stu *entity.S
 		Hours:     stu.Hours,
 		Phone:     stu.Phone,
 		TeacherID: stu.TeacherID,
+		Remark:    stu.Remark,
 	})
 }
 
