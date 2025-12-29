@@ -12,6 +12,7 @@ type StudentDao interface {
 	DeleteStudent(ctx context.Context, id uint) error
 	GetStudentByID(ctx context.Context, id uint) (*Student, error)
 	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error)
+	UpdateStudentHours(ctx context.Context, id uint, hours int) error
 }
 
 type StudentGormDao struct {
@@ -44,6 +45,14 @@ func (s StudentGormDao) UpdateStudent(ctx context.Context, stu *Student) error {
 		"teacher_id",
 		"remark",
 	).Updates(ctx, *stu)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s StudentGormDao) UpdateStudentHours(ctx context.Context, id uint, diff int) error {
+	_, err := gorm.G[Student](s.db).Where("id = ?", id).Update(ctx, "hours", gorm.Expr("hours + ?", diff))
 	if err != nil {
 		return err
 	}

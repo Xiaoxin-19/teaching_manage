@@ -116,7 +116,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, name string, payload json.Raw
 	d.mu.RUnlock()
 
 	if !ok {
-		return "", ErrHandlerNotFound
+		return wraper.NewBadResponse("handler not found").ToJSON(), ErrHandlerNotFound
 	}
 
 	// call the handler (fn) now that Pre hooks have completed

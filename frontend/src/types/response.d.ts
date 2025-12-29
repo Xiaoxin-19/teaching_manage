@@ -20,3 +20,8 @@ export interface GetStudentListResponse {
   students: StudentDTO[]
   total: number
 }
+
+export interface GetOrdersByStudentIdResponse {
+  orders: OrderDTO[]
+  total: number
+}

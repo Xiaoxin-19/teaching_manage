@@ -14,6 +14,7 @@ type StudentRepository interface {
 	UpdateStudentByID(ctx context.Context, stu *entity.Student) error
 	CreateStudent(ctx context.Context, stu *entity.Student) error
 	DeleteStudentByID(ctx context.Context, id uint) error
+	UpdateStudentHoursByID(ctx context.Context, id uint, diff int) error
 }
 
 type StudentRepositoryImpl struct {
@@ -73,6 +74,10 @@ func (sr StudentRepositoryImpl) UpdateStudentByID(ctx context.Context, stu *enti
 		TeacherID: stu.TeacherID,
 		Remark:    stu.Remark,
 	})
+}
+
+func (sr StudentRepositoryImpl) UpdateStudentHoursByID(ctx context.Context, id uint, diff int) error {
+	return sr.dao.UpdateStudentHours(ctx, id, diff)
 }
 
 func (sr StudentRepositoryImpl) CreateStudent(ctx context.Context, stu *entity.Student) error {

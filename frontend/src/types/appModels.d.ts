@@ -22,7 +22,7 @@ export interface StudentItem {
   gender: string;
   teacher_id: number | string | null;
   note: string;
-  // 可以根据后端返回增加 create_time 等字段
+  lastModified?: string;
 }
 
 export interface StudentData {
@@ -33,6 +33,7 @@ export interface StudentData {
   gender: string;
   teacher_id: number | string | null;
   note: string;
+  lastModified?: string;
 }
 
 export interface RecordItem {
@@ -40,7 +41,6 @@ export interface RecordItem {
   date: string;
   type: string;
   amount: number;
-  balanceAfter: number;
   remark: string;
 }
 
@@ -56,4 +56,14 @@ export type FetchDetailsFn = (studentId: number) => Promise<{ data: RecordItem[]
 export interface OrderTag {
   label: string;
   color: string;
+}
+
+export interface OrderDTO {
+  id: number;
+  active: boolean;
+  type: string;
+  hours: number;
+  comment: string;
+  created_at: number;
+  updated_at: number;
 }

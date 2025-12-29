@@ -7,6 +7,7 @@ import (
 	"teaching_manage/entity"
 	"teaching_manage/pkg"
 	"teaching_manage/pkg/dispatcher"
+	"teaching_manage/pkg/logger"
 	"teaching_manage/repository"
 	requestx "teaching_manage/service/request"
 	responsex "teaching_manage/service/response"
@@ -27,7 +28,7 @@ func NewOrderManager(repo repository.OrderRepository, stuRepo repository.Student
 }
 
 func (om OrderManager) CreateOrder(ctx context.Context, order *requestx.CreateOrderRequest) (string, error) {
-
+	logger.Info("Creating order", logger.UInt("student_id", order.StudentID), logger.Int("hours", order.Hours), logger.String("comment", order.Comment))
 	db := dao.GetDB()
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -41,12 +42,19 @@ func (om OrderManager) CreateOrder(ctx context.Context, order *requestx.CreateOr
 		if err != nil {
 			return err
 		}
-		student.Hours += order.Hours
-		err = strRepo.UpdateStudentByID(ctx, student)
+
+		logger.Debug("student info:", logger.String("name", student.Name), logger.UInt("id", student.ID), logger.Int("current_hours", student.Hours))
+		err = strRepo.UpdateStudentHoursByID(ctx, student.ID, order.Hours)
 		if err != nil {
 			return err
 		}
 
+		updatedStudent, err := strRepo.GetStudentByID(ctx, student.ID)
+		if err != nil {
+			return err
+		}
+
+		logger.Debug("updated student hours:", logger.String("name", updatedStudent.Name), logger.UInt("id", updatedStudent.ID), logger.Int("new_hours", updatedStudent.Hours))
 		eOrder := entity.Order{
 			Student: entity.Student{ID: order.StudentID},
 			Hours:   order.Hours,
@@ -57,14 +65,16 @@ func (om OrderManager) CreateOrder(ctx context.Context, order *requestx.CreateOr
 		// create order record
 		err = oRepo.CreateOrder(ctx, eOrder)
 		if err != nil {
+			logger.Error("failed to create order", logger.ErrorType(err))
 			return err
 		}
 
+		logger.Info("order created successfully", logger.UInt("student_id", order.StudentID), logger.Int("hours", order.Hours))
 		return nil
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("create order failed")
+		return "create order failed", fmt.Errorf("create order failed")
 	}
 	return "order created", nil
 }
@@ -132,7 +142,7 @@ func (om OrderManager) exportToExcel(path string, stuName string, orders []entit
 	for _, order := range orders {
 		rows = append(rows, []string{
 			stuName,
-			responsex.OrderDTOTypeToString(order.Hours),
+			responsex.OrderDTOTypeToZhString(order.Hours),
 			fmt.Sprintf("%d", order.Hours),
 			order.CreatedAt.Format("2006-01-02 15:04:05"),
 			order.Comment,

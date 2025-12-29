@@ -2,8 +2,6 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import type { ResponseWrapper, StudentData, StudentItem, TeacherOption } from '../../types/appModels'
 import { useToast } from '../../composables/useToast'
 import { useConfirm } from '../../composables/useConfirm'
-import { categorizeOrderTags } from '../../utils/classification'
-import type { OrderTag } from '../../types/appModels'
 import { Dispatch } from '../../../wailsjs/go/main/App'
 import { GetStudentListResponse, GetTeacherListResponse, StudentDTO } from '../../types/response'
 import { LogError } from '../../../wailsjs/runtime/runtime'
@@ -32,7 +30,6 @@ const editedItem = reactive<StudentData>({ ...defaultItem })
 const editedIndex = ref(-1)
 
 const rechargeItem = reactive<StudentData>({ ...defaultItem })
-const rechargeForm = reactive({ amount: 10, note: '' })
 
 // 列表数据 (初始化为空)
 const students = ref<StudentItem[]>([])
@@ -71,13 +68,13 @@ function loadStudents() {
             gender: item.gender,
             teacher_id: item.teacher_id,
             note: item.remark, // 后端暂无 remark 字段
+            lastModified: new Date(item.updated_at).toLocaleString(),
           }))
           totalItems.value = resp.data.total // 需要后端支持返回总数
         } else {
           console.error('获取学生列表失败:', resp.message)
           toast.error('获取学生列表失败: ' + resp.message, 'top-right')
         }
-
       })
 
     loading.value = false
@@ -144,10 +141,10 @@ onMounted(() => {
 
 // --- 表头定义 ---
 const headers: any = [
-  { title: '姓名', key: 'name', align: 'center', sortable: false, width: '120px' },
-  { title: '剩余课时', key: 'balance', sortable: false, width: '120px' },
-  { title: '状态', key: 'status', sortable: false, width: '100px' },
-  { title: '操作', key: 'actions', sortable: false, align: 'end', width: '180px' },
+  { title: '姓名', key: 'name', align: 'center', sortable: false },
+  { title: '剩余课时', key: 'balance', sortable: false, align: 'center' },
+  { title: '状态', key: 'status', sortable: false },
+  { title: '操作', key: 'actions', sortable: false, align: 'center' },
 ]
 
 // --- 辅助函数 ---
@@ -236,32 +233,35 @@ function exportStudents2Excel() {
   })
 }
 
+function createOrder(data: { studentId: number, amount: number, note: string }) {
+  console.log('Processing recharge with data:', data)
+
+  let reqData = {
+    Student_Id: data.studentId,
+    Hours: data.amount,
+    Comment: data.note,
+  };
+
+  Dispatch('order_manager:create_order', JSON.stringify(reqData)).then((result: any) => {
+    console.log('Received recharge response:' + result)
+    const resp = JSON.parse(result) as ResponseWrapper<string>
+    if (resp.code === 200) {
+      const target = students.value.find(s => s.id === data.studentId)
+      if (target) {
+        target.balance += data.amount
+        success('课时调整成功')
+      }
+      dialogRecharge.value = false
+      loadData()
+    } else {
+      console.error('课时调整失败:', resp.message)
+      toast.error('课时调整失败: ' + resp.message, 'top-right')
+    }
+  })
+}
+
+
 export function useStudentManage() {
-
-
-
-
-  // --- 充值逻辑计算 ---
-  const rechargeType = computed(() => {
-    if (!rechargeForm) return '无变动'
-    const amt = Number(rechargeForm.amount)
-    if (amt > 0) return '充值/赠送'
-    if (amt < 0) return '退费/扣减'
-    return '无变动'
-  })
-
-  const rechargeColor = computed(() => {
-    if (!rechargeForm) return 'grey'
-    const amt = Number(rechargeForm.amount)
-    if (amt > 0) return 'success'
-    if (amt < 0) return 'error'
-    return 'grey'
-  })
-
-  const inferredTags = computed<OrderTag[]>(() => {
-    if (!rechargeForm) return []
-    return categorizeOrderTags(rechargeForm.note);
-  });
 
   // --- 操作方法 ---
   const openAdd = () => {
@@ -280,8 +280,6 @@ export function useStudentManage() {
 
   const openRecharge = (item: StudentItem) => {
     Object.assign(rechargeItem, item)
-    rechargeForm.amount = 10
-    rechargeForm.note = ''
     dialogRecharge.value = true
   }
 
@@ -309,24 +307,8 @@ export function useStudentManage() {
     }
   }
 
-  const saveRecharge = async () => {
-    try {
-      // TODO: API - 提交充值记录
-      // await window.go.main.App.AddOrder({
-      //   student_id: rechargeItem.id,
-      //   amount: Number(rechargeForm.amount),
-      //   comment: rechargeForm.note
-      // })
-
-      const target = students.value.find(s => s.id === rechargeItem.id)
-      if (target) {
-        target.balance += Number(rechargeForm.amount)
-        success('课时调整成功')
-      }
-      dialogRecharge.value = false
-    } catch (e) {
-      error('充值失败')
-    }
+  const saveRecharge = async (data: { studentId: number, amount: number, note: string }) => {
+    createOrder(data)
   }
 
   const exportStudents = async () => {
@@ -340,10 +322,9 @@ export function useStudentManage() {
     totalItems,
     loading,
     dialog, dialogRecharge, dialogDetails,
-    editedIndex, editedItem, rechargeItem, rechargeForm,
+    editedIndex, editedItem, rechargeItem,
     students, teacherOptions,
     headers,
-    rechargeType, rechargeColor, inferredTags,
     loadItems,
     getStatusColor, getStatusText,
     openAdd, openEdit, openRecharge, openDetails, openDelete,

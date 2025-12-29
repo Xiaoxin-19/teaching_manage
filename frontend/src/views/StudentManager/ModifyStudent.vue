@@ -65,7 +65,11 @@
 
       <v-divider></v-divider>
 
-      <v-card-actions class="pa-3">
+      <v-card-actions class="pa-3 d-flex align-center">
+        <div v-if="isEdit && formData.lastModified" class="text-caption text-medium-emphasis ml-2 d-flex align-center">
+          <v-icon icon="mdi-clock-outline" size="x-small" class="mr-1"></v-icon>
+          上次编辑: {{ formData.lastModified }}
+        </div>
         <v-spacer></v-spacer>
         <v-btn variant="text" class="mr-2" @click="close">取消</v-btn>
         <v-btn prepend-icon="mdi-check" color="primary" variant="elevated" elevation="1" @click="save">

@@ -4,10 +4,19 @@ import type { OrderTag } from '../types/appModels'
  * 课时记录智能多标签分类算法 (v3.0)
  * 返回一个标签数组，支持复合场景识别
  */
-export const categorizeOrderTags = (comment: string): OrderTag[] => {
-  if (!comment) return [];
-  const str = String(comment).trim();
+export const categorizeOrderTags = (comment: string, amount: number = 0): OrderTag[] => {
+  const str = String(comment || '').trim();
   const tags: OrderTag[] = [];
+
+  // 如果没有备注，根据金额判断
+  if (!str) {
+    if (amount > 0) {
+      tags.push({ label: '常规充值', color: 'success' });
+    } else if (amount < 0) {
+      tags.push({ label: '课时扣减', color: 'warning' });
+    }
+    return tags;
+  }
 
   // --- 关键词定义 ---
   const keywordsCorrection = ['退费', '退款', '打错', '记错', '多记', '少记', '修正', '调整', '误操作', '补录', '撤销', '退回'];

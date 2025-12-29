@@ -21,3 +21,10 @@ func OrderDTOTypeToString(hours int) string {
 	}
 	return "decrease"
 }
+
+func OrderDTOTypeToZhString(hours int) string {
+	if hours >= 0 {
+		return "充值"
+	}
+	return "扣费"
+}
