@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	valdiatex "teaching_manage/pkg/valdiate"
 	"teaching_manage/pkg/wraper"
@@ -116,7 +117,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, name string, payload json.Raw
 	d.mu.RUnlock()
 
 	if !ok {
-		return wraper.NewBadResponse("handler not found").ToJSON(), ErrHandlerNotFound
+		return wraper.NewBadResponse(fmt.Sprintf("handler [%s] not found ", name)).ToJSON(), ErrHandlerNotFound
 	}
 
 	// call the handler (fn) now that Pre hooks have completed
