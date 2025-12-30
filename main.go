@@ -32,8 +32,6 @@ func main() {
 		panic(err)
 	}
 
-	dao.InitDB(db)
-
 	// Setup teacher manager
 	teacherDao := dao.NewTeacherDao(db)
 	teacherRepository := repository.NewTeacherRepository(teacherDao)
@@ -57,7 +55,7 @@ func main() {
 	// Create application with options
 	err = wails.Run(&options.App{
 		Title:  "teaching_manage",
-		Width:  1224, 
+		Width:  1224,
 		Height: 868,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
