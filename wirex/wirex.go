@@ -38,6 +38,6 @@ func InitLogger() logger.Logger {
 		zap.DebugLevel,
 	)
 
-	l := zap.New(core, zap.AddCaller())
+	l := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 	return logger.NewZapLogger(l)
 }

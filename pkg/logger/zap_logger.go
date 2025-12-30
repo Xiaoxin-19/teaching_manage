@@ -8,7 +8,7 @@ type ZapLogger struct {
 
 func NewZapLogger(l *zap.Logger) *ZapLogger {
 	return &ZapLogger{
-		zapLog: l,
+		zapLog: l.WithOptions(zap.AddCallerSkip(1)),
 	}
 }
 
