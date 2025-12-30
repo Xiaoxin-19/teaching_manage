@@ -110,6 +110,9 @@ function createTeacher(data: TeacherData) {
     if (response.code === 200) {
       toast.success('教师创建成功', 'top-right')
       fetchTeachers()
+    } else if (response.message.includes('duplicate')) {
+      console.error('添加教师失败: 教师姓名已存在')
+      toast.error('添加教师失败: 教师姓名已存在', 'top-right')
     } else {
       console.error('创建教师失败:', response.message)
       toast.error('教师创建失败: ' + response.message, 'top-right')

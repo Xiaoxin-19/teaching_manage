@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 )
@@ -11,6 +12,7 @@ type StudentDao interface {
 	UpdateStudent(ctx context.Context, stu *Student) error
 	DeleteStudent(ctx context.Context, id uint) error
 	GetStudentByID(ctx context.Context, id uint) (*Student, error)
+	GetStudentByIdWithDeleted(ctx context.Context, id uint) (*Student, error)
 	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error)
 	UpdateStudentHours(ctx context.Context, id uint, hours int) error
 }
@@ -36,7 +38,11 @@ type Student struct {
 }
 
 func (s StudentGormDao) CreateStudent(ctx context.Context, stu *Student) error {
-	return gorm.G[Student](s.db).Create(ctx, stu)
+	err := gorm.G[Student](s.db).Create(ctx, stu)
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return ErrDuplicatedKey
+	}
+	return err
 }
 
 func (s StudentGormDao) UpdateStudent(ctx context.Context, stu *Student) error {
@@ -70,13 +76,21 @@ func (s StudentGormDao) DeleteStudent(ctx context.Context, id uint) error {
 }
 
 func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*Student, error) {
-	stu, err := gorm.G[Student](s.db.Unscoped()).Where("id = ?", id).Preload("Teacher", nil).First(ctx)
+	stu, err := gorm.G[Student](s.db).Where("id = ?", id).Preload("Teacher", nil).First(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return &stu, nil
 }
 
+// GetStudentByIdWithDeleted retrieves a student by ID, including those that have been soft-deleted.
+func (s StudentGormDao) GetStudentByIdWithDeleted(ctx context.Context, id uint) (*Student, error) {
+	stu, err := gorm.G[Student](s.db.Unscoped()).Where("id = ?", id).Preload("Teacher", nil).First(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &stu, nil
+}
 func (s StudentGormDao) GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error) {
 	var students []Student
 	var total int64

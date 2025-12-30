@@ -14,7 +14,7 @@
       <v-divider></v-divider>
 
       <v-card-text class="pa-4">
-        <v-form ref="formRef">
+        <v-form ref="formRef" v-model="isFormValid">
           <v-row dense>
             <v-col cols="12" sm="6">
               <v-text-field v-model="formData.name" label="学生姓名" variant="outlined" density="compact"
@@ -94,5 +94,5 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue', 'save'])
 
-const { formData, close, save, isSubmitDisabled } = useModifyStudent(props as any, emit)
+const { formData, close, save, isSubmitDisabled, formRef, isFormValid } = useModifyStudent(props as any, emit)
 </script>

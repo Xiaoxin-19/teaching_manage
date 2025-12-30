@@ -15,6 +15,7 @@ type StudentRepository interface {
 	CreateStudent(ctx context.Context, stu *entity.Student) error
 	DeleteStudentByID(ctx context.Context, id uint) error
 	UpdateStudentHoursByID(ctx context.Context, id uint, diff int) error
+	GetStudentByIdWithDeleted(ctx context.Context, id uint) (*entity.Student, error)
 }
 
 type StudentRepositoryImpl struct {
@@ -61,6 +62,34 @@ func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*e
 		Remark:    student.Remark,
 		CreatedAt: student.CreatedAt.UnixMilli(),
 		UpdatedAt: student.UpdatedAt.UnixMilli(),
+		Teacher: entity.Teacher{
+			ID:        student.Teacher.ID,
+			Name:      student.Teacher.Name,
+			DeletedAt: student.Teacher.DeletedAt.Time.UnixMilli(),
+		},
+	}, nil
+}
+
+func (sr StudentRepositoryImpl) GetStudentByIdWithDeleted(ctx context.Context, id uint) (*entity.Student, error) {
+	student, err := sr.dao.GetStudentByIdWithDeleted(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return &entity.Student{
+		ID:        student.ID,
+		Name:      student.Name,
+		Gender:    student.Gender,
+		Hours:     student.Hours,
+		Phone:     student.Phone,
+		TeacherID: student.TeacherID,
+		Remark:    student.Remark,
+		CreatedAt: student.CreatedAt.UnixMilli(),
+		UpdatedAt: student.UpdatedAt.UnixMilli(),
+		Teacher: entity.Teacher{
+			ID:        student.Teacher.ID,
+			Name:      student.Teacher.Name,
+			DeletedAt: student.Teacher.DeletedAt.Time.UnixMilli(),
+		},
 	}, nil
 }
 

@@ -3,6 +3,7 @@ import type { StudentData } from '../../types/appModels'
 
 export function useModifyStudent(props: { modelValue?: boolean, isEdit?: boolean, initialData?: StudentData }, emit: any) {
   const formRef = ref<any>(null)
+  const isFormValid = ref(false)
 
   const defaultData = (): StudentData => ({
     name: '',
@@ -45,15 +46,9 @@ export function useModifyStudent(props: { modelValue?: boolean, isEdit?: boolean
     }
   }, { deep: true })
 
-  // 根据表单的校验状态计算是否禁用提交，避免与组件内规则重复
+  // 根据表单的校验状态计算是否禁用提交
   const isSubmitDisabled = computed(() => {
-    const form = formRef.value
-    // 如果表单实例尚未就绪或还没有明确的校验结果，则禁止提交
-    if (!form || typeof form.isValid !== 'boolean') {
-      return true
-    }
-    // 当表单整体校验通过时才允许提交
-    return !form.isValid
+    return !isFormValid.value
   })
 
 
@@ -74,6 +69,7 @@ export function useModifyStudent(props: { modelValue?: boolean, isEdit?: boolean
 
   return {
     formRef,
+    isFormValid,
     formData,
     close,
     save,

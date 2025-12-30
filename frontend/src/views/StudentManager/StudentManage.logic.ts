@@ -165,6 +165,9 @@ function createStudent(data: StudentData) {
       if (resp.code === 200) {
         loadData()
         success('添加成功', 'top-right')
+      } else if (resp.message.includes('duplicate')) {
+        console.error('添加学生失败: 学生姓名已存在')
+        toast.error('添加学生失败: 学生姓名已存在', 'top-right')
       } else {
         console.error('添加学生失败:', resp.message)
         toast.error('添加学生失败: ' + resp.message, 'top-right')

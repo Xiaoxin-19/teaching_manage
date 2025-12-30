@@ -10,6 +10,9 @@ import (
 
 var global_db *gorm.DB
 
+var ErrDuplicatedKey = gorm.ErrDuplicatedKey
+var ErrRecordNotFound = gorm.ErrRecordNotFound
+
 func InitDB(path string) error {
 	// 确保数据库目录存在
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

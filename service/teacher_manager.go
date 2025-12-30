@@ -2,12 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"teaching_manage/dao"
 	"teaching_manage/entity"
 	"teaching_manage/pkg"
 	"teaching_manage/pkg/dispatcher"
+	"teaching_manage/pkg/logger"
 	"teaching_manage/repository"
 	requestx "teaching_manage/service/request"
 	responsex "teaching_manage/service/response"
@@ -26,14 +28,27 @@ func NewTeacherManager(repo repository.TeacherRepository) *TeacherManager {
 }
 
 func (tm TeacherManager) CreateTeacher(ctx context.Context, teacher *requestx.CreateTeacherRequest) (string, error) {
+	logger.Info("Creating one teacher",
+		logger.String("teacher_name", teacher.Name),
+		logger.String("phone", teacher.Phone),
+		logger.String("remark", teacher.Remark),
+	)
+
 	err := tm.repo.CreateTeacher(ctx, entity.Teacher{
 		Name:   strings.TrimSpace(teacher.Name),
 		Phone:  strings.TrimSpace(teacher.Phone),
 		Gender: pkg.Gender(teacher.Gender),
 		Remark: strings.TrimSpace(teacher.Remark),
 	})
+
+	if errors.Is(err, dao.ErrDuplicatedKey) {
+		logger.Error("duplicate teacher name", logger.String("teacher_name", teacher.Name))
+		return "", fmt.Errorf("duplicate: teacher name [%s] already exists", teacher.Name)
+	}
+
 	if err != nil {
-		return "", fmt.Errorf("create fail")
+		logger.Error("failed to create teacher", logger.ErrorType(err))
+		return "", fmt.Errorf("failed to create teacher: %w", err)
 	}
 	return "teacher created", nil
 }
@@ -48,7 +63,7 @@ func (tm TeacherManager) GetTeacherList(ctx context.Context, req *requestx.GetTe
 	var result []entity.Teacher
 	for _, t := range teachers {
 		result = append(result, entity.Teacher{
-			Id:        t.ID,
+			ID:        t.ID,
 			CreatedAt: t.CreatedAt.UnixMilli(),
 			UpdatedAt: t.UpdatedAt.UnixMilli(),
 			Name:      t.Name,
@@ -72,7 +87,7 @@ func (tm TeacherManager) DeleteTeacher(ctx context.Context, req *requestx.Delete
 
 func (tm TeacherManager) UpdateTeacher(ctx context.Context, req *requestx.UpdateTeacherRequest) (string, error) {
 	teacher := entity.Teacher{
-		Id:     req.Id,
+		ID:     req.Id,
 		Name:   req.Name,
 		Phone:  req.Phone,
 		Gender: pkg.Gender(req.Gender),

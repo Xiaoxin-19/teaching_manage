@@ -16,6 +16,7 @@ CREATE TABLE `teachers` (
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 )
@@ -45,13 +46,16 @@ type Teacher struct {
 }
 
 func (s TeacherGormDao) CreateTeacher(ctx context.Context, t *Teacher) error {
-	return gorm.G[Teacher](s.db).Create(ctx, &Teacher{
+	err := gorm.G[Teacher](s.db).Create(ctx, &Teacher{
 		Name:   t.Name,
 		Gender: t.Gender,
 		Phone:  t.Phone,
 		Remark: t.Remark,
 	})
-
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return ErrDuplicatedKey
+	}
+	return err
 }
 
 func (s TeacherGormDao) UpdateTeacher(ctx context.Context, t *Teacher) error {
