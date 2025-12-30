@@ -42,10 +42,9 @@ const loadData = async () => {
   await loadStudents()
 }
 
-function loadStudents() {
+async function loadStudents(): Promise<void> {
   loading.value = true
   try {
-    // TODO: API - 调用后端获取学生列表
     const reqData = {
       Key: search.value,
       Offset: (page.value - 1) * itemsPerPage.value,
@@ -55,43 +54,40 @@ function loadStudents() {
     console.log('Request Data:', reqData)
 
 
-    Dispatch('student_manager:get_student_list', JSON.stringify(reqData))
-      .then((result: any) => {
-        // ResponseWrapper<StudentDTO[]> 解析
-        const resp = JSON.parse(result) as ResponseWrapper<GetStudentListResponse>
-        if (resp.code === 200) {
-          students.value = (resp.data.students || []).map((item) => ({
-            id: item.id,
-            name: item.name,
-            phone: item.phone,
-            balance: item.hours,
-            gender: item.gender,
-            teacher_id: item.teacher_id,
-            note: item.remark, // 后端暂无 remark 字段
-            lastModified: new Date(item.updated_at).toLocaleString(),
-          }))
-          totalItems.value = resp.data.total // 需要后端支持返回总数
-        } else {
-          console.error('获取学生列表失败:', resp.message)
-          toast.error('获取学生列表失败: ' + resp.message, 'top-right')
-        }
-      })
-
-    loading.value = false
-
+    const result: any = await Dispatch('student_manager:get_student_list', JSON.stringify(reqData))
+    // ResponseWrapper<StudentDTO[]> 解析
+    const resp = JSON.parse(result) as ResponseWrapper<GetStudentListResponse>
+    if (resp.code === 200) {
+      students.value = (resp.data.students || []).map((item) => ({
+        id: item.id,
+        name: item.name,
+        phone: item.phone,
+        balance: item.hours,
+        gender: item.gender,
+        teacher_id: item.teacher_id,
+        note: item.remark, // 后端暂无 remark 字段
+        lastModified: new Date(item.updated_at).toLocaleString(),
+      }))
+      totalItems.value = resp.data.total // 需要后端支持返回总数
+    } else {
+      console.error('获取学生列表失败:', resp.message)
+      toast.error('获取学生列表失败: ' + resp.message, 'top-right')
+    }
 
     console.log('Fetching data...')
   } catch (e) {
-    error('加载数据失败')
+    console.error('加载学生列表时出错:', e)
+  } finally {
+    loading.value = false
   }
 }
 
 
 function loadTeacherOptions() {
   const requestData = {
-    key: "",
-    offset: 0,
-    limit: -1,
+    Key: "",
+    Offset: 0,
+    Limit: -1,
   }
 
   console.log('Fetching teacher list with request:' + JSON.stringify(requestData))
