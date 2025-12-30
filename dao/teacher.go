@@ -38,7 +38,7 @@ func NewTeacherDao(db *gorm.DB) TeacherDao {
 
 type Teacher struct {
 	gorm.Model
-	Name   string `gorm:"column:name;not null;comment:教师姓名" json:"name"`
+	Name   string `gorm:"column:name;not null;comment:教师姓名;index" json:"name"`
 	Gender string `gorm:"column:gender;comment:教师性别" json:"gender"`
 	Phone  string `gorm:"column:phone;comment:电话号码" json:"phone"`
 	Remark string `gorm:"column:remark;comment:备注" json:"remark"`

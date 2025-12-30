@@ -25,12 +25,14 @@ func NewStudentDao(db *gorm.DB) StudentDao {
 
 type Student struct {
 	gorm.Model
-	Name      string `gorm:"column:name;not null;comment:学生姓名" json:"name"`
+	Name      string `gorm:"column:name;not null;comment:学生姓名;index" json:"name"`
 	Gender    string `gorm:"column:gender;comment:学生性别" json:"gender"`
 	Hours     int    `gorm:"column:hours;default:0;comment:课时数" json:"hours"`
 	Phone     string `gorm:"column:phone;comment:学生电话号码" json:"phone"`
 	TeacherID uint   `gorm:"column:teacher_id;not null;comment:授课老师" json:"teacher_id"`
-	Remark    string `gorm:"column:remark;comment:备注" json:"remark"`
+	// Student -> Teacher (belongs to)：使用 TeacherID 作为外键，更新级联，删除受限
+	Teacher Teacher `gorm:"foreignKey:TeacherID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"teacher,omitempty"`
+	Remark  string  `gorm:"column:remark;comment:备注" json:"remark"`
 }
 
 func (s StudentGormDao) CreateStudent(ctx context.Context, stu *Student) error {

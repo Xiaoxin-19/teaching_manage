@@ -8,10 +8,12 @@ import (
 
 type Order struct {
 	gorm.Model
-	StudentID uint   `gorm:"column:student_id;type:int(10);comment:'学生主键'"`
-	Hours     int    `gorm:"column:hours;type:int(11);not null;comment:'充值课时数'"`
-	Comment   string `gorm:"column:comment;type:varchar(50);comment:'备注'"`
-	Active    bool   `gorm:"column:active;;not null;default:true;comment:'是否生效'"`
+	StudentID uint `gorm:"column:student_id;type:int(10);comment:'学生主键';index"`
+	// 关联学生并添加外键约束：更新级联、删除受限（避免删除学生时自动删除充值记录）
+	Student Student `gorm:"foreignKey:StudentID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
+	Hours   int     `gorm:"column:hours;type:int(11);not null;comment:'充值课时数'"`
+	Comment string  `gorm:"column:comment;type:varchar(50);comment:'备注'"`
+	Active  bool    `gorm:"column:active;;not null;default:true;comment:'是否生效'"`
 }
 
 type OrderDAO interface {
