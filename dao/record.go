@@ -21,7 +21,7 @@ type Record struct {
 	StartTime      string    `gorm:"column:start_time;not null;type:datetime;comment:'上课开始时间'"`
 	EndTime        string    `gorm:"column:end_time;not null;type:datetime;comment:'上课结束时间'"`
 	Active         bool      `gorm:"column:active;not null;default:false;comment:'是否生效'"`
-	Comment        string    `gorm:"column:comment;size:255;comment:'备注字段'"`
+	Remark         string    `gorm:"column:remark;size:255;comment:'备注字段'"`
 }
 
 type RecordDAO interface {
@@ -37,14 +37,11 @@ type RecordGormDAO struct {
 }
 
 func (r *RecordGormDAO) CreateRecord(ctx context.Context, record Record) error {
-	// 若未提供 TeachingDateMs，则从 TeachingDate 生成 Unix 毫秒（UTC）
-	if record.TeachingDateMs == 0 && !record.TeachingDate.IsZero() {
-		record.TeachingDateMs = record.TeachingDate.UTC().UnixMilli()
-	}
+	convertRecordTimeToUnixMs(&record)
 	return gorm.G[Record](r.db).Create(ctx, &record)
 }
 
-func ConvertRecordTimeToUnixMs(r *Record) {
+func convertRecordTimeToUnixMs(r *Record) {
 	// 若未提供 TeachingDateMs，则从 TeachingDate 生成 Unix 毫秒（UTC）
 	if r.TeachingDateMs == 0 && !r.TeachingDate.IsZero() {
 		r.TeachingDateMs = r.TeachingDate.UTC().UnixMilli()

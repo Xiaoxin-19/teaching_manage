@@ -25,7 +25,7 @@ func NewStudentDao(db *gorm.DB) StudentDao {
 
 type Student struct {
 	gorm.Model
-	Name      string `gorm:"column:name;not null;comment:学生姓名;index" json:"name"`
+	Name      string `gorm:"column:name;not null;comment:学生姓名;unique;index" json:"name"`
 	Gender    string `gorm:"column:gender;comment:学生性别" json:"gender"`
 	Hours     int    `gorm:"column:hours;default:0;comment:课时数" json:"hours"`
 	Phone     string `gorm:"column:phone;comment:学生电话号码" json:"phone"`
@@ -70,7 +70,7 @@ func (s StudentGormDao) DeleteStudent(ctx context.Context, id uint) error {
 }
 
 func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*Student, error) {
-	stu, err := gorm.G[Student](s.db).Where("id = ?", id).First(ctx)
+	stu, err := gorm.G[Student](s.db.Unscoped()).Where("id = ?", id).Preload("Teacher", nil).First(ctx)
 	if err != nil {
 		return nil, err
 	}
