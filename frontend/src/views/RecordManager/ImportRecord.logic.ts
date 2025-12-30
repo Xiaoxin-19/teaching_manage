@@ -1,6 +1,8 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { OnFileDrop, OnFileDropOff } from '../../../wailsjs/runtime/runtime'
 import { useToast } from '../../composables/useToast'
+import { Dispatch } from '../../../wailsjs/go/main/App'
+import { ResponseWrapper } from '../../types/appModels'
 
 export function useImportRecord(props: { modelValue: boolean }, emit: any) {
   const { info, success, error } = useToast()
@@ -13,12 +15,26 @@ export function useImportRecord(props: { modelValue: boolean }, emit: any) {
   }
 
   const triggerFileInput = () => {
-    // TODO: 调用 Wails 的 OpenFileDialog
+    // TODO: 调用系统文件选择对话框
     info('请直接拖拽文件到此处')
   }
 
   const downloadTemplate = () => {
-    info('正在下载导入模板...')
+    Dispatch('record_manager:download_import_template', "").then((result: any) => {
+      const resp = JSON.parse(result) as ResponseWrapper<string>;
+      console.log('下载模板响应:', resp);
+      if (resp.code === 200) {
+        if (resp.message.includes('cancel') || resp.data.includes('cancel')) {
+          info('已取消操作');
+          return;
+        }
+        success('模板下载成功，文件路径: ' + resp.data, 'top-right');
+      } else {
+
+        console.error('下载模板失败:', resp.message);
+        error('下载模板失败: ' + resp.message, 'top-right');
+      }
+    })
   }
 
   const startImport = () => {

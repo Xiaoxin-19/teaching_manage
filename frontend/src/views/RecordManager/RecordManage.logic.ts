@@ -1,11 +1,14 @@
 import { ref, computed, reactive, watch } from 'vue';
 import { useToast } from '../../composables/useToast';
 import { useConfirm } from '../../composables/useConfirm';
-import type { TeachingRecord } from '../../types/appModels';
+import type { ResponseWrapper, TeachingRecord } from '../../types/appModels';
+import { SaveRecordData } from './types';
+import { Dispatch } from '../../../wailsjs/go/main/App';
+import { GetRecordListResponse, RecordDTO } from '../../types/response';
 
 export function useRecordManage() {
   const { success, error, info, warning } = useToast();
-  const { confirmDelete, confirmInfo } = useConfirm();
+  const confirm = useConfirm();
 
   // --- 状态定义 ---
   const searchStudent = ref('');
@@ -13,6 +16,7 @@ export function useRecordManage() {
   const filterDateType = ref('全部时间');
   const customStartDate = ref('');
   const customEndDate = ref('');
+  const pendingCount = ref(0);
 
   // 弹窗控制
   const dialogForm = ref(false);
@@ -25,13 +29,6 @@ export function useRecordManage() {
   const totalItems = ref(0);
   const loading = ref(false);
   const serverItems = ref<TeachingRecord[]>([]);
-
-  // 选项数据 (Mock) - 实际应通过 API 获取
-  const mockStudents = ref([
-    { id: 1, name: '张三' },
-    { id: 2, name: '李四' },
-    { id: 3, name: '王五' },
-  ]);
 
   // 表头定义 (key 使用下划线风格以兼容 DOM 模板)
   const headers: any = [
@@ -46,17 +43,13 @@ export function useRecordManage() {
 
   const dateOptions = ['全部时间', '本周', '上周', '本月', '上月', '自定义'];
 
-  // --- Mock 数据 (模拟后端数据库) ---
-  const allMockData = ref<TeachingRecord[]>([
-    { id: 1, status: 'active', date: '2024-01-15', time: '10:00-12:00', startTime: '10:00', endTime: '12:00', studentId: 1, studentName: '张三', teacherId: 1, teacherName: '王老师', remark: '本节课重点讲解了二次函数的图像与性质。' },
-    { id: 2, status: 'active', date: '2024-01-14', time: '14:00-15:00', startTime: '14:00', endTime: '15:00', studentId: 2, studentName: '李四', teacherId: 2, teacherName: '李老师', remark: '英语口语练习，重点纠正了发音问题。' },
-    { id: 3, status: 'pending', date: '2024-01-14', time: '16:00-18:00', startTime: '16:00', endTime: '18:00', studentId: 3, studentName: '王五', teacherId: 1, teacherName: '王老师', remark: '物理力学复习，稍微有点跟不上进度。' },
-    { id: 4, status: 'active', date: '2024-01-12', time: '09:00-11:00', startTime: '09:00', endTime: '11:00', studentId: 1, studentName: '张三', teacherId: 1, teacherName: '王老师', remark: '化学实验基础，学生表现很积极。' },
-    { id: 5, status: 'pending', date: '2024-01-12', time: '13:00-15:00', startTime: '13:00', endTime: '15:00', studentId: 2, studentName: '李四', teacherId: 1, teacherName: '王老师', remark: '模拟模糊搜索匹配测试。' },
-  ]);
-
   // --- 辅助函数 ---
-  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const getWeekRange = (offset = 0) => {
     const now = new Date();
@@ -78,12 +71,6 @@ export function useRecordManage() {
   };
 
   // --- Computed 属性 ---
-
-  // 计算待生效记录数
-  const pendingCount = computed(() => {
-    // 实际项目中可能需要单独的 API 或者在 list 接口返回
-    return allMockData.value.filter((item) => item.status === 'pending').length;
-  });
 
   // 生效的日期范围对象
   const effectiveDateRange = computed(() => {
@@ -122,47 +109,51 @@ export function useRecordManage() {
 
   // --- 核心方法 ---
 
-  // 加载数据 (模拟后端 API)
+  // 加载数据 
   const loadItems = async ({ page: p, itemsPerPage: ipp, sortBy }: any) => {
     loading.value = true;
 
-    // 模拟网络延迟
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    let reqData: any = {
+      student_key: searchStudent.value || '',
+      teacher_key: searchTeacher.value || '',
+      start_date: effectiveDateRange.value?.start || '',
+      end_date: effectiveDateRange.value?.end || '',
+      offset: (p - 1) * ipp,
+      limit: ipp,
+    };
 
-    let items = [...allMockData.value];
+    console.log('加载记录列表，参数:', reqData);
 
-    // 1. 过滤
-    if (searchStudent.value) {
-      items = items.filter((item) =>
-        item.studentName.toLowerCase().includes(searchStudent.value.toLowerCase())
-      );
-    }
-    if (searchTeacher.value) {
-      items = items.filter((item) =>
-        item.teacherName.toLowerCase().includes(searchTeacher.value.toLowerCase())
-      );
-    }
-    const range = effectiveDateRange.value;
-    if (range) {
-      if (range.start !== '不限') {
-        items = items.filter((item) => item.date >= range.start);
+    // json 转换
+    const reqStr: string = JSON.stringify(reqData);
+    Dispatch("record_manager:get_record_list", reqStr).then(
+      (result: any) => {
+        console.log('Received record list response:' + result);
+        const resp = JSON.parse(result) as ResponseWrapper<GetRecordListResponse>;
+        if (resp.code === 200) {
+          const items: TeachingRecord[] = resp.data.records.map((item) => ({
+            id: item.id,
+            status: item.active ? 'active' : 'pending',
+            date: item.teaching_date,
+            time: `${item.start_time}-${item.end_time}`,
+            startTime: item.start_time,
+            endTime: item.end_time,
+            studentId: item.student_id,
+            studentName: item.student_name,
+            teacherId: item.teacher_id,
+            teacherName: item.teacher_name,
+            remark: item.remark,
+          }));
+          serverItems.value = items;
+          totalItems.value = resp.data.total; // 需要后端支持返回总数
+          pendingCount.value = resp.data.total_pending;
+        } else {
+          console.error('获取记录列表失败:', resp.message);
+          error('获取记录列表失败: ' + resp.message);
+        }
       }
-      if (range.end !== '不限') {
-        items = items.filter((item) => item.date <= range.end);
-      }
-    }
+    );
 
-    // 2. 总数
-    totalItems.value = items.length;
-
-    // 3. 分页
-    if (ipp > 0) {
-      const start = (p - 1) * ipp;
-      const end = start + ipp;
-      items = items.slice(start, end);
-    }
-
-    serverItems.value = items;
     loading.value = false;
   };
 
@@ -218,72 +209,120 @@ export function useRecordManage() {
     dialogForm.value = true;
   };
 
-  const saveRecord = (data: any) => {
-    // TODO: 调用后端 API 创建
-    const student = mockStudents.value.find((s) => s.id === data.studentId);
-    allMockData.value.unshift({
-      ...data,
-      id: Date.now(),
-      status: 'pending',
-      studentName: student?.name || '未知',
-      teacherId: 1,
-      teacherName: '默认教师',
-      time: `${data.startTime}-${data.endTime}`,
+  const saveRecord = async (data: SaveRecordData) => {
+    console.log('保存记录数据:', data);
+    Dispatch('record_manager:create_record', JSON.stringify(data)).then((result: any) => {
+      console.log('Record created:', result);
+      const resp = JSON.parse(result) as ResponseWrapper<string>;
+      if (resp.code === 200) {
+        success('记录添加成功 (待生效)');
+        loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
+      } else {
+        error(`添加记录失败: ${resp.message}`);
+      }
     });
-    success('已添加记录 (待生效)');
-    loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
   };
 
   const activateRecord = (item: TeachingRecord) => {
-    // TODO: 调用后端 API 激活
-    const record = allMockData.value.find((r) => r.id === item.id);
-    if (record) {
-      record.status = 'active';
-      success('记录已生效，课时已扣除');
-      loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
-    }
+    let reqData = {
+      record_id: item.id,
+    };
+
+    console.log('Activating record:', reqData);
+    Dispatch('record_manager:activate_record', JSON.stringify(reqData)).then((result: any) => {
+      console.log('Record activated:', result);
+      const resp = JSON.parse(result) as ResponseWrapper<string>;
+      if (resp.code === 200) {
+        success('记录已激活');
+        loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
+      } else if (resp.message.includes('fail')) {
+        console.error('激活记录失败:', resp.message);
+        error(`激活记录失败`);
+      }
+    });
   };
 
   const processAllPending = async () => {
-    const count = allMockData.value.filter((item) => item.status === 'pending').length;
-    if (count === 0) return;
-
-    const confirmed = await confirmInfo(
-      `确定要将所有 ${count} 条待生效记录转为已生效吗？\n这将扣除对应学生的课时。`
+    const confirmed = await confirm.confirm(
+      "批量激活确认",
+      "确定要激活所有待处理记录吗？",
+      {
+        type: "warning",
+        confirmText: '激活',
+        cancelText: '取消'
+      }
     );
-
     if (confirmed) {
-      // TODO: 调用后端批量激活 API
-      allMockData.value.forEach((item) => {
-        if (item.status === 'pending') item.status = 'active';
-      });
-      success(`已成功处理 ${count} 条记录`);
-      loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
-    }
-  };
+      console.log('Activating all pending records');
+      Dispatch('record_manager:activate_all_pending_records', "{}").then((result: any) => {
+        console.log('All pending records activated:', result);
+        const resp = JSON.parse(result) as ResponseWrapper<string>;
+        if (resp.code === 200) {
+          success('所有待处理记录已激活');
+          loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
+        } else if (resp.message.includes('fail')) {
+          console.error('批量激活记录失败:', resp.message);
+          error(`批量激活记录失败`);
+        }
+      })
+    };
+  }
+
 
   const deleteItem = async (item: TeachingRecord) => {
-    const confirmed = await confirmDelete(
-      `记录 ${item.date} ${item.studentName}`
+    const confirmed = await confirm.confirm(
+      "确认删除",
+      `学生 ${item.studentName} 于 ${item.date} 的记录, 如果已生效，删除则会返还学生的课时。确定删除？`,
+      {
+        type: "warning",
+        confirmText: '删除',
+        cancelText: '取消'
+      }
     );
     if (confirmed) {
-      // TODO: 调用后端删除 API
-      allMockData.value = allMockData.value.filter((r) => r.id !== item.id);
-      success('记录已撤销');
-      loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
+      let reqData = {
+        record_id: item.id,
+      };
+      console.log('Deleting record:', reqData);
+      Dispatch('record_manager:delete_record_by_id', JSON.stringify(reqData)).then((result: any) => {
+        console.log('Record deleted:', result);
+        const resp = JSON.parse(result) as ResponseWrapper<string>;
+        if (resp.code === 200) {
+          if (item.status === 'active') {
+            info('记录已删除，学生课时已返还');
+          } else {
+            info('记录已删除');
+          }
+          loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
+        } else if (resp.message.includes('fail')) {
+          error(`删除记录失败`);
+        }
+      });
     }
   };
 
   const exportRecords = () => {
-    // TODO: 调用后端导出接口
     const params = {
-      studentName: searchStudent.value || '',
-      teacherName: searchTeacher.value || '',
-      startDate: effectiveDateRange.value?.start,
-      endDate: effectiveDateRange.value?.end,
+      student_key: searchStudent.value || '',
+      teacher_key: searchTeacher.value || '',
+      start_date: effectiveDateRange.value?.start,
+      end_date: effectiveDateRange.value?.end,
     };
     console.log('导出参数:', params);
-    success('正在导出记录...');
+    Dispatch('record_manager:export_record_to_excel', JSON.stringify(params)).then((result: any) => {
+      console.log('Export records result:', result);
+      const resp = JSON.parse(result) as ResponseWrapper<string>;
+      if (resp.code === 200) {
+        success('记录导出成功');
+      } else {
+        if (resp.message.includes('cancel')) {
+          info('已取消导出操作');
+          return;
+        }
+        console.error('导出记录失败:', resp.message);
+        error('导出记录失败: ' + resp.message, 'top-right');
+      }
+    });
   };
 
   return {
@@ -303,7 +342,7 @@ export function useRecordManage() {
     dialogDateRange,
     customStartDate,
     customEndDate,
-    mockStudents,
+    mockStudents: ref([]),
     pendingCount,
     hasActiveFilters,
     dateRangeText,

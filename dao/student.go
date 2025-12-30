@@ -14,7 +14,9 @@ type StudentDao interface {
 	GetStudentByID(ctx context.Context, id uint) (*Student, error)
 	GetStudentByIdWithDeleted(ctx context.Context, id uint) (*Student, error)
 	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error)
+	GetStudentByName(ctx context.Context, name string) (*Student, error)
 	UpdateStudentHours(ctx context.Context, id uint, hours int) error
+	UpdateStudentHoursWithDeleted(ctx context.Context, id uint, hours int) error
 }
 
 type StudentGormDao struct {
@@ -67,6 +69,15 @@ func (s StudentGormDao) UpdateStudentHours(ctx context.Context, id uint, diff in
 	return nil
 }
 
+func (s StudentGormDao) UpdateStudentHoursWithDeleted(ctx context.Context, id uint, diff int) error {
+	_, err := s.db.Unscoped().WithContext(ctx).Model(&Student{}).
+		Where("id = ?", id).Update("hours", gorm.Expr("hours + ?", diff)).RowsAffected, s.db.Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s StudentGormDao) DeleteStudent(ctx context.Context, id uint) error {
 	_, err := gorm.G[Student](s.db).Where("id = ?", id).Delete(ctx)
 	if err != nil {
@@ -85,12 +96,15 @@ func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*Student, 
 
 // GetStudentByIdWithDeleted retrieves a student by ID, including those that have been soft-deleted.
 func (s StudentGormDao) GetStudentByIdWithDeleted(ctx context.Context, id uint) (*Student, error) {
-	stu, err := gorm.G[Student](s.db.Unscoped()).Where("id = ?", id).Preload("Teacher", nil).First(ctx)
+	stu := Student{}
+
+	err := s.db.Unscoped().WithContext(ctx).Where("id = ?", id).Preload("Teacher", nil).First(&stu).Error
 	if err != nil {
 		return nil, err
 	}
 	return &stu, nil
 }
+
 func (s StudentGormDao) GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error) {
 	var students []Student
 	var total int64
@@ -107,4 +121,13 @@ func (s StudentGormDao) GetStudentList(ctx context.Context, key string, offset i
 		return nil, 0, err
 	}
 	return students, total, nil
+}
+
+func (s StudentGormDao) GetStudentByName(ctx context.Context, name string) (*Student, error) {
+	var stu Student
+	err := gorm.G[Student](s.db).Where("name = ?", name).Preload("Teacher").First(ctx, &stu)
+	if err != nil {
+		return nil, err
+	}
+	return &stu, nil
 }

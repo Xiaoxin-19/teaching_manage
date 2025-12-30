@@ -10,14 +10,9 @@ import (
 // headers: slice of column headers
 // rows: slice of rows, each row is a slice of string values. Length of each row may be <= len(headers).
 func ExportToExcel(path string, headers []string, rows [][]string) error {
-	f := excelize.NewFile()
-	sheet := "Sheet1"
-
-	for i, h := range headers {
-		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		if err := f.SetCellValue(sheet, cell, h); err != nil {
-			return fmt.Errorf("set header cell failed: %w", err)
-		}
+	f, sheet, err := createExcelFile(headers)
+	if err != nil {
+		return err
 	}
 
 	for rIdx, row := range rows {
@@ -34,4 +29,17 @@ func ExportToExcel(path string, headers []string, rows [][]string) error {
 		return fmt.Errorf("save excel failed: %w", err)
 	}
 	return nil
+}
+
+func createExcelFile(headers []string) (*excelize.File, string, error) {
+	f := excelize.NewFile()
+	sheet := "Sheet1"
+
+	for i, h := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		if err := f.SetCellValue(sheet, cell, h); err != nil {
+			return nil, "", fmt.Errorf("set header cell failed: %w", err)
+		}
+	}
+	return f, sheet, nil
 }

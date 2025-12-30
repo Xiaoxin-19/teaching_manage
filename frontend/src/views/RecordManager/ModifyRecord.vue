@@ -31,11 +31,11 @@
             </v-col>
             <v-col cols="3">
               <v-text-field v-model="formData.startTime" label="开始" type="time" variant="outlined" density="comfortable"
-                class="mb-3"></v-text-field>
+                class="mb-3" :rules="startTimeRules"></v-text-field>
             </v-col>
             <v-col cols="3">
               <v-text-field v-model="formData.endTime" label="结束" type="time" variant="outlined" density="comfortable"
-                class="mb-3"></v-text-field>
+                class="mb-3" :rules="endTimeRules"></v-text-field>
             </v-col>
           </v-row>
           <v-textarea v-model="formData.remark" label="备注" variant="outlined" density="comfortable" rows="2" no-resize
@@ -46,115 +46,36 @@
       <v-card-actions class="pa-3">
         <v-spacer></v-spacer>
         <v-btn variant="text" class="mr-2" @click="close">取消</v-btn>
-        <v-btn color="primary" variant="flat" @click="save">确认添加</v-btn>
+        <v-btn color="primary" variant="flat" :disabled="isSubmitDisabled" @click="save">确认添加</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
-import { debounce } from 'lodash'; // 需要安装 lodash: npm install lodash @types/lodash
-// 假设有从后端获取学生列表的方法，这里模拟引入
-// import { GetStudentList } from '../../../wailsjs/go/main/App'; 
-
-// 定义 StudentOption 类型，实际项目中应从 appModels 导入
-interface StudentOption {
-  id: number;
-  name: string;
-}
+import { useModifyRecord } from './ModifyRecord.logic';
+import { SaveRecordData } from './types';
 
 const props = defineProps<{
   modelValue: boolean;
-  // studentOptions: StudentOption[]; // 不再通过 props 传入所有学生
 }>();
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
-  (e: 'save', data: any): void;
+  (e: 'save', data: SaveRecordData): void;
 }>();
 
-const formRef = ref<any>(null);
-const studentSearch = ref('');
-const studentOptions = ref<StudentOption[]>([]);
-const loadingStudents = ref(false);
-
-const defaultFormData = {
-  studentId: null,
-  date: new Date().toISOString().substring(0, 10),
-  startTime: '09:00',
-  endTime: '11:00',
-  remark: '',
-};
-
-const formData = reactive({ ...defaultFormData });
-
-// 每次打开弹窗重置表单
-watch(
-  () => props.modelValue,
-  (val) => {
-    if (val) {
-      Object.assign(formData, defaultFormData, {
-        date: new Date().toISOString().substring(0, 10),
-      });
-      studentSearch.value = '';
-      studentOptions.value = []; // 打开时可以加载默认列表或者清空
-      // fetchStudents(''); // 可选：打开时加载初始列表
-    }
-  }
-);
-
-// 防抖搜索函数
-const fetchStudents = debounce(async (keyword: string) => {
-  if (!keyword) {
-    studentOptions.value = [];
-    return;
-  }
-
-  loadingStudents.value = true;
-  try {
-    // 模拟后端 API 调用
-    // const res = await GetStudentList({ name: keyword, page: 1, pageSize: 10 });
-    // studentOptions.value = res.data.list.map(s => ({ id: s.id, name: s.name }));
-
-    // 模拟数据返回
-    console.log(`Searching for student: ${keyword}`);
-    await new Promise(resolve => setTimeout(resolve, 500)); // 模拟延迟
-
-    // 简单的模拟匹配逻辑 (实际应由后端完成)
-    const mockAllStudents = [
-      { id: 1, name: '张三' },
-      { id: 2, name: '李四' },
-      { id: 3, name: '王五' },
-      { id: 4, name: '张三丰' },
-      { id: 5, name: '赵六' }
-    ];
-    studentOptions.value = mockAllStudents.filter(s => s.name.includes(keyword));
-
-  } catch (error) {
-    console.error("Failed to fetch students", error);
-  } finally {
-    loadingStudents.value = false;
-  }
-}, 300); // 300ms 防抖
-
-const onStudentSearch = (val: string) => {
-  fetchStudents(val);
-};
-
-const close = () => {
-  emit('update:modelValue', false);
-};
-
-const save = async () => {
-  if (formRef.value) {
-    const { valid } = await formRef.value.validate();
-    if (valid) {
-      // 传递完整的学生对象信息可能更有用
-      const selectedStudent = studentOptions.value.find(s => s.id === formData.studentId);
-      emit('save', { ...formData, studentName: selectedStudent?.name });
-      close();
-    }
-  }
-};
+const {
+  formRef,
+  studentSearch,
+  studentOptions,
+  loadingStudents,
+  formData,
+  startTimeRules,
+  endTimeRules,
+  isSubmitDisabled,
+  onStudentSearch,
+  close,
+  save,
+} = useModifyRecord(props, emit);
 </script>

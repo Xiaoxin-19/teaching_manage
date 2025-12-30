@@ -289,7 +289,6 @@ const {
   dialogForm,
   dialogImport,
   dialogDateRange,
-  mockStudents,
   pendingCount,
   hasActiveFilters,
   dateRangeText,
