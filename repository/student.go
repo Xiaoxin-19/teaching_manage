@@ -34,8 +34,8 @@ func (sr StudentRepositoryImpl) GetStudentList(ctx context.Context, key string, 
 	for _, stu := range students {
 		result = append(result, entity.Student{
 			ID:        stu.ID,
-			CreatedAt: stu.CreatedAt.UnixMilli(),
-			UpdatedAt: stu.UpdatedAt.UnixMilli(),
+			CreatedAt: stu.CreatedAt,
+			UpdatedAt: stu.UpdatedAt,
 			Name:      stu.Name,
 			Gender:    stu.Gender,
 			Hours:     stu.Hours,
@@ -52,6 +52,7 @@ func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*e
 	if err != nil {
 		return nil, err
 	}
+
 	return &entity.Student{
 		ID:        student.ID,
 		Name:      student.Name,
@@ -60,12 +61,12 @@ func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*e
 		Phone:     student.Phone,
 		TeacherID: student.TeacherID,
 		Remark:    student.Remark,
-		CreatedAt: student.CreatedAt.UnixMilli(),
-		UpdatedAt: student.UpdatedAt.UnixMilli(),
+		CreatedAt: student.CreatedAt,
+		UpdatedAt: student.UpdatedAt,
 		Teacher: entity.Teacher{
 			ID:        student.Teacher.ID,
 			Name:      student.Teacher.Name,
-			DeletedAt: student.Teacher.DeletedAt.Time.UnixMilli(),
+			DeletedAt: student.Teacher.DeletedAt.Time,
 		},
 	}, nil
 }
@@ -83,12 +84,12 @@ func (sr StudentRepositoryImpl) GetStudentByIdWithDeleted(ctx context.Context, i
 		Phone:     student.Phone,
 		TeacherID: student.TeacherID,
 		Remark:    student.Remark,
-		CreatedAt: student.CreatedAt.UnixMilli(),
-		UpdatedAt: student.UpdatedAt.UnixMilli(),
+		CreatedAt: student.CreatedAt,
+		UpdatedAt: student.UpdatedAt,
 		Teacher: entity.Teacher{
 			ID:        student.Teacher.ID,
 			Name:      student.Teacher.Name,
-			DeletedAt: student.Teacher.DeletedAt.Time.UnixMilli(),
+			DeletedAt: student.Teacher.DeletedAt.Time,
 		},
 	}, nil
 }

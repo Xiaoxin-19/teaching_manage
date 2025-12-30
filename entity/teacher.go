@@ -1,6 +1,9 @@
 package entity
 
-import "teaching_manage/pkg"
+import (
+	"teaching_manage/pkg"
+	"time"
+)
 
 type Teacher struct {
 	ID        uint       `json:"id"`
@@ -8,7 +11,7 @@ type Teacher struct {
 	Gender    pkg.Gender `json:"gender"`
 	Phone     string     `json:"phone"`
 	Remark    string     `json:"remark"`
-	CreatedAt int64      `json:"created_at"`
-	UpdatedAt int64      `json:"updated_at"`
-	DeletedAt int64      `json:"deleted_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt time.Time  `json:"deleted_at"`
 }

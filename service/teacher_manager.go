@@ -60,20 +60,20 @@ func (tm TeacherManager) GetTeacherList(ctx context.Context, req *requestx.GetTe
 		return responsex.GetTeacherListResponse{}, fmt.Errorf("internal server error")
 	}
 
-	var result []entity.Teacher
-	for _, t := range teachers {
-		result = append(result, entity.Teacher{
+	teacherDtos := make([]responsex.TeacherDTO, len(teachers))
+	for i, t := range teachers {
+		teacherDtos[i] = responsex.TeacherDTO{
 			ID:        t.ID,
-			CreatedAt: t.CreatedAt.UnixMilli(),
-			UpdatedAt: t.UpdatedAt.UnixMilli(),
 			Name:      t.Name,
-			Gender:    pkg.Gender(t.Gender),
+			Gender:    pkg.Gender(t.Gender).String(),
 			Phone:     t.Phone,
 			Remark:    t.Remark,
-		})
+			CreatedAt: t.CreatedAt.UnixMilli(),
+			UpdatedAt: t.UpdatedAt.UnixMilli(),
+		}
 	}
 	return responsex.GetTeacherListResponse{
-		Teachers: result,
+		Teachers: teacherDtos,
 		Total:    total,
 	}, nil
 }

@@ -32,8 +32,25 @@ func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetSt
 	if err != nil {
 		return nil, err
 	}
+
+	studentDTOs := make([]responsex.StudentDTO, len(studentDs))
+	for i, s := range studentDs {
+		studentDTOs[i] = responsex.StudentDTO{
+			ID:          s.ID,
+			Name:        s.Name,
+			Gender:      s.Gender,
+			Hours:       s.Hours,
+			Phone:       s.Phone,
+			TeacherID:   s.TeacherID,
+			Remark:      s.Remark,
+			TeacherName: s.TeacherName,
+			CreatedAt:   s.CreatedAt.UnixMilli(),
+			UpdatedAt:   s.UpdatedAt.UnixMilli(),
+		}
+	}
+
 	return &responsex.GetStudentListResponse{
-		Students: studentDs,
+		Students: studentDTOs,
 		Total:    total,
 	}, nil
 }
