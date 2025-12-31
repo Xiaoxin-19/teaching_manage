@@ -394,10 +394,64 @@ func (m *DashboardManager) GetStudentEngagementData(ctx context.Context) (respon
 	}, nil
 }
 
+// GetStudentGrowthData 获取学员增长趋势数据 (最近 6 个月)
+func (m *DashboardManager) GetStudentGrowthData(ctx context.Context) (responsex.ChartDataDTO, error) {
+	db := dao.GetDB()
+	var result responsex.ChartDataDTO
+
+	// 生成最近 6 个月的月份标签
+	months := []string{}
+	now := time.Now()
+	// 规范化到月初，避免月末(如31号)计算月份偏移时出现跳跃或重复
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	limit := 6
+
+	for i := limit - 1; i >= 0; i-- {
+		t := startOfMonth.AddDate(0, -i, 0)
+		months = append(months, t.Format("2006-01"))
+	}
+	result.XAxis = months
+
+	// 计算起始日期
+	startDate := startOfMonth.AddDate(0, -limit+1, 0).Format("2006-01") + "-01"
+
+	type MonthlyStat struct {
+		Month string
+		Total int64
+	}
+	var stats []MonthlyStat
+
+	// 查询数据库: 按月统计 created_at
+	err := db.Model(&dao.Student{}).
+		Select("strftime('%Y-%m', created_at) as month, COUNT(id) as total").
+		Where("deleted_at IS NULL AND created_at >= ?", startDate).
+		Group("month").
+		Order("month").
+		Scan(&stats).Error
+
+	if err != nil {
+		logger.Error("Failed to get student growth data", logger.ErrorType(err))
+		return result, err
+	}
+
+	// 填充数据 (Map to Slice)
+	dataMap := make(map[string]int64)
+	for _, s := range stats {
+		dataMap[s.Month] = s.Total
+	}
+
+	for _, m := range months {
+		result.Series = append(result.Series, dataMap[m])
+	}
+
+	return result, nil
+}
+
 func (m *DashboardManager) RegisterRoute(d *dispatcher.Dispatcher) {
 	dispatcher.RegisterNoReq(d, "dashboard_manager:get_summary", m.GetSummaryData)
 	dispatcher.RegisterTyped(d, "dashboard_manager:get_finance_chart", m.GetFinanceChartData)
 	dispatcher.RegisterNoReq(d, "dashboard_manager:get_teacher_rank", m.GetTeacherRankData)
 	dispatcher.RegisterNoReq(d, "dashboard_manager:get_heatmap", m.GetHeatmapData)
 	dispatcher.RegisterNoReq(d, "dashboard_manager:get_student_engagement", m.GetStudentEngagementData)
+	dispatcher.RegisterNoReq(d, "dashboard_manager:get_student_growth", m.GetStudentGrowthData)
 }

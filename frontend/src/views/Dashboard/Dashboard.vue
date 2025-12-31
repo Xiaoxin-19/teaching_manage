@@ -33,7 +33,7 @@
             <ChartEngagement ref="chartEngagementRef" />
           </v-col>
           <v-col cols="12" md="6">
-            <ChartGrowth />
+            <ChartGrowth ref="chartGrowthRef" />
           </v-col>
         </v-row>
 
@@ -74,6 +74,7 @@ const {
 const chartFinanceRef = ref();
 const chartHeatmapRef = ref();
 const chartEngagementRef = ref();
+const chartGrowthRef = ref();
 const firstLoad = ref(true);
 
 // 监听 loading 状态，第一次加载完成后将 firstLoad 置为 false
@@ -96,6 +97,9 @@ const handleRefresh = async () => {
   }
   if (chartEngagementRef.value) {
     chartEngagementRef.value.loadData();
+  }
+  if (chartGrowthRef.value) {
+    chartGrowthRef.value.loadData();
   }
 
   await dashboardPromise;
