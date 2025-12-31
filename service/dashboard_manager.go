@@ -256,7 +256,7 @@ func (m *DashboardManager) GetTeacherRankData(ctx context.Context) (responsex.Te
 		Select("teachers.name, COUNT(records.id) as total").
 		Joins("JOIN teachers ON records.teacher_id = teachers.id").
 		Where("records.active = 1 AND records.deleted_at IS NULL AND records.teaching_date >= ?", startOfMonth).
-		Group("teachers.name").
+		Group("teachers.id").
 		Order("total DESC").
 		Limit(5).
 		Scan(&stats).Error
@@ -447,6 +447,57 @@ func (m *DashboardManager) GetStudentGrowthData(ctx context.Context) (responsex.
 	return result, nil
 }
 
+// GetStudentBalanceData 获取学员账户健康度分布 (基于剩余课时)
+// Arrears: <0, Warning: 0-5, Sufficient: >=5
+func (m *DashboardManager) GetStudentBalanceData(ctx context.Context) (responsex.GetStudentBalanceDataResponse, error) {
+	db := dao.GetDB()
+
+	type BalanceStat struct {
+		BalanceLevel string
+		StudentCount int
+	}
+	var stats []BalanceStat
+
+	// 使用 CASE WHEN 对课时进行分桶统计
+	query := `
+		SELECT 
+			CASE 
+				WHEN hours < 0 THEN 'Arrears'
+				WHEN hours >= 0 AND hours < 5 THEN 'Warning'
+				ELSE 'Sufficient'
+			END as balance_level,
+			COUNT(*) as student_count
+		FROM students
+		WHERE deleted_at IS NULL
+		GROUP BY balance_level
+	`
+
+	if err := db.Raw(query).Scan(&stats).Error; err != nil {
+		logger.Error("Failed to get student balance data", logger.ErrorType(err))
+		return responsex.GetStudentBalanceDataResponse{}, err
+	}
+
+	// 初始化 Map 确保所有状态都有值 (即使数据库查出来是 0)
+	resultMap := map[string]int{
+		"Arrears":    0,
+		"Warning":    0,
+		"Sufficient": 0,
+	}
+	for _, s := range stats {
+		resultMap[s.BalanceLevel] = s.StudentCount
+	}
+
+	// 转换为前端 ECharts Pie 图所需格式
+	// 顺序建议：充足 -> 预警 -> 欠费
+	return responsex.GetStudentBalanceDataResponse{
+		Stats: []responsex.BalanceStat{
+			{Name: "充足 (>=5课时)", Value: resultMap["Sufficient"]},
+			{Name: "预警 (<5课时)", Value: resultMap["Warning"]},
+			{Name: "欠费 (<0课时)", Value: resultMap["Arrears"]},
+		},
+	}, nil
+}
+
 func (m *DashboardManager) RegisterRoute(d *dispatcher.Dispatcher) {
 	dispatcher.RegisterNoReq(d, "dashboard_manager:get_summary", m.GetSummaryData)
 	dispatcher.RegisterTyped(d, "dashboard_manager:get_finance_chart", m.GetFinanceChartData)
@@ -454,4 +505,5 @@ func (m *DashboardManager) RegisterRoute(d *dispatcher.Dispatcher) {
 	dispatcher.RegisterNoReq(d, "dashboard_manager:get_heatmap", m.GetHeatmapData)
 	dispatcher.RegisterNoReq(d, "dashboard_manager:get_student_engagement", m.GetStudentEngagementData)
 	dispatcher.RegisterNoReq(d, "dashboard_manager:get_student_growth", m.GetStudentGrowthData)
+	dispatcher.RegisterNoReq(d, "dashboard_manager:get_student_balance", m.GetStudentBalanceData)
 }

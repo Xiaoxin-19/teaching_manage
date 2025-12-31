@@ -72,3 +72,31 @@ export interface GetFinanceChartDataResponse {
   consume_data: number[]
   net_data: number[]
 }
+
+export interface EngagementStat {
+  name: string
+  value: number
+}
+
+export interface GetStudentEngagementDataResponse {
+  stats: EngagementStat[]
+}
+
+export interface GetStudentGrowthDataResponse {
+  x_axis: string[]
+  series: number[]
+}
+
+export interface GetTeacherRankDataResponse {
+  names: string[]
+  values: number[]
+}
+
+export interface BalanceStat {
+  name: string
+  value: number
+}
+
+export interface GetStudentBalanceDataResponse {
+  stats: BalanceStat[]
+}

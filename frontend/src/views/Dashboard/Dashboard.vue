@@ -39,10 +39,10 @@
 
         <v-row dense>
           <v-col cols="12" md="6">
-            <ChartTeacher />
+            <ChartTeacher ref="chartTeacherRef" />
           </v-col>
           <v-col cols="12" md="6">
-            <ChartBalance @navigate="navigateTo" />
+            <ChartBalance ref="chartBalanceRef" @navigate="navigateTo" />
           </v-col>
         </v-row>
       </div>
@@ -75,6 +75,8 @@ const chartFinanceRef = ref();
 const chartHeatmapRef = ref();
 const chartEngagementRef = ref();
 const chartGrowthRef = ref();
+const chartTeacherRef = ref();
+const chartBalanceRef = ref();
 const firstLoad = ref(true);
 
 // 监听 loading 状态，第一次加载完成后将 firstLoad 置为 false
@@ -100,6 +102,12 @@ const handleRefresh = async () => {
   }
   if (chartGrowthRef.value) {
     chartGrowthRef.value.loadData();
+  }
+  if (chartTeacherRef.value) {
+    chartTeacherRef.value.loadData();
+  }
+  if (chartBalanceRef.value) {
+    chartBalanceRef.value.loadData();
   }
 
   await dashboardPromise;

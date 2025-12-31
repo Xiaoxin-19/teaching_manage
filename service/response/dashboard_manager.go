@@ -39,3 +39,12 @@ type EngagementStat struct {
 type GetStudentEngagementDataResponse struct {
 	Stats []EngagementStat `json:"stats"`
 }
+
+type BalanceStat struct {
+	Name  string `json:"name"`
+	Value int    `json:"value"`
+}
+
+type GetStudentBalanceDataResponse struct {
+	Stats []BalanceStat `json:"stats"`
+}
