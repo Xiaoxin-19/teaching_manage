@@ -30,3 +30,12 @@ type TeacherRankDTO struct {
 	Names  []string `json:"names"`
 	Values []int64  `json:"values"`
 }
+
+type EngagementStat struct {
+	Name  string `json:"name"`
+	Value int    `json:"value"`
+}
+
+type GetStudentEngagementDataResponse struct {
+	Stats []EngagementStat `json:"stats"`
+}

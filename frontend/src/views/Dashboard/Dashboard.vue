@@ -24,13 +24,13 @@
             <ChartFinance ref="chartFinanceRef" />
           </v-col>
           <v-col cols="12" md="6">
-            <ChartHeatmap />
+            <ChartHeatmap ref="chartHeatmapRef" />
           </v-col>
         </v-row>
 
         <v-row dense class="mb-4">
           <v-col cols="12" md="6">
-            <ChartEngagement />
+            <ChartEngagement ref="chartEngagementRef" />
           </v-col>
           <v-col cols="12" md="6">
             <ChartGrowth />
@@ -72,6 +72,8 @@ const {
 } = useDashboard();
 
 const chartFinanceRef = ref();
+const chartHeatmapRef = ref();
+const chartEngagementRef = ref();
 const firstLoad = ref(true);
 
 // 监听 loading 状态，第一次加载完成后将 firstLoad 置为 false
@@ -88,6 +90,12 @@ const handleRefresh = async () => {
   // 刷新图表数据 (如果组件已挂载)
   if (chartFinanceRef.value) {
     chartFinanceRef.value.loadData();
+  }
+  if (chartHeatmapRef.value) {
+    chartHeatmapRef.value.loadData();
+  }
+  if (chartEngagementRef.value) {
+    chartEngagementRef.value.loadData();
   }
 
   await dashboardPromise;

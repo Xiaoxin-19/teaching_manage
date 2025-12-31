@@ -327,9 +327,77 @@ func (m *DashboardManager) GetHeatmapData(ctx context.Context) ([][]int, error) 
 	return chartData, nil
 }
 
+// GetStudentEngagementData 获取学员活跃度分布 (基于过去30天课次)
+// Dormant: 0, Lazy: 1-3, Regular: 4-8, High: >8
+func (m *DashboardManager) GetStudentEngagementData(ctx context.Context) (responsex.GetStudentEngagementDataResponse, error) {
+	db := dao.GetDB()
+
+	type EngagementStat struct {
+		FrequencyLevel string
+		StudentCount   int
+	}
+	var stats []EngagementStat
+
+	// 使用 Go 计算时间，避免数据库方言差异和时区问题
+	startDate := time.Now().AddDate(0, 0, -30).Format("2006-01-02")
+
+	// 优化查询：使用 LEFT JOIN 替代子查询，提高性能
+	query := `
+		SELECT 
+			CASE 
+				WHEN lesson_count = 0 THEN 'Dormant'
+				WHEN lesson_count >= 1 AND lesson_count <= 3 THEN 'Lazy'
+				WHEN lesson_count >= 4 AND lesson_count <= 8 THEN 'Regular'
+				ELSE 'High'
+			END as frequency_level,
+			COUNT(*) as student_count
+		FROM (
+			SELECT 
+				s.id,
+				COUNT(r.id) as lesson_count
+			FROM students s
+			LEFT JOIN records r ON s.id = r.student_id 
+				AND r.active = 1 
+				AND r.deleted_at IS NULL
+				AND r.teaching_date >= ?
+			WHERE s.deleted_at IS NULL
+			GROUP BY s.id
+		)
+		GROUP BY frequency_level
+	`
+
+	if err := db.Raw(query, startDate).Scan(&stats).Error; err != nil {
+		logger.Error("Failed to get student engagement data", logger.ErrorType(err))
+		return responsex.GetStudentEngagementDataResponse{}, err
+	}
+
+	// 转换为前端需要的格式，确保所有类型都有值（即使是0）
+	resultMap := map[string]int{
+		"Dormant": 0,
+		"Lazy":    0,
+		"Regular": 0,
+		"High":    0,
+	}
+	for _, s := range stats {
+		resultMap[s.FrequencyLevel] = s.StudentCount
+	}
+
+	// 映射到前端展示名称
+	// 顺序：沉睡 -> 消极 -> 达标 -> 高频
+	return responsex.GetStudentEngagementDataResponse{
+		Stats: []responsex.EngagementStat{
+			{Name: "沉睡 (0次)", Value: resultMap["Dormant"]},
+			{Name: "消极 (1-3次)", Value: resultMap["Lazy"]},
+			{Name: "达标 (4-8次)", Value: resultMap["Regular"]},
+			{Name: "高频 (>8次)", Value: resultMap["High"]},
+		},
+	}, nil
+}
+
 func (m *DashboardManager) RegisterRoute(d *dispatcher.Dispatcher) {
 	dispatcher.RegisterNoReq(d, "dashboard_manager:get_summary", m.GetSummaryData)
 	dispatcher.RegisterTyped(d, "dashboard_manager:get_finance_chart", m.GetFinanceChartData)
 	dispatcher.RegisterNoReq(d, "dashboard_manager:get_teacher_rank", m.GetTeacherRankData)
 	dispatcher.RegisterNoReq(d, "dashboard_manager:get_heatmap", m.GetHeatmapData)
+	dispatcher.RegisterNoReq(d, "dashboard_manager:get_student_engagement", m.GetStudentEngagementData)
 }
