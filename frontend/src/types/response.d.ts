@@ -65,3 +65,10 @@ export interface GetDashboardSummaryResponse {
   "total_arrears": number
   "total_warning": number
 }
+
+export interface GetFinanceChartDataResponse {
+  x_axis: string[]
+  recharge_data: number[]
+  consume_data: number[]
+  net_data: number[]
+}

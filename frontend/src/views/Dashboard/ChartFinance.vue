@@ -21,41 +21,45 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import * as echarts from 'echarts';
 import { useChart } from '../../composables/useChart';
+import { Dispatch } from '../../../wailsjs/go/main/App';
+import { ResponseWrapper } from '../../types/appModels';
+import { GetFinanceChartDataResponse } from '../../types/response';
 
 const range = ref('6m');
 const chartRef = ref<HTMLElement | null>(null);
 
-const getOption = (isDark: boolean) => {
-  let xAxisData: string[] = [], rechargeData: number[] = [], consumeData: number[] = [], netData: number[] = [];
+// 定义数据状态
+const chartData = ref({
+  xAxis: [] as string[],
+  rechargeData: [] as number[],
+  consumeData: [] as number[],
+  netData: [] as number[]
+});
 
-  // TODO: 这里应替换为真实的后端 API 数据
-  if (range.value === '1m') {
-    xAxisData = Array.from({ length: 30 }, (_, i) => `${i + 1}日`);
-    rechargeData = Array.from({ length: 30 }, () => Math.floor(Math.random() * 40) + 5);
-    consumeData = Array.from({ length: 30 }, () => Math.floor(Math.random() * 30) + 10);
-  } else if (range.value === '6m') {
-    xAxisData = ['7月', '8月', '9月', '10月', '11月', '12月'];
-    rechargeData = [320, 150, 400, 200, 550, 280];
-    consumeData = [220, 232, 201, 234, 290, 345];
-  } else if (range.value === '12m') {
-    xAxisData = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-    rechargeData = [300, 280, 450, 320, 150, 400, 200, 550, 280, 310, 420, 500];
-    consumeData = [200, 180, 350, 220, 232, 201, 234, 290, 345, 300, 320, 380];
-  } else {
-    xAxisData = ['2023-Q1', '2023-Q2', '2023-Q3', '2023-Q4', '2024-Q1', '2024-Q2', '2024-Q3', '2024-Q4'];
-    rechargeData = [1200, 1500, 1100, 1800, 1600, 1400, 1700, 1900];
-    consumeData = [1000, 1200, 1300, 1400, 1500, 1550, 1600, 1750];
-  }
-  netData = rechargeData.map((val, i) => val - consumeData[i]);
+const getOption = (isDark: boolean) => {
+  const { xAxis, rechargeData, consumeData, netData } = chartData.value;
 
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    legend: { data: ['充值课时 (收入)', '消课课时 (营收)', '净增库存'], bottom: 0 },
-    grid: { top: 30, left: 40, right: 40, bottom: 30, containLabel: true },
-    xAxis: { type: 'category', data: xAxisData, axisLine: { show: false }, axisTick: { show: false } },
+    legend: { data: ['充值课时 (收入)', '消课课时 (营收)', '净增库存'], top: 0 },
+    grid: { top: 40, left: 20, right: 20, bottom: 60, containLabel: true },
+    // 添加 dataZoom 组件以支持大量数据滚动查看
+    dataZoom: [
+      {
+        type: 'inside',
+        start: 0,
+        end: 100
+      },
+      {
+        start: 0,
+        end: 100,
+        bottom: 10
+      }
+    ],
+    xAxis: { type: 'category', data: xAxis, axisLine: { show: false }, axisTick: { show: false } },
     yAxis: [
       { type: 'value', splitLine: { lineStyle: { type: 'dashed', opacity: 0.3 } } },
       { type: 'value', show: false }
@@ -70,14 +74,45 @@ const getOption = (isDark: boolean) => {
 
 const { refresh } = useChart(chartRef, getOption);
 
-const handleRangeChange = () => {
-  refresh();
+const loadData = async () => {
+  try {
+    const res = await Dispatch("dashboard_manager:get_finance_chart", JSON.stringify({ type: range.value }));
+    const response = JSON.parse(res) as ResponseWrapper<GetFinanceChartDataResponse>;
+
+    if (response.code === 200 && response.data) {
+
+      const data = response.data;
+      chartData.value = {
+        xAxis: data.x_axis || [],
+        rechargeData: data.recharge_data || [],
+        consumeData: data.consume_data || [],
+        netData: data.net_data || []
+      };
+      refresh();
+    } else {
+      console.error("Failed to load finance chart data:", response.message);
+    }
+  } catch (e) {
+    console.error("Failed to load finance chart data", e);
+  }
 };
+
+const handleRangeChange = () => {
+  loadData();
+};
+
+defineExpose({
+  loadData
+});
+
+onMounted(() => {
+  loadData();
+});
 </script>
 
 <style scoped>
 .chart-box {
   width: 100%;
-  height: 320px;
+  height: 380px;
 }
 </style>

@@ -94,47 +94,121 @@ func (m *DashboardManager) GetFinanceChartData(ctx context.Context, rangeType *r
 	db := dao.GetDB()
 	var result responsex.FinanceChartDTO
 
-	// 默认实现：按月聚合 (最近 6 个月)
-	// TODO 实际项目中需要根据 rangeType 动态生成 SQL 时间范围
+	// 根据 rangeType 动态生成 SQL 时间范围
+	var xAxis []string
+	var sqlFormat string
+	var queryStartDate string
 
-	months := []string{}
 	now := time.Now()
-	// 生成最近6个月的月份标签
-	for i := 5; i >= 0; i-- {
-		t := now.AddDate(0, -i, 0)
-		months = append(months, t.Format("2006-01"))
-	}
-	result.XAxis = months
 
-	// SQLite 查询：按月分组统计充值
-	// 注意：SQLite 的 strftime 用法
-	type MonthlyStat struct {
-		Month string
+	// Helper to generate monthly axis
+	generateMonthly := func(months int) {
+		y, m, _ := now.Date()
+		// Start from (months-1) ago. e.g. 6m -> start 5 months ago
+		startMonth := time.Date(y, m, 1, 0, 0, 0, 0, now.Location()).AddDate(0, -(months - 1), 0)
+
+		queryStartDate = startMonth.Format("2006-01-02")
+		sqlFormat = "%Y-%m"
+
+		for i := 0; i < months; i++ {
+			xAxis = append(xAxis, startMonth.AddDate(0, i, 0).Format("2006-01"))
+		}
+	}
+
+	switch rangeType.Type {
+	case "1m":
+		// Daily, last 1 month
+		start := now.AddDate(0, -1, 0)
+		queryStartDate = start.Format("2006-01-02")
+		sqlFormat = "%Y-%m-%d"
+		for d := start; !d.After(now); d = d.AddDate(0, 0, 1) {
+			xAxis = append(xAxis, d.Format("2006-01-02"))
+		}
+	case "12m":
+		generateMonthly(12)
+	case "all":
+		// 从数据库中找出最早的订单或记录日期作为起点
+		var minOrderTimeStr *string
+		var minRecordTimeStr *string
+
+		db.Model(&dao.Order{}).Select("MIN(created_at)").Scan(&minOrderTimeStr)
+		db.Model(&dao.Record{}).Select("MIN(teaching_date)").Scan(&minRecordTimeStr)
+
+		startTime := now
+		found := false
+
+		parseTime := func(timeStr *string) *time.Time {
+			if timeStr == nil {
+				return nil
+			}
+			// 尝试解析常见格式，SQLite 默认存储可能是 "2006-01-02 15:04:05.999999999-07:00" 或简单的字符串
+			// 这里尝试几种常见格式
+			formats := []string{
+				"2006-01-02 15:04:05-07:00",
+				"2006-01-02 15:04:05.999999999-07:00",
+				"2006-01-02 15:04:05",
+				"2006-01-02T15:04:05Z07:00",
+				"2006-01-02",
+			}
+			for _, f := range formats {
+				if t, err := time.ParseInLocation(f, *timeStr, time.Local); err == nil {
+					return &t
+				}
+			}
+			return nil
+		}
+
+		if t := parseTime(minOrderTimeStr); t != nil {
+			startTime = *t
+			found = true
+		}
+		if t := parseTime(minRecordTimeStr); t != nil {
+			if !found || t.Before(startTime) {
+				startTime = *t
+				found = true
+			}
+		}
+
+		if !found {
+			generateMonthly(12)
+		} else {
+			months := (now.Year()-startTime.Year())*12 + int(now.Month()-startTime.Month()) + 1
+			if months < 1 {
+				months = 1
+			}
+			generateMonthly(months)
+		}
+	case "6m":
+		fallthrough
+	default:
+		generateMonthly(6)
+	}
+	result.XAxis = xAxis
+
+	type ChartStat struct {
+		Label string
 		Total int64
 	}
 
 	// 1. 充值数据 (Orders)
-	var rechargeStats []MonthlyStat
-	// 筛选最近6个月的数据
-	startDate := now.AddDate(0, -5, 0).Format("2006-01") + "-01"
-
+	var rechargeStats []ChartStat
 	err := db.Model(&dao.Order{}).
-		Select("strftime('%Y-%m', created_at) as month, SUM(hours) as total").
-		Where("active = 1 AND created_at >= ?", startDate).
-		Group("month").
-		Order("month").
+		Select(fmt.Sprintf("strftime('%s', created_at) as label, SUM(hours) as total", sqlFormat)).
+		Where("active = 1 AND created_at >= ?", queryStartDate).
+		Group("label").
+		Order("label").
 		Scan(&rechargeStats).Error
 	if err != nil {
 		return result, err
 	}
 
 	// 2. 消课数据 (Records)
-	var consumeStats []MonthlyStat
+	var consumeStats []ChartStat
 	err = db.Model(&dao.Record{}).
-		Select("strftime('%Y-%m', teaching_date) as month, COUNT(id) as total"). // 假设每条记录1课时
-		Where("active = 1 AND teaching_date >= ?", startDate).
-		Group("month").
-		Order("month").
+		Select(fmt.Sprintf("strftime('%s', teaching_date) as label, COUNT(id) as total", sqlFormat)). // 假设每条记录1课时
+		Where("active = 1 AND teaching_date >= ?", queryStartDate).
+		Group("label").
+		Order("label").
 		Scan(&consumeStats).Error
 	if err != nil {
 		return result, err
@@ -143,17 +217,17 @@ func (m *DashboardManager) GetFinanceChartData(ctx context.Context, rangeType *r
 	// 3. 数据填充 (Map to Slice)
 	rechargeMap := make(map[string]int64)
 	for _, s := range rechargeStats {
-		rechargeMap[s.Month] = s.Total
+		rechargeMap[s.Label] = s.Total
 	}
 
 	consumeMap := make(map[string]int64)
 	for _, s := range consumeStats {
-		consumeMap[s.Month] = s.Total
+		consumeMap[s.Label] = s.Total
 	}
 
-	for _, m := range months {
-		rVal := rechargeMap[m]
-		cVal := consumeMap[m]
+	for _, label := range xAxis {
+		rVal := rechargeMap[label]
+		cVal := consumeMap[label]
 		result.RechargeData = append(result.RechargeData, rVal)
 		result.ConsumeData = append(result.ConsumeData, cVal)
 		result.NetData = append(result.NetData, rVal-cVal)

@@ -19,10 +19,10 @@ type ChartDataDTO struct {
 
 // FinanceChartDTO 资金/课时流转图表
 type FinanceChartDTO struct {
-	XAxis        []string `json:"xAxis"`
-	RechargeData []int64  `json:"rechargeData"`
-	ConsumeData  []int64  `json:"consumeData"`
-	NetData      []int64  `json:"netData"`
+	XAxis        []string `json:"x_axis"`
+	RechargeData []int64  `json:"recharge_data"`
+	ConsumeData  []int64  `json:"consume_data"`
+	NetData      []int64  `json:"net_data"`
 }
 
 // TeacherRankDTO 教师排行
