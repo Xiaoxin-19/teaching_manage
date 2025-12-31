@@ -124,8 +124,12 @@ func (s StudentGormDao) GetStudentList(ctx context.Context, key string, offset i
 }
 
 func (s StudentGormDao) GetStudentByName(ctx context.Context, name string) (*Student, error) {
-	var stu Student
-	err := gorm.G[Student](s.db).Where("name = ?", name).Preload("Teacher").First(ctx, &stu)
+
+	stu, err := gorm.G[Student](s.db).Where("name = ?", name).Preload("Teacher", nil).First(ctx)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrRecordNotFound
+	}
+
 	if err != nil {
 		return nil, err
 	}

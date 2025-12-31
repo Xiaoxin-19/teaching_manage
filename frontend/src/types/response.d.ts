@@ -45,3 +45,13 @@ export interface GetRecordListResponse {
   total: number
   total_pending: number
 }
+
+export interface ImportExcelResponse {
+  filepath: string
+  total_rows: number
+  error_infos: string[][]
+}
+
+export interface SelectFileResponse {
+  filepath: string
+}

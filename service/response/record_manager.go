@@ -21,3 +21,12 @@ type RecordDTO struct {
 	UpdatedAt    int64  `json:"updated_at"`
 }
 
+type ImportFromExcelResponse struct {
+	Filepath   string     `json:"filepath"`
+	TotalRows  int        `json:"total_rows"`
+	ErrorInfos [][]string `json:"error_infos"`
+}
+
+type SelectFileResponse struct {
+	Filepath string `json:"filepath"`
+}

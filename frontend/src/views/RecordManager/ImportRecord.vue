@@ -52,8 +52,11 @@ const props = defineProps<{
   modelValue: boolean;
 }>();
 
+// 定义事件，用于通知父组件关闭对话框，以及告知导入结果是否成功，携带导入结果信息
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
+  (e: 'import-success'): void;
+  (e: 'import-failed', errorInfo: any): void;
 }>();
 
 const {

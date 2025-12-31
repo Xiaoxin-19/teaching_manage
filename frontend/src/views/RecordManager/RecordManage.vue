@@ -262,9 +262,10 @@
 
       <!-- 弹窗组件 -->
       <ModifyRecord v-model="dialogForm" @save="saveRecord" />
-      <ImportRecord v-model="dialogImport" />
+      <ImportRecord v-model="dialogImport" @import-success="onImportSuccess" @import-failed="onImportFailed" />
       <DateRangeDialog v-model="dialogDateRange" :start-date="customStartDate" :end-date="customEndDate"
         @confirm="handleCustomDateConfirm" @cancel="handleCustomDateCancel" />
+      <ImportErrorDialog v-model="dialogError" :errors="importErrorInfos" />
     </div>
   </v-sheet>
 </template>
@@ -274,6 +275,7 @@ import { useRecordManage } from './RecordManage.logic';
 import ModifyRecord from './ModifyRecord.vue';
 import ImportRecord from './ImportRecord.vue';
 import DateRangeDialog from './DateRangeDialog.vue';
+import ImportErrorDialog from './ImportErrorDialog.vue';
 
 const {
   searchStudent,
@@ -289,6 +291,8 @@ const {
   dialogForm,
   dialogImport,
   dialogDateRange,
+  dialogError,
+  importErrorInfos,
   pendingCount,
   hasActiveFilters,
   dateRangeText,
@@ -306,6 +310,8 @@ const {
   processAllPending,
   deleteItem,
   exportRecords,
+  onImportSuccess,
+  onImportFailed,
 } = useRecordManage();
 </script>
 

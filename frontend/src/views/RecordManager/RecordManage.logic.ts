@@ -325,6 +325,22 @@ export function useRecordManage() {
     });
   };
 
+  // 错误弹窗控制
+  const dialogError = ref(false);
+  const importErrorInfos = ref<string[][]>([]);
+
+  const onImportSuccess = () => {
+    loadItems({ page: page.value, itemsPerPage: itemsPerPage.value, sortBy: [] });
+  };
+
+  const onImportFailed = (errorInfo: any) => {
+    console.log("Import failed", errorInfo);
+    if (errorInfo && Array.isArray(errorInfo) && errorInfo.length > 0) {
+      importErrorInfos.value = errorInfo;
+      dialogError.value = true;
+    }
+  };
+
   return {
     // State
     searchStudent,
@@ -340,6 +356,8 @@ export function useRecordManage() {
     dialogForm,
     dialogImport,
     dialogDateRange,
+    dialogError,
+    importErrorInfos,
     customStartDate,
     customEndDate,
     mockStudents: ref([]),
@@ -360,5 +378,7 @@ export function useRecordManage() {
     processAllPending,
     deleteItem,
     exportRecords,
+    onImportSuccess,
+    onImportFailed,
   };
 }

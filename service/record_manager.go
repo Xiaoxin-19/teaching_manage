@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"teaching_manage/dao"
 	"teaching_manage/entity"
 	"teaching_manage/pkg"
@@ -17,6 +19,8 @@ import (
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
+
+var template_excel_headers = []string{"学生姓名", "上课日期", "开始时间", "结束时间", "备注	"}
 
 type RecordManager struct {
 	Ctx   context.Context
@@ -331,12 +335,11 @@ func (rm *RecordManager) DownloadImportTemplate(ctx context.Context) (string, er
 	}
 
 	logger.Info("exporting record import template to", logger.String("filepath", filepath))
-	headers := []string{"学生姓名", "上课日期", "开始时间", "结束时间", "备注	"}
 	rows := [][]string{
 		{"张三", "2024-10-01", "10:00", "11:00", "第一次上课"},
 	}
 
-	err = pkg.ExportToExcel(filepath, headers, rows)
+	err = pkg.ExportToExcel(filepath, template_excel_headers, rows)
 	if err != nil {
 		logger.Error("failed to export record import template", logger.ErrorType(err))
 		return "", fmt.Errorf("导出失败:请检查文件是否被占用或有读写权限")
@@ -344,37 +347,56 @@ func (rm *RecordManager) DownloadImportTemplate(ctx context.Context) (string, er
 	return filepath, nil
 }
 
-func (rm *RecordManager) ImportFromExcel(ctx context.Context, req *requestx.ImportRecordsRequest) (string, error) {
+func (rm *RecordManager) ShowFilePicker(ctx context.Context) (responsex.SelectFileResponse, error) {
+	logger.Info("start open file dialog")
+	filepath, err := wails.OpenFileDialog(rm.Ctx, wails.OpenDialogOptions{
+		Title:   "选择导入文件位置",
+		Filters: []wails.FileFilter{{DisplayName: "Excel 文件", Pattern: "*.xlsx"}},
+	})
+	if err != nil {
+		return responsex.SelectFileResponse{}, err
+	}
+
+	if filepath == "" {
+		return responsex.SelectFileResponse{Filepath: "cancel"}, nil
+	}
+	return responsex.SelectFileResponse{Filepath: filepath}, nil
+}
+
+func (rm *RecordManager) ImportFromExcel(ctx context.Context, req *requestx.ImportRecordsRequest) (responsex.ImportFromExcelResponse, error) {
 	logger.Info("start import records from excel", logger.String("filepath", req.Filepath))
 	importFilePath := req.Filepath
-	if req.Filepath == "" {
-		filepath, err := wails.OpenFileDialog(rm.Ctx, wails.OpenDialogOptions{
-			Title:   "选择导入文件位置",
-			Filters: []wails.FileFilter{{DisplayName: "Excel 文件", Pattern: "*.xlsx"}},
-		})
-		if err != nil {
-			return "", err
-		}
-
-		if filepath == "" {
-			return "cancel", nil
-		}
-		importFilePath = filepath
-	}
 
 	f, err := excelize.OpenFile(importFilePath)
 	if err != nil {
-		return "", fmt.Errorf("open excel file failed: %w", err)
+		logger.Error("failed to open excel file", logger.ErrorType(err))
+		return responsex.ImportFromExcelResponse{}, fmt.Errorf("fail:open excel file failed: %w", err)
 	}
 	defer f.Close()
 
-	rows, err := f.GetRows("Sheet1")
+	// Validate dates in excel
+	records, errInfo, err := validateTeachingRecords(ctx, f)
 	if err != nil {
-		return "", fmt.Errorf("read rows failed: %w", err)
+		logger.Error("failed to validate excel data", logger.ErrorType(err))
+		return responsex.ImportFromExcelResponse{}, err
 	}
 
-	if len(rows) < 2 {
-		return "No data found in excel file", nil
+	// Check for validation errors
+	hasErrors := false
+	for _, rowErr := range errInfo {
+		if len(rowErr) > 0 {
+			hasErrors = true
+			break
+		}
+	}
+
+	if hasErrors {
+		logger.Error("excel data validation failed")
+		return responsex.ImportFromExcelResponse{
+			Filepath:   importFilePath,
+			ErrorInfos: errInfo,
+			TotalRows:  0,
+		}, fmt.Errorf("数据验证失败，请检查错误信息")
 	}
 
 	db := dao.GetDB()
@@ -382,76 +404,35 @@ func (rm *RecordManager) ImportFromExcel(ctx context.Context, req *requestx.Impo
 		txStudentRepo := repository.NewStudentRepository(dao.NewStudentDao(tx))
 		txRecordRepo := repository.NewRecordRepository(dao.NewRecordDao(tx))
 
-		for i, row := range rows {
-			if i == 0 {
-				continue
-			} // Skip header
-			if len(row) < 4 {
-				continue
-			} // Skip invalid rows
-
-			studentName := row[0]
-			dateStr := row[1]
-			startTimeStr := row[2]
-			endTimeStr := row[3]
-			remark := ""
-			if len(row) > 4 {
-				remark = row[4]
-			}
-
-			// Parse Date
-			teachingDate, err := time.Parse("2006-01-02", dateStr)
-			if err != nil {
-				// Try parsing as Excel serial date if it's a number?
-				// For now, strict YYYY-MM-DD or fail.
-				// Some excel might export as MM-DD-YY, etc.
-				// Let's try one more format just in case: 01-02-06
-				teachingDate, err = time.Parse("01-02-06", dateStr)
-				if err != nil {
-					return fmt.Errorf("row %d: invalid date format %s, expected YYYY-MM-DD", i+1, dateStr)
-				}
-			}
-
-			// Parse Time
-			startTime, err := time.Parse("15:04", startTimeStr)
-			if err != nil {
-				return fmt.Errorf("row %d: invalid start time format %s, expected HH:MM", i+1, startTimeStr)
-			}
-			endTime, err := time.Parse("15:04", endTimeStr)
-			if err != nil {
-				return fmt.Errorf("row %d: invalid end time format %s, expected HH:MM", i+1, endTimeStr)
-			}
-			if !startTime.Before(endTime) {
-				return fmt.Errorf("row %d: start time must be before end time", i+1)
-			}
-
+		for i, record := range records {
 			// Find Student
-			student, err := txStudentRepo.GetStudentByName(ctx, studentName)
+			student, err := txStudentRepo.GetStudentByName(ctx, record.Student.Name)
 			if err != nil {
-				if err == gorm.ErrRecordNotFound {
-					return fmt.Errorf("row %d: student '%s' not found", i+1, studentName)
-				}
-				return fmt.Errorf("row %d: failed to find student '%s': %w", i+1, studentName, err)
+				logger.Error("failed to get student by name", logger.String("student_name", record.Student.Name), logger.ErrorType(err))
+				return fmt.Errorf("第 %d 行: 查询学生 '%s' 失败", i+2, record.Student.Name)
 			}
 
 			// Check Teacher
 			if student.Teacher.ID == 0 || !student.Teacher.DeletedAt.IsZero() {
-				return fmt.Errorf("row %d: student '%s' has no active teacher", i+1, studentName)
+				logger.Error("associated teacher not found for student", logger.String("student_name", record.Student.Name),
+					logger.UInt("teacher_id", student.Teacher.ID), logger.String("teacher_deleted_at", student.Teacher.DeletedAt.Local().String()))
+				return fmt.Errorf("第 %d 行: 学生 '%s' 没有关联有效的教师", i+2, record.Student.Name)
 			}
 
-			record := &entity.Record{
-				Student:      entity.Student{ID: student.ID},
-				Teacher:      entity.Teacher{ID: student.Teacher.ID},
-				TeachingDate: teachingDate,
-				StartTime:    startTimeStr,
-				EndTime:      endTimeStr,
-				Remark:       remark,
-				Active:       false, // Imported records are pending by default
-			}
+			// Complete the record information
+			record.Student.ID = student.ID
+			record.Teacher.ID = student.Teacher.ID
+			record.Active = false // Imported records are pending by default
 
-			err = txRecordRepo.CreateRecord(ctx, record)
+			// Create Record
+			err = txRecordRepo.CreateRecord(ctx, &record)
 			if err != nil {
-				return fmt.Errorf("row %d: create record failed: %w", i+1, err)
+				if errors.Is(err, dao.ErrDuplicatedKey) {
+					logger.Warn("duplicate record found during import", logger.String("student_name", record.Student.Name), logger.ErrorType(err))
+					return fmt.Errorf("第 %d 行: 学生 '%s' 的该上课记录已存在，重复导入", i+2, record.Student.Name)
+				}
+				logger.Error("failed to create record", logger.String("student_name", record.Student.Name), logger.ErrorType(err))
+				return fmt.Errorf("第 %d 行: 创建记录失败: %w", i+2, err)
 			}
 		}
 		return nil
@@ -459,10 +440,121 @@ func (rm *RecordManager) ImportFromExcel(ctx context.Context, req *requestx.Impo
 
 	if err != nil {
 		logger.Error("failed to import records", logger.ErrorType(err))
-		return "", err
+		return responsex.ImportFromExcelResponse{
+			Filepath:  importFilePath,
+			TotalRows: len(records),
+		}, err
 	}
 
-	return "Records imported successfully", nil
+	return responsex.ImportFromExcelResponse{
+		Filepath:   importFilePath,
+		TotalRows:  len(records),
+		ErrorInfos: [][]string{},
+	}, nil
+}
+
+func validateTeachingRecords(ctx context.Context, f *excelize.File) ([]entity.Record, [][]string, error) {
+	rows, err := f.GetRows("Sheet1")
+	if err != nil {
+		logger.Error("failed to read rows from excel file", logger.ErrorType(err))
+		return nil, nil, fmt.Errorf("无法打开Sheet1")
+	}
+
+	if len(rows) < 2 {
+		logger.Warn("Excel not contain effective data")
+		return nil, nil, fmt.Errorf("Excel 不包含有效数据")
+	}
+
+	errInfo := make([][]string, len(rows)-1)
+
+	// validate table header
+	for i, header := range template_excel_headers {
+		if rows[0][i] != header {
+			logger.Error("table header not match template",
+				logger.String("input_header", rows[0][i]), logger.String("template_header", header))
+			return nil, nil, fmt.Errorf("无效的模板格式, 预期表头包含 %s 但是存在 %s", header, rows[0][i])
+		}
+	}
+
+	// validate data rows
+	records := make([]entity.Record, 0, len(rows)-1)
+	for i, row := range rows[1:] {
+		if len(row) < 4 {
+			errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 列数不足4列，信息不足", i+2))
+			continue
+		}
+
+		// remove blank spaces
+		stuName := strings.ReplaceAll(row[0], " ", "")
+		teachingDate := strings.ReplaceAll(row[1], " ", "")
+		startTime := strings.ReplaceAll(row[2], " ", "")
+		endTime := strings.ReplaceAll(row[3], " ", "")
+		remark := ""
+		if len(row) > 4 {
+			remark = strings.TrimSpace(row[4])
+		}
+
+		// validate date format
+
+		// student name not empty
+		if stuName == "" {
+			errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 学生姓名不能为空", i+2))
+		}
+
+		// teaching date format
+		logger.Debug("the teaching date is ", logger.String("date", teachingDate))
+		teachingDate = strings.ReplaceAll(teachingDate, "－", "-")
+		teachingDate = strings.ReplaceAll(teachingDate, "／", "-")
+		teachingDate = strings.ReplaceAll(teachingDate, "/", "-")
+		teachingDate = strings.ReplaceAll(teachingDate, ".", "-")
+
+		parsedTeachingDate, err := time.Parse("2006-01-02", teachingDate)
+		if err != nil {
+			// 尝试解析 MM-DD-YYYY 格式 (例如 12-01-2025)
+			parsedTeachingDate, err = time.Parse("01-02-2006", teachingDate)
+		}
+
+		if err != nil {
+			logger.Error("teaching date parse error", logger.String("teaching_date", teachingDate), logger.ErrorType(err))
+			errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 上课日期格式错误，需为 YYYY-MM-DD 或 MM-DD-YYYY 格式", i+2))
+		}
+
+		// start time format
+		startTime = strings.ReplaceAll(startTime, "：", ":")
+		startTimeParsed, err := time.Parse("15:04", startTime)
+		if err != nil {
+			errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 开始时间格式错误，需为 HH:MM 格式", i+2))
+		}
+		startTimeValid := err == nil
+
+		// end time format
+		endTime = strings.ReplaceAll(endTime, "：", ":")
+		endTimeParsed, err := time.Parse("15:04", endTime)
+		if err != nil {
+			errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 结束时间格式错误，需为 HH:MM 格式", i+2))
+		}
+		endTimeValid := err == nil
+
+		// validate start time before end time
+		if startTimeValid && endTimeValid && !startTimeParsed.Before(endTimeParsed) {
+			errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 开始时间必须早于结束时间", i+2))
+		}
+
+		if len(errInfo[i]) > 0 {
+			records = append(records, entity.Record{})
+			continue
+		}
+
+		records = append(records, entity.Record{
+			Student:      entity.Student{Name: stuName},
+			TeachingDate: parsedTeachingDate,
+			StartTime:    startTime,
+			EndTime:      endTime,
+			Remark:       remark,
+		})
+	}
+
+	return records, errInfo, nil
 }
 
 func (rm *RecordManager) RegisterRoute(d *dispatcher.Dispatcher) {
@@ -475,4 +567,5 @@ func (rm *RecordManager) RegisterRoute(d *dispatcher.Dispatcher) {
 	dispatcher.RegisterTyped(d, "record_manager:export_record_to_excel", rm.ExportRecordToExcel)
 	dispatcher.RegisterNoReq(d, "record_manager:download_import_template", rm.DownloadImportTemplate)
 	dispatcher.RegisterTyped(d, "record_manager:import_from_excel", rm.ImportFromExcel)
+	dispatcher.RegisterNoReq(d, "record_manager:select_import_file", rm.ShowFilePicker)
 }

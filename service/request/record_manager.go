@@ -37,5 +37,5 @@ type ExportRecordsRequest struct {
 }
 
 type ImportRecordsRequest struct {
-	Filepath string `json:"filepath" validate:"max=2048"`
+	Filepath string `json:"filepath" validate:"required,max=2048,filepath"`
 }

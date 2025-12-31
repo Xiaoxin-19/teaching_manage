@@ -3,6 +3,7 @@ import { OnFileDrop, OnFileDropOff } from '../../../wailsjs/runtime/runtime'
 import { useToast } from '../../composables/useToast'
 import { Dispatch } from '../../../wailsjs/go/main/App'
 import { ResponseWrapper } from '../../types/appModels'
+import { ImportExcelResponse, SelectFileResponse } from '../../types/response'
 
 export function useImportRecord(props: { modelValue: boolean }, emit: any) {
   const { info, success, error } = useToast()
@@ -14,9 +15,47 @@ export function useImportRecord(props: { modelValue: boolean }, emit: any) {
     selectedFile.value = ''
   }
 
+  const importFile = (filePath: string) => {
+    const reqData = { filepath: filePath }
+    const reqDataJson = JSON.stringify(reqData)
+    Dispatch('record_manager:import_from_excel', reqDataJson).then((result: string) => {
+      console.log('导入响应原始数据:', result);
+      const resp = JSON.parse(result) as ResponseWrapper<ImportExcelResponse>;
+      console.log('导入响应:', resp);
+      if (resp.code === 200) {
+        success('导入成功，文件路径: ' + resp.data.filepath, 'top-right');
+        // 重新加载记录列表
+        emit('import-success')
+        close()
+      } else {
+        close();
+        error('导入失败: ' + resp.message, 'top-right');
+        // 如果有详细的错误信息(error_infos)，弹框，使用表格显示
+        console.error('导入失败详情:', resp.data.error_infos);
+        emit('import-failed', resp.data.error_infos)
+      }
+    }).catch((err: any) => {
+      error('导入请求异常: ' + err, 'top-right');
+      emit('import-failed', err)
+    })
+  }
+
   const triggerFileInput = () => {
-    // TODO: 调用系统文件选择对话框
-    info('请直接拖拽文件到此处')
+    // 触发文件选择对话框
+    Dispatch('record_manager:select_import_file', "").then((result: string) => {
+      const resp = JSON.parse(result) as ResponseWrapper<SelectFileResponse>;
+      console.log('选择文件响应:', resp);
+      if (resp.code === 200) {
+        if (resp.data.filepath === 'cancel') {
+          info('文件选择已取消', 'top-right');
+          return;
+        }
+        selectedFile.value = resp.data.filepath;
+        info(`已选择文件: ${selectedFile.value}`, 'top-right');
+      } else {
+        error('文件选择失败: ' + resp.message, 'top-right');
+      }
+    })
   }
 
   const downloadTemplate = () => {
@@ -38,17 +77,13 @@ export function useImportRecord(props: { modelValue: boolean }, emit: any) {
   }
 
   const startImport = () => {
+    console.log('开始导入文件:', selectedFile.value)
     if (!selectedFile.value) {
       error('请先选择或拖拽文件')
       return
     }
-    // TODO: 这里需要对接真实的后端导入接口
-    success(`开始导入文件: ${selectedFile.value}`)
-    // 模拟导入过程
-    setTimeout(() => {
-      success('导入成功 (模拟)')
-      close()
-    }, 1000)
+
+    importFile(selectedFile.value)
   }
 
   // 注册文件拖拽监听

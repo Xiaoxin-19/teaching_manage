@@ -61,20 +61,20 @@ func NewHandlerFunc[Req any, Res any](fn func(context.Context, *Req) (Res, error
 		req := new(Req)
 		if len(payload) > 0 {
 			if err := json.Unmarshal(payload, req); err != nil {
-				return wraper.NewBadResponse("unmarshal json to object fail").ToJSON(), err
+				return wraper.NewBadResponse("failed to unmarshal JSON to object", "").ToJSON(), err
 			}
 		}
 
 		// validate struct
 		err := valdiatex.ValidateStruct(req)
 		if err != nil {
-			return wraper.NewBadResponse("request validation failed: " + err.Error()).ToJSON(), err
+			return wraper.NewBadResponse("request validation failed: "+err.Error(), "").ToJSON(), err
 		}
 
 		// call the typed function
 		res, err := fn(ctx, req)
 		if err != nil {
-			return wraper.NewBadResponse(err.Error()).ToJSON(), err
+			return wraper.NewBadResponse(err.Error(), res).ToJSON(), err
 		}
 		successResp := wraper.NewSuccessResponse(res)
 		successResp.Data = res
@@ -95,7 +95,7 @@ func NewHandlerFuncNoReq[Res any](fn func(context.Context) (Res, error)) Handler
 	return HandlerFunc(func(ctx context.Context, payload json.RawMessage) (string, error) {
 		res, err := fn(ctx)
 		if err != nil {
-			return wraper.NewBadResponse(err.Error()).ToJSON(), err
+			return wraper.NewBadResponse(err.Error(), res).ToJSON(), err
 		}
 		successResp := wraper.NewSuccessResponse(res)
 		successResp.Data = res
@@ -117,7 +117,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, name string, payload json.Raw
 	d.mu.RUnlock()
 
 	if !ok {
-		return wraper.NewBadResponse(fmt.Sprintf("handler [%s] not found ", name)).ToJSON(), ErrHandlerNotFound
+		return wraper.NewBadResponse(fmt.Sprintf("handler [%s] not found ", name), "").ToJSON(), ErrHandlerNotFound
 	}
 
 	// call the handler (fn) now that Pre hooks have completed

@@ -29,12 +29,12 @@ func NewSuccessResponse[T any](data T) Response[T] {
 	}
 }
 
-func NewBadResponse(message string) Response[any] {
-	return Response[any]{
+func NewBadResponse[T any](message string, data T) Response[T] {
+	return Response[T]{
 		BaseResponse: BaseResponse{
 			Code:    500,
 			Message: message,
 		},
-		Data: nil,
+		Data: data,
 	}
 }
