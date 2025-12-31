@@ -6,6 +6,7 @@ import (
 	"teaching_manage/dao"
 	"teaching_manage/pkg/dispatcher"
 	"teaching_manage/pkg/logger"
+	requestx "teaching_manage/service/request"
 	responsex "teaching_manage/service/response"
 	"time"
 )
@@ -89,15 +90,12 @@ func (m *DashboardManager) GetSummaryData(ctx context.Context) (responsex.Dashbo
 }
 
 // GetFinanceChartData 获取资金/课时流转数据
-// rangeType: "1m", "6m", "12m", "all"
-func (m *DashboardManager) GetFinanceChartData(ctx context.Context, rangeType *struct {
-	Type string `json:"type"`
-}) (responsex.FinanceChartDTO, error) {
+func (m *DashboardManager) GetFinanceChartData(ctx context.Context, rangeType *requestx.GetFinanceDataRequest) (responsex.FinanceChartDTO, error) {
 	db := dao.GetDB()
 	var result responsex.FinanceChartDTO
 
-	// 简单实现：按月聚合 (最近 6 个月)
-	// 实际项目中需要根据 rangeType 动态生成 SQL 时间范围
+	// 默认实现：按月聚合 (最近 6 个月)
+	// TODO 实际项目中需要根据 rangeType 动态生成 SQL 时间范围
 
 	months := []string{}
 	now := time.Now()
