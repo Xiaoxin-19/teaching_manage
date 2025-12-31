@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"teaching_manage/dao"
 	"teaching_manage/pkg/dispatcher"
 	"teaching_manage/pkg/logger"
@@ -274,62 +275,53 @@ func (m *DashboardManager) GetTeacherRankData(ctx context.Context) (responsex.Te
 	return result, nil
 }
 
-// GetHeatmapData 获取热力图数据
+// GetHeatmapData 获取热力图数据 (适配 ChartHeatmap.vue 组件)
 func (m *DashboardManager) GetHeatmapData(ctx context.Context) ([][]int, error) {
 	db := dao.GetDB()
 
-	// 我们需要返回一个二维数组 [day_index, hour_index, value]
-	// SQLite strftime('%w', teaching_date) 返回 0-6 (0是周日)
-	// 我们前端定义的 days 数组通常是 [周一, ..., 周日]，所以周日(0)需要转换成 6，周一(1)转成 0
-
+	// 结构体接收数据库聚合结果
 	type HeatStat struct {
-		DayOfWeek int // 0-6 (Sun-Sat)
-		Hour      int // 0-23
+		DayOfWeek int    // SQLite strftime('%w') 返回 0-6 (0是周日)
+		Hour      string // 格式如 "08", "14"
 		Count     int
 	}
 	var stats []HeatStat
 
-	// 获取最近 3 个月的数据作为样本，样本太少热力图没意义
-	startDate := time.Now().AddDate(0, -3, 0)
+	// 分析最近 6 个月的数据
+	startDate := time.Now().AddDate(0, -6, 0)
 
-	// 注意：start_time 是字符串 "HH:MM"，我们需要截取前两位
+	// SQLite 查询: 聚合 星期几 和 小时
+	// 注意: start_time 在数据库中可能是 "08:00:00" 或 "08:00"，substr(start_time, 1, 2) 取前两位
 	err := db.Model(&dao.Record{}).
 		Select("CAST(strftime('%w', teaching_date) AS INTEGER) as day_of_week, "+
-			"CAST(substr(start_time, 1, 2) AS INTEGER) as hour, "+
+			"substr(start_time, 1, 2) as hour, "+
 			"COUNT(id) as count").
-		Where("active = 1 AND teaching_date >= ?", startDate).
+		Where("active = 1 AND deleted_at IS NULL AND teaching_date >= ?", startDate).
 		Group("day_of_week, hour").
 		Scan(&stats).Error
 
 	if err != nil {
+		logger.Error("Failed to get heatmap data", logger.ErrorType(err))
 		return nil, err
 	}
 
-	// 转换数据格式
-	// 前端 ECharts Heatmap data format: [yIndex, xIndex, value]
-	// yIndex (Day): 0=Mon, ..., 6=Sun
-	// xIndex (Hour): 对应 hours 数组的索引 (08:00, 10:00...)
-	// 这里我们需要做一个映射，或者简单点，直接返回原始数据让前端处理
-	// 为了方便，我们在后端做简单的映射。假设前端 Hour 轴是 8, 10, 12...20 (每2小时一格)
-
 	var chartData [][]int
+
 	for _, s := range stats {
-		// 转换 DayOfWeek: SQLite 0=Sun -> 前端 6; SQLite 1=Mon -> 前端 0
-		yIndex := s.DayOfWeek - 1
-		if s.DayOfWeek == 0 {
-			yIndex = 6
+		hourInt, err := strconv.Atoi(s.Hour)
+		if err != nil {
+			continue
 		}
 
-		// 转换 Hour: 映射到最接近的偶数点 (8, 10, 12...)
-		// 简单的索引映射： (Hour - 8) / 2。如果 Hour < 8 归为 0
-		xIndex := -1
-		if s.Hour >= 8 && s.Hour <= 20 {
-			xIndex = (s.Hour - 8) / 2
+		// 过滤营业时间以外的数据 (08:00 - 21:00)
+		if hourInt < 8 || hourInt > 21 {
+			continue
 		}
 
-		if xIndex >= 0 {
-			chartData = append(chartData, []int{yIndex, xIndex, s.Count})
-		}
+		// 直接返回原始数据 [DayOfWeek, Hour, Count]，由前端负责视图映射
+		// DayOfWeek: 0(Sun) - 6(Sat)
+		// Hour: 8 - 21
+		chartData = append(chartData, []int{s.DayOfWeek, hourInt, s.Count})
 	}
 
 	return chartData, nil

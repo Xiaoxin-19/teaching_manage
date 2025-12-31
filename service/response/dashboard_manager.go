@@ -30,10 +30,3 @@ type TeacherRankDTO struct {
 	Names  []string `json:"names"`
 	Values []int64  `json:"values"`
 }
-
-// HeatmapItem 热力图单项
-type HeatmapItem struct {
-	Day   int `json:"day"`   // 0-6 (周一~周日)
-	Hour  int `json:"hour"`  // 0-23 (小时)
-	Value int `json:"value"` // 课节数
-}
