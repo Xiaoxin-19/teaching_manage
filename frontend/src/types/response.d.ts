@@ -55,3 +55,13 @@ export interface ImportExcelResponse {
 export interface SelectFileResponse {
   filepath: string
 }
+
+export interface GetDashboardSummaryResponse {
+  "total_students": number
+  "new_students_this_month": number
+  "monthly_hours": number
+  "month_over_month": string
+  "total_remaining_hours": number
+  "total_arrears": number
+  "total_warning": number
+}

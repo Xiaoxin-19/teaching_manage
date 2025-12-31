@@ -13,8 +13,8 @@
           </v-avatar>
         </div>
         <div class="d-flex align-center mt-2">
-          <v-chip size="x-small" color="success" variant="tonal" label class="font-weight-bold">
-            <v-icon start size="small">mdi-arrow-up</v-icon> +5 本月新增
+          <v-chip size="small" color="success" variant="tonal" label class="font-weight-bold">
+            <v-icon start size="small">mdi-arrow-up</v-icon> {{ summaryData.newStudentsThisMonth }} 本月新增
           </v-chip>
         </div>
       </v-card>
@@ -22,7 +22,7 @@
 
     <!-- 2. 本月消课 -->
     <v-col cols="12" sm="6" md="3">
-      <v-card class="rounded-lg elevation-2 h-100 pa-4 kpi-card">
+      <v-card class="rounded-lg elevation-2 h-100 pa-4 kpi-card" hover @click="$emit('navigate', 'records')">
         <div class="d-flex justify-space-between align-start mb-2">
           <div>
             <div class="text-subtitle-2 text-medium-emphasis font-weight-bold mb-1">本月消课</div>
@@ -33,7 +33,7 @@
           </v-avatar>
         </div>
         <div class="d-flex align-center mt-2">
-          <v-chip size="x-small" color="success" variant="tonal" label class="font-weight-bold">
+          <v-chip size="small" color="success" variant="tonal" label class="font-weight-bold">
             <v-icon start size="small">mdi-trending-up</v-icon> {{ summaryData.monthOverMonth }} 环比增长
           </v-chip>
         </div>
@@ -53,7 +53,7 @@
           </v-avatar>
         </div>
         <div class="d-flex align-center mt-2">
-          <v-chip size="x-small" color="teal" variant="tonal" label class="font-weight-bold">
+          <v-chip size="small" color="teal" variant="tonal" label class="font-weight-bold">
             人均 {{ Math.round(summaryData.totalRemainingHours / (summaryData.totalStudents || 1)) }} 节待修
           </v-chip>
         </div>
@@ -62,12 +62,14 @@
 
     <!-- 4. 欠费/预警 -->
     <v-col cols="12" sm="6" md="3">
-      <v-card class="rounded-lg elevation-2 h-100 pa-4 kpi-card border-error">
+      <v-card class="rounded-lg elevation-2 h-100 pa-4 kpi-card border-error" hover
+        @click="$emit('navigate', 'students')">
         <div class="d-flex justify-space-between align-start mb-2">
           <div>
             <div class="text-subtitle-2 text-medium-emphasis font-weight-bold mb-1">欠费预警</div>
             <div class="text-h4 font-weight-bold text-error">
-              {{ warningData.balanceNegative }} <span class="text-body-1 text-medium-emphasis font-weight-medium">人</span>
+              {{ warningData.balanceNegative }} <span
+                class="text-body-1 text-medium-emphasis font-weight-medium">人</span>
             </div>
           </div>
           <v-avatar color="error" variant="tonal" rounded size="48">
@@ -75,8 +77,8 @@
           </v-avatar>
         </div>
         <div class="d-flex align-center mt-2">
-          <v-chip size="x-small" color="warning" variant="tonal" label class="font-weight-bold">
-            <v-icon start size="small">mdi-alert-circle-outline</v-icon> {{ warningData.balanceLow }} 人余额不足
+          <v-chip size="small" color="warning" variant="tonal" label class="font-weight-bold">
+            <v-icon start size="small">mdi-alert-circle-outline</v-icon> {{ warningData.balanceLow }} 人余额不足( &lt;5 )
           </v-chip>
         </div>
       </v-card>
@@ -91,6 +93,7 @@ defineProps<{
     monthlyHours: number;
     totalRemainingHours: number;
     monthOverMonth: string;
+    newStudentsThisMonth: number;
   };
   warningData: {
     balanceLow: number;
@@ -108,6 +111,7 @@ defineEmits(['navigate']);
   flex-direction: column;
   justify-content: space-between;
 }
+
 .border-error {
   border-left: 4px solid rgb(var(--v-theme-error)) !important;
 }
