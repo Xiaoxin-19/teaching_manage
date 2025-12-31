@@ -14,7 +14,7 @@
       <v-divider></v-divider>
 
       <v-card-text class="pa-4">
-        <v-form ref="formRef">
+        <v-form ref="formRef" v-model="isFormValid">
           <v-row dense>
             <v-col cols="12" sm="6">
               <v-text-field v-model="formData.name" label="学生姓名" variant="outlined" density="compact"
@@ -39,7 +39,7 @@
               <v-autocomplete v-model="formData.teacher_id" :items="teacherOptions" item-title="name" item-value="id"
                 label="绑定教师" placeholder="输入姓名搜索..." variant="outlined" density="compact"
                 prepend-inner-icon="mdi-account-tie" menu-icon="mdi-chevron-down" hide-details="auto" clearable
-                auto-select-first class="mb-3">
+                auto-select-first class="mb-3" :rules="[(v) => !!v || '请选择教师']">
                 <template v-slot:item="{ props, item }">
                   <v-list-item v-bind="props" :title="item.raw.name" subtitle="点击选择">
                     <template v-slot:prepend>
@@ -72,7 +72,8 @@
         </div>
         <v-spacer></v-spacer>
         <v-btn variant="text" class="mr-2" @click="close">取消</v-btn>
-        <v-btn prepend-icon="mdi-check" color="primary" variant="elevated" elevation="1" @click="save">
+        <v-btn prepend-icon="mdi-check" color="primary" variant="elevated" elevation="1" :disabled="isSubmitDisabled"
+          @click="save">
           保存
         </v-btn>
       </v-card-actions>
@@ -93,5 +94,5 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue', 'save'])
 
-const { formRef, formData, close, save } = useModifyStudent(props as any, emit)
+const { formData, close, save, isSubmitDisabled, formRef, isFormValid } = useModifyStudent(props as any, emit)
 </script>

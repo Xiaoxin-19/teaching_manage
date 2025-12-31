@@ -112,7 +112,7 @@ const {
             <div class="pa-8 text-center text-medium-emphasis">
               <v-icon size="64" class="mb-2 text-disabled">mdi-account-off-outline</v-icon>
               <div class="text-body-1">暂无学生数据</div>
-              <v-btn color="primary" variant="text" class="mt-2" @click="dialog = true">点击添加第一位学生</v-btn>
+              <v-btn color="primary" variant="text" class="mt-2" @click="openAdd">点击添加第一位学生</v-btn>
             </div>
           </template>
         </v-data-table-server>

@@ -25,3 +25,33 @@ export interface GetOrdersByStudentIdResponse {
   orders: OrderDTO[]
   total: number
 }
+
+export interface RecordDTO {
+  id: number
+  student_id: number
+  teacher_id: number
+  student_name: string
+  teacher_name: string
+  teaching_date: string
+  start_time: string
+  end_time: string
+  active: boolean
+  remark: string
+  created_at: number
+  updated_at: number
+}
+export interface GetRecordListResponse {
+  records: RecordDTO[]
+  total: number
+  total_pending: number
+}
+
+export interface ImportExcelResponse {
+  filepath: string
+  total_rows: number
+  error_infos: string[][]
+}
+
+export interface SelectFileResponse {
+  filepath: string
+}

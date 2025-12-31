@@ -15,12 +15,9 @@ export const headers: any = [
   { title: '备注', key: 'remark' },
 ]
 
-// studentId moved into the useDetailsDialog composable to avoid shared state across instances
-
-const { success, error } = useToast()
+const { success, error, info } = useToast()
 const studentName = ref('')
 
-// loadItems moved into the useDetailsDialog composable so it can reference the local studentId ref
 
 function exportToExcel(studentId?: number) {
   let reqData = {
@@ -30,6 +27,10 @@ function exportToExcel(studentId?: number) {
   Dispatch("order_manager:export_orders_by_student_id", JSON.stringify(reqData)).then((result: any) => {
     const res = JSON.parse(result) as ResponseWrapper<string>
     if (res.code === 200) {
+      if (res.data === 'cancel') {
+        info('已取消导出', 'top-right')
+        return
+      }
       success('导出成功，文件已保存至: ' + res.data, "top-right")
     } else {
       error('导出失败: ' + res.message, "top-right")
@@ -113,24 +114,7 @@ export function useDetailsDialog(emit: any) {
   const load = async (studentId?: number, name?: string) => {
     studentName.value = name || ''
     records.value = [] // Reset
-
-    if (studentId) {
-      try {
-        // TODO: API - 获取学生明细
-        // const res = await window.go.main.App.GetStudentRecords(studentId)
-        // const rawRecords = res || []
-
-        // 模拟数据填充，实际应使用 rawRecords
-        const rawRecords: RecordItem[] = []
-
-        records.value = rawRecords.map(item => ({
-          ...item,
-          tags: categorizeOrderTags(item.remark || '', item.amount)
-        }))
-      } catch (e) {
-        error('加载明细失败')
-      }
-    }
+    // 实际数据加载由组件挂载后的 loadItems -> loadOrders 触发
   }
 
   // loadItems now uses the composable-local studentId ref

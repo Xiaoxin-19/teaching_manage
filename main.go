@@ -32,8 +32,6 @@ func main() {
 		panic(err)
 	}
 
-	dao.InitDB(db)
-
 	// Setup teacher manager
 	teacherDao := dao.NewTeacherDao(db)
 	teacherRepository := repository.NewTeacherRepository(teacherDao)
@@ -48,6 +46,12 @@ func main() {
 	orderDao := dao.NewOrderDao(db)
 	orderRepository := repository.NewOrderRepository(orderDao)
 	orderManager := service.NewOrderManager(orderRepository, studentRepository)
+
+	// Setup record manager
+	recordDao := dao.NewRecordDao(db)
+	recordRepository := repository.NewRecordRepository(recordDao)
+	recordManager := service.NewRecordManager(recordRepository, studentRepository)
+
 	// Setup dispatcher
 	dispatcher := dispatcher.New()
 
@@ -57,10 +61,16 @@ func main() {
 	// Create application with options
 	err = wails.Run(&options.App{
 		Title:  "teaching_manage",
-		Width:  1024,
-		Height: 768,
+		Width:  1224,
+		Height: 868,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
+		},
+		DragAndDrop: &options.DragAndDrop{
+			EnableFileDrop:     true,
+			DisableWebViewDrop: true,
+			CSSDropProperty:    "--wails-drop-target",
+			CSSDropValue:       "drop",
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup: func(ctx context.Context) {
@@ -68,10 +78,13 @@ func main() {
 			teacherManager.Ctx = ctx
 			studentManager.Ctx = ctx
 			orderManager.Ctx = ctx
+			recordManager.Ctx = ctx
+
 			// Register routes
 			studentManager.RegisterRoute(dispatcher)
 			teacherManager.RegisterRoute(dispatcher)
 			orderManager.RegisterRoute(dispatcher)
+			recordManager.RegisterRoute(dispatcher)
 		},
 		Bind: []interface{}{
 			app,

@@ -16,6 +16,7 @@ CREATE TABLE `teachers` (
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 )
@@ -38,20 +39,23 @@ func NewTeacherDao(db *gorm.DB) TeacherDao {
 
 type Teacher struct {
 	gorm.Model
-	Name   string `gorm:"column:name;not null;comment:教师姓名" json:"name"`
+	Name   string `gorm:"column:name;not null;comment:教师姓名;index;unique" json:"name"`
 	Gender string `gorm:"column:gender;comment:教师性别" json:"gender"`
 	Phone  string `gorm:"column:phone;comment:电话号码" json:"phone"`
 	Remark string `gorm:"column:remark;comment:备注" json:"remark"`
 }
 
 func (s TeacherGormDao) CreateTeacher(ctx context.Context, t *Teacher) error {
-	return gorm.G[Teacher](s.db).Create(ctx, &Teacher{
+	err := gorm.G[Teacher](s.db).Create(ctx, &Teacher{
 		Name:   t.Name,
 		Gender: t.Gender,
 		Phone:  t.Phone,
 		Remark: t.Remark,
 	})
-
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return ErrDuplicatedKey
+	}
+	return err
 }
 
 func (s TeacherGormDao) UpdateTeacher(ctx context.Context, t *Teacher) error {

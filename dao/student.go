@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 )
@@ -11,8 +12,11 @@ type StudentDao interface {
 	UpdateStudent(ctx context.Context, stu *Student) error
 	DeleteStudent(ctx context.Context, id uint) error
 	GetStudentByID(ctx context.Context, id uint) (*Student, error)
+	GetStudentByIdWithDeleted(ctx context.Context, id uint) (*Student, error)
 	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error)
+	GetStudentByName(ctx context.Context, name string) (*Student, error)
 	UpdateStudentHours(ctx context.Context, id uint, hours int) error
+	UpdateStudentHoursWithDeleted(ctx context.Context, id uint, hours int) error
 }
 
 type StudentGormDao struct {
@@ -25,16 +29,22 @@ func NewStudentDao(db *gorm.DB) StudentDao {
 
 type Student struct {
 	gorm.Model
-	Name      string `gorm:"column:name;not null;comment:学生姓名" json:"name"`
+	Name      string `gorm:"column:name;not null;comment:学生姓名;unique;index" json:"name"`
 	Gender    string `gorm:"column:gender;comment:学生性别" json:"gender"`
 	Hours     int    `gorm:"column:hours;default:0;comment:课时数" json:"hours"`
 	Phone     string `gorm:"column:phone;comment:学生电话号码" json:"phone"`
 	TeacherID uint   `gorm:"column:teacher_id;not null;comment:授课老师" json:"teacher_id"`
-	Remark    string `gorm:"column:remark;comment:备注" json:"remark"`
+	// Student -> Teacher (belongs to)：使用 TeacherID 作为外键，更新级联，删除受限
+	Teacher Teacher `gorm:"foreignKey:TeacherID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"teacher,omitempty"`
+	Remark  string  `gorm:"column:remark;comment:备注" json:"remark"`
 }
 
 func (s StudentGormDao) CreateStudent(ctx context.Context, stu *Student) error {
-	return gorm.G[Student](s.db).Create(ctx, stu)
+	err := gorm.G[Student](s.db).Create(ctx, stu)
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return ErrDuplicatedKey
+	}
+	return err
 }
 
 func (s StudentGormDao) UpdateStudent(ctx context.Context, stu *Student) error {
@@ -59,6 +69,15 @@ func (s StudentGormDao) UpdateStudentHours(ctx context.Context, id uint, diff in
 	return nil
 }
 
+func (s StudentGormDao) UpdateStudentHoursWithDeleted(ctx context.Context, id uint, diff int) error {
+	_, err := s.db.Unscoped().WithContext(ctx).Model(&Student{}).
+		Where("id = ?", id).Update("hours", gorm.Expr("hours + ?", diff)).RowsAffected, s.db.Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s StudentGormDao) DeleteStudent(ctx context.Context, id uint) error {
 	_, err := gorm.G[Student](s.db).Where("id = ?", id).Delete(ctx)
 	if err != nil {
@@ -68,7 +87,18 @@ func (s StudentGormDao) DeleteStudent(ctx context.Context, id uint) error {
 }
 
 func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*Student, error) {
-	stu, err := gorm.G[Student](s.db).Where("id = ?", id).First(ctx)
+	stu, err := gorm.G[Student](s.db).Where("id = ?", id).Preload("Teacher", nil).First(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &stu, nil
+}
+
+// GetStudentByIdWithDeleted retrieves a student by ID, including those that have been soft-deleted.
+func (s StudentGormDao) GetStudentByIdWithDeleted(ctx context.Context, id uint) (*Student, error) {
+	stu := Student{}
+
+	err := s.db.Unscoped().WithContext(ctx).Where("id = ?", id).Preload("Teacher", nil).First(&stu).Error
 	if err != nil {
 		return nil, err
 	}
@@ -91,4 +121,17 @@ func (s StudentGormDao) GetStudentList(ctx context.Context, key string, offset i
 		return nil, 0, err
 	}
 	return students, total, nil
+}
+
+func (s StudentGormDao) GetStudentByName(ctx context.Context, name string) (*Student, error) {
+
+	stu, err := gorm.G[Student](s.db).Where("name = ?", name).Preload("Teacher", nil).First(ctx)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrRecordNotFound
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return &stu, nil
 }

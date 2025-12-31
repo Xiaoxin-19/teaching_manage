@@ -1,5 +1,4 @@
-// 定义前端通用的数据模型接口
-
+// ... existing code ...
 export interface TeacherOption {
   id: number | string
   name: string
@@ -34,6 +33,24 @@ export interface StudentData {
   teacher_id: number | string | null;
   note: string;
   lastModified?: string;
+}
+
+// 新增：教学记录状态类型
+export type RecordStatus = 'active' | 'pending';
+
+// 新增：教学记录接口定义
+export interface TeachingRecord {
+  id: number;
+  status: RecordStatus;
+  date: string;
+  time: string; // 显示用的时间段字符串，如 "10:00-12:00"
+  startTime: string;
+  endTime: string;
+  studentId: number | null;
+  studentName: string;
+  teacherId: number | null;
+  teacherName: string;
+  remark: string;
 }
 
 export interface RecordItem {

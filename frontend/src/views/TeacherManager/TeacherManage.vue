@@ -1,6 +1,6 @@
 <template>
-  <v-sheet class="fill-height pa-6 ">
-    <div class="d-flex flex-column pa-6">
+  <v-sheet class="fill-height pa-6 bg-background">
+    <div class="d-flex flex-column h-100 ">
       <!-- 页面头部 -->
       <div class="d-flex justify-space-between align-center mb-4">
         <!-- 左侧：搜索框 -->
@@ -25,10 +25,10 @@
       </div>
 
       <!-- 教师数据表格 -->
-      <v-card class="rounded-lg elevation-2 border">
-        <v-data-table-server :headers="headers" :items="teachers" :search="search" density="compact"
-          v-model:items-per-page="itemsPerPage" v-model:page="page" :items-length="totalItems" :loading="loading"
-          @update:options="loadItems" hover>
+      <v-card elevation="2" class="flex-grow-1 d-flex flex-column rounded-lg overflow-hidden border">
+        <v-data-table-server :headers="headers" :items="teachers" :search="search" v-model:items-per-page="itemsPerPage"
+          v-model:page="page" :items-length="totalItems" :loading="loading" @update:options="loadItems" class="h-100"
+          hover>
           <!-- 姓名列 -->
           <template v-slot:item.name="{ item }">
             <span class="font-weight-medium text-body-2">{{ item.name }}</span>

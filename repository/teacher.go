@@ -51,7 +51,7 @@ func (tr TeacherRepositoryImpl) UpdateTeacher(ctx context.Context, teacher entit
 		Gender: string(teacher.Gender),
 		Remark: teacher.Remark,
 	}
-	t.ID = teacher.Id
+	t.ID = teacher.ID
 	err := tr.dao.UpdateTeacher(ctx, &t)
 	return err
 }

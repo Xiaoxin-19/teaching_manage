@@ -1,10 +1,5 @@
 <template>
-  <v-dialog
-    v-model="show"
-    max-width="400px"
-    persistent
-    transition="dialog-bottom-transition"
-  >
+  <v-dialog v-model="show" max-width="400px" persistent transition="dialog-bottom-transition">
     <v-card class="rounded-lg elevation-4">
       <!-- 标题栏：使用 variant="tonal" 的 Avatar 自动适配深色模式 -->
       <v-card-title class="d-flex align-center py-4 px-4">
@@ -21,18 +16,10 @@
 
       <!-- 按钮区 -->
       <v-card-actions class="pa-4 d-flex justify-end">
-        <v-btn
-          variant="text"
-          @click="cancel"
-        >
+        <v-btn variant="text" @click="cancel">
           {{ cancelText }}
         </v-btn>
-        <v-btn
-          :color="typeColor"
-          variant="flat"
-          elevation="1"
-          @click="confirm"
-        >
+        <v-btn :color="typeColor" variant="flat" elevation="1" @click="confirm">
           {{ confirmText }}
         </v-btn>
       </v-card-actions>
@@ -67,9 +54,9 @@ let resolvePromise: ((value: boolean) => void) | null = null
 // --- 配置 ---
 const typeConfig: Record<ConfirmType, { icon: string; color: string }> = {
   success: { icon: 'mdi-check-circle-outline', color: 'success' },
-  info:    { icon: 'mdi-information-outline', color: 'info' },
-  warning: { icon: 'mdi-alert-outline',       color: 'warning' },
-  error:   { icon: 'mdi-alert-circle-outline', color: 'error' }
+  info: { icon: 'mdi-information-outline', color: 'info' },
+  warning: { icon: 'mdi-alert-outline', color: 'warning' },
+  error: { icon: 'mdi-alert-circle-outline', color: 'error' }
 }
 
 // --- 计算属性 ---
@@ -86,13 +73,13 @@ const typeColor = computed(() => typeConfig[type.value]?.color || 'primary')
  * @returns Promise<boolean> true=确认, false=取消
  */
 const open = (
-  titleText: string, 
-  messageText: string, 
+  titleText: string,
+  messageText: string,
   options: ConfirmOptions = {}
 ): Promise<boolean> => {
   title.value = titleText
   message.value = messageText
-  
+
   // 设置默认值
   type.value = options.type || 'warning'
   confirmText.value = options.confirmText || '确认'

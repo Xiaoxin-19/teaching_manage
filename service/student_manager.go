@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"teaching_manage/dao"
 	"teaching_manage/entity"
 	"teaching_manage/pkg"
 	"teaching_manage/pkg/dispatcher"
+	"teaching_manage/pkg/logger"
 	"teaching_manage/repository"
 	requestx "teaching_manage/service/request"
 	responsex "teaching_manage/service/response"
@@ -29,14 +32,39 @@ func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetSt
 	if err != nil {
 		return nil, err
 	}
+
+	studentDTOs := make([]responsex.StudentDTO, len(studentDs))
+	for i, s := range studentDs {
+		studentDTOs[i] = responsex.StudentDTO{
+			ID:          s.ID,
+			Name:        s.Name,
+			Gender:      s.Gender,
+			Hours:       s.Hours,
+			Phone:       s.Phone,
+			TeacherID:   s.TeacherID,
+			Remark:      s.Remark,
+			TeacherName: s.TeacherName,
+			CreatedAt:   s.CreatedAt.UnixMilli(),
+			UpdatedAt:   s.UpdatedAt.UnixMilli(),
+		}
+	}
+
 	return &responsex.GetStudentListResponse{
-		Students: studentDs,
+		Students: studentDTOs,
 		Total:    total,
 	}, nil
 }
 
 func (sm StudentManager) CreateStudent(ctx context.Context, req *requestx.CreateStudentRequest) (string, error) {
-	return "created successfully", sm.repo.CreateStudent(ctx, &entity.Student{
+	logger.Info("Creating one student",
+		logger.String("student_name", req.Name),
+		logger.String("phone", req.Phone),
+		logger.Int("hours", req.Hours),
+		logger.UInt("teacher_id", req.TeacherID),
+		logger.String("remark", req.Remark),
+	)
+
+	err := sm.repo.CreateStudent(ctx, &entity.Student{
 		Name:      req.Name,
 		Gender:    req.Gender,
 		Hours:     req.Hours,
@@ -44,6 +72,17 @@ func (sm StudentManager) CreateStudent(ctx context.Context, req *requestx.Create
 		TeacherID: req.TeacherID,
 		Remark:    req.Remark,
 	})
+
+	if errors.Is(err, dao.ErrDuplicatedKey) {
+		logger.Error("duplicate student name", logger.String("student_name", req.Name))
+		return "", fmt.Errorf("duplicate : student name [%s] already exists", req.Name)
+	}
+
+	if err != nil {
+		logger.Error("failed to create student", logger.ErrorType(err))
+		return "", fmt.Errorf("failed to create student: %w", err)
+	}
+	return "student created", nil
 }
 
 func (sm StudentManager) UpdateStudent(ctx context.Context, req *requestx.UpdateStudentRequest) (string, error) {
