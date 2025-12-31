@@ -14,7 +14,7 @@ export function useModifyRecord(props: { modelValue: boolean }, emit: any) {
   const loadingStudents = ref(false);
 
   const defaultFormData = {
-    studentId: null,
+    student: null as StudentOption | null,
     date: new Date().toISOString().substring(0, 10),
     startTime: '09:00',
     endTime: '11:00',
@@ -68,7 +68,7 @@ export function useModifyRecord(props: { modelValue: boolean }, emit: any) {
   ];
 
   const isFormValid = computed(() => {
-    if (!formData.studentId) return false;
+    if (!formData.student) return false;
     if (!formData.date) return false;
     if (!formData.startTime || !formData.endTime) return false;
     const s = parseTimeToMinutes(formData.startTime);
@@ -174,15 +174,12 @@ export function useModifyRecord(props: { modelValue: boolean }, emit: any) {
     if (formRef.value) {
       const { valid } = await formRef.value.validate();
       if (valid) {
-        // 传递完整的学生对象信息可能更有用
-        const selectedStudent = studentOptions.value.find(s => s.id === formData.studentId);
-
         // 格式化日期和时间
         const formattedDate = new Date(formData.date).toISOString().substring(0, 10);
 
         const saveData: SaveRecordData = {
-          student_id: formData.studentId!,
-          student_name: selectedStudent ? selectedStudent.name : '',
+          student_id: formData.student!.id,
+          student_name: formData.student!.name,
           teaching_date: formattedDate,
           start_time: formData.startTime,
           end_time: formData.endTime,

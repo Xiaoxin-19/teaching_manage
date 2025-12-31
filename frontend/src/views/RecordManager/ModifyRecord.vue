@@ -18,10 +18,11 @@
         </div>
         <v-form ref="formRef">
           <!-- 学生选择 (支持后端模糊搜索) -->
-          <v-autocomplete v-model="formData.studentId" v-model:search="studentSearch" :items="studentOptions"
+          <v-autocomplete v-model="formData.student" v-model:search="studentSearch" :items="studentOptions"
             :loading="loadingStudents" item-title="name" item-value="id" label="上课学生" placeholder="输入姓名搜索..."
             variant="outlined" density="comfortable" prepend-inner-icon="mdi-account-school" class="mb-3"
-            :rules="[(v) => !!v || '请选择学生']" no-filter hide-no-data @update:search="onStudentSearch"></v-autocomplete>
+            :rules="[(v) => !!v || '请选择学生']" no-filter hide-no-data @update:search="onStudentSearch" return-object>
+          </v-autocomplete>
 
           <!-- 日期与时间 -->
           <v-row dense>

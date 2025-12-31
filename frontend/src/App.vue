@@ -9,7 +9,7 @@
       <div class="main-layout-container">
 
         <!-- 动态内容视口 -->
-        <div class="layout-content bg-grey-lighten-4">
+        <div class="layout-content bg-background">
           <v-container fluid class="pa-0 h-100">
 
             <router-view v-slot="{ Component }">
@@ -45,7 +45,7 @@ import { registerConfirm } from './composables/useConfirm'
 // --- 全局状态 ---
 const theme = ref('light')
 const drawer = ref(true)
-const rail = ref(false)
+const rail = ref(true)
 
 // --- 方法 ---
 const toggleTheme = () => {
@@ -118,6 +118,11 @@ provide('showConfirm', showConfirm)
 registerConfirm(showConfirm)
 </script>
 <style scoped>
+/* 隐藏滚动条 */
+div::-webkit-scrollbar {
+  display: none;
+}
+
 /* 右侧主内容容器 */
 .main-layout-container {
   height: 100vh;
