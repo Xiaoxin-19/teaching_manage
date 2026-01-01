@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onActivated } from 'vue'
 import { useStudentManage } from './StudentManage.logic'
 import DetailsDialog from './DetailsDialog.vue'
 import ModifyStudent from './ModifyStudent.vue'
@@ -31,6 +32,10 @@ const {
   openDetails,
   loadItems,
 } = useStudentManage()
+
+onActivated(() => {
+  loadItems({ page: page.value, itemsPerPage: itemsPerPage.value })
+})
 </script>
 
 <template>

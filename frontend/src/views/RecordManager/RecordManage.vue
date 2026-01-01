@@ -271,6 +271,7 @@
 </template>
 
 <script setup lang="ts">
+import { onActivated } from 'vue';
 import { useRecordManage } from './RecordManage.logic';
 import ModifyRecord from './ModifyRecord.vue';
 import ImportRecord from './ImportRecord.vue';
@@ -313,6 +314,10 @@ const {
   onImportSuccess,
   onImportFailed,
 } = useRecordManage();
+
+onActivated(() => {
+  loadItems({ page: page.value, itemsPerPage: itemsPerPage.value, sortBy: [] });
+});
 </script>
 
 <style scoped>

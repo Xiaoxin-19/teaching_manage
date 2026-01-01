@@ -55,3 +55,48 @@ export interface ImportExcelResponse {
 export interface SelectFileResponse {
   filepath: string
 }
+
+export interface GetDashboardSummaryResponse {
+  "total_students": number
+  "new_students_this_month": number
+  "monthly_hours": number
+  "month_over_month": string
+  "total_remaining_hours": number
+  "total_arrears": number
+  "total_warning": number
+}
+
+export interface GetFinanceChartDataResponse {
+  x_axis: string[]
+  recharge_data: number[]
+  consume_data: number[]
+  net_data: number[]
+}
+
+export interface EngagementStat {
+  name: string
+  value: number
+}
+
+export interface GetStudentEngagementDataResponse {
+  stats: EngagementStat[]
+}
+
+export interface GetStudentGrowthDataResponse {
+  x_axis: string[]
+  series: number[]
+}
+
+export interface GetTeacherRankDataResponse {
+  names: string[]
+  values: number[]
+}
+
+export interface BalanceStat {
+  name: string
+  value: number
+}
+
+export interface GetStudentBalanceDataResponse {
+  stats: BalanceStat[]
+}

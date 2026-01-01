@@ -116,7 +116,7 @@ func (s StudentGormDao) GetStudentList(ctx context.Context, key string, offset i
 	if err != nil {
 		return nil, 0, err
 	}
-	students, err = query.Offset(offset).Limit(limit).Find(ctx)
+	students, err = query.Offset(offset).Limit(limit).Order("hours asc").Find(ctx)
 	if err != nil {
 		return nil, 0, err
 	}

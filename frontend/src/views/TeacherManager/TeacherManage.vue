@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, onActivated } from 'vue';
 import ModifyTeacher from './ModifyTeacher.vue'
 import { useTeacherManage } from './TeacherManage.logic'
 import { LogDebug } from '../../../wailsjs/runtime/runtime';
@@ -114,6 +114,10 @@ const {
 onMounted(() => {
   LogDebug("TeacherManage.vue mounted")
   // 初始加载教师数据
+  fetchTeachers()
+})
+
+onActivated(() => {
   fetchTeachers()
 })
 </script>
