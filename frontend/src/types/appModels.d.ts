@@ -4,15 +4,6 @@ export interface TeacherOption {
   name: string
 }
 
-export interface TeacherData {
-  id?: number | string
-  name: string
-  phone: string
-  remark: string
-  gender: string
-  lastModified?: string
-}
-
 export interface Student {
   id: number;
   student_number: string;
@@ -33,6 +24,20 @@ export interface StudentData {
   remark: string;
   lastModified?: string;
 }
+
+
+export interface Teacher {
+  id: number;
+  teacher_number: string;
+  name: string;
+  phone: string;
+  gender: string;
+  remark: string;
+  updated_at: string;
+  created_at: string;
+  lastModified?: string;
+}
+
 
 // 新增：教学记录状态类型
 export type RecordStatus = 'active' | 'pending';

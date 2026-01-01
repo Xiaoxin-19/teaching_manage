@@ -41,6 +41,11 @@
             </v-chip>
           </template>
 
+          <!-- 电话列 -->
+          <template v-slot:item.phone="{ item }">
+            <span class="text-body-2">{{ item.phone == "" ? "-" : item.phone }}</span>
+          </template>
+
           <!-- 备注列 -->
           <template v-slot:item.remark="{ item }">
             <!-- 如果有内容，显示截断文本和 Tooltip -->

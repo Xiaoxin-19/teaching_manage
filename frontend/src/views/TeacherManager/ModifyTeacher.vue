@@ -76,26 +76,26 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
-import type { TeacherData } from '../../types/appModels'
+import type { Teacher } from '../../types/appModels'
 
 
 // Props
 const props = defineProps<{
   modelValue: boolean
   isEdit?: boolean
-  initialData?: TeacherData
+  initialData?: Teacher
 }>()
 
 // Emits
 const emit = defineEmits(['update:modelValue', 'save'])
 
 // 本地表单数据
-const formData = ref<TeacherData>({
+const formData = ref<Teacher>({
   name: '',
   phone: '',
   remark: '',
   gender: ''
-})
+} as Teacher)
 
 // 监听弹窗开启，重置或填充数据
 watch(() => props.modelValue, (val) => {
@@ -110,7 +110,7 @@ watch(() => props.modelValue, (val) => {
         phone: '',
         remark: '',
         gender: 'male'
-      }
+      } as Teacher
     }
   }
 })

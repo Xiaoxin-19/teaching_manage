@@ -1,3 +1,5 @@
+import { Teacher } from "./appModels"
+
 // 后端返回的原始数据结构
 export interface StudentDTO {
   id: number
@@ -12,7 +14,7 @@ export interface StudentDTO {
 }
 
 export interface GetTeacherListResponse {
-  teachers: TeacherDTO[]
+  teachers: Teacher[]
   total: number
 }
 

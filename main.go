@@ -32,10 +32,10 @@ func main() {
 		panic(err)
 	}
 
-	// // Setup teacher manager
-	// teacherDao := dao.NewTeacherDao(db)
-	// teacherRepository := repository.NewTeacherRepository(teacherDao)
-	// teacherManager := service.NewTeacherManager(teacherRepository)
+	// Setup teacher manager
+	teacherDao := dao.NewTeacherDao(db)
+	teacherRepository := repository.NewTeacherRepository(teacherDao)
+	teacherManager := service.NewTeacherManager(teacherRepository)
 
 	// Setup student manager
 	studentDao := dao.NewStudentDao(db)
@@ -78,7 +78,7 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup: func(ctx context.Context) {
 			app.startup(ctx)
-			// teacherManager.Ctx = ctx
+			teacherManager.Ctx = ctx
 			studentManager.Ctx = ctx
 			// orderManager.Ctx = ctx
 			// recordManager.Ctx = ctx
@@ -86,7 +86,7 @@ func main() {
 
 			// Register routes
 			studentManager.RegisterRoute(dispatcher)
-			// teacherManager.RegisterRoute(dispatcher)
+			teacherManager.RegisterRoute(dispatcher)
 			// orderManager.RegisterRoute(dispatcher)
 			// recordManager.RegisterRoute(dispatcher)
 			// dashboardManager.RegisterRoute(dispatcher)

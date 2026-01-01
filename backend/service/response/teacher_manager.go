@@ -6,12 +6,13 @@ type GetTeacherListResponse struct {
 }
 
 type TeacherDTO struct {
-	ID        uint   `json:"id"`
-	Name      string `json:"name"`
-	Gender    string `json:"gender"`
-	Phone     string `json:"phone"`
-	Remark    string `json:"remark"`
-	CreatedAt int64  `json:"created_at"`
-	UpdatedAt int64  `json:"updated_at"`
-	DeletedAt int64  `json:"deleted_at"`
+	ID            uint   `json:"id"`
+	TeacherNumber string `json:"teacher_number"`
+	Name          string `json:"name"`
+	Gender        string `json:"gender"`
+	Phone         string `json:"phone"`
+	Remark        string `json:"remark"`
+	CreatedAt     int64  `json:"created_at"`
+	UpdatedAt     int64  `json:"updated_at"`
+	DeletedAt     int64  `json:"deleted_at"`
 }

@@ -67,6 +67,9 @@ func (s TeacherGormDao) UpdateTeacher(ctx context.Context, t *model.Teacher) err
 func (s TeacherGormDao) DeleteTeacher(ctx context.Context, id uint) error {
 	_, err := gorm.G[model.Teacher](s.db).Where("id = ?", id).Delete(ctx)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRecordNotFound
+		}
 		return err
 	}
 	return nil
