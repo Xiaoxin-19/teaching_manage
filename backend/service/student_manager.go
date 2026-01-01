@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"teaching_manage/backend/dao"
 	"teaching_manage/backend/entity"
+	"teaching_manage/backend/model"
 	"teaching_manage/backend/pkg"
 	"teaching_manage/backend/pkg/dispatcher"
 	"teaching_manage/backend/pkg/logger"
@@ -18,35 +19,36 @@ import (
 )
 
 type StudentManager struct {
-	Ctx   context.Context
-	repo  repository.StudentRepository
-	repoT repository.TeacherRepository
+	Ctx  context.Context
+	repo repository.StudentRepository
 }
 
-func NewStudentManager(repo repository.StudentRepository, repoT repository.TeacherRepository) *StudentManager {
-	return &StudentManager{repo: repo, repoT: repoT}
+func NewStudentManager(repo repository.StudentRepository) *StudentManager {
+	return &StudentManager{repo: repo}
 }
 
 func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetStudentListRequest) (*responsex.GetStudentListResponse, error) {
-	studentDs, total, err := sm.repo.GetStudentList(ctx, req.Key, req.Offset, req.Limit)
+	studentDs, total, err := sm.repo.ListStudentsWithStatus(ctx, req.Keyword, req.Offset, req.Limit, 3)
 	if err != nil {
 		return nil, err
 	}
 
-	studentDTOs := make([]responsex.StudentDTO, len(studentDs))
-	for i, s := range studentDs {
-		studentDTOs[i] = responsex.StudentDTO{
-			ID:          s.ID,
-			Name:        s.Name,
-			Gender:      s.Gender,
-			Hours:       s.Hours,
-			Phone:       s.Phone,
-			TeacherID:   s.TeacherID,
-			Remark:      s.Remark,
-			TeacherName: s.TeacherName,
-			CreatedAt:   s.CreatedAt.UnixMilli(),
-			UpdatedAt:   s.UpdatedAt.UnixMilli(),
+	studentDTOs := make([]responsex.StudentDTO, 0, len(studentDs))
+	for _, s := range studentDs {
+		if req.Status != 0 && s.Status != req.Status {
+			continue
 		}
+		studentDTOs = append(studentDTOs, responsex.StudentDTO{
+			ID:            s.ID,
+			StudentNumber: s.StudentNumber,
+			Name:          s.Name,
+			Gender:        s.Gender,
+			Phone:         s.Phone,
+			Status:        s.Status,
+			Remark:        s.Remark,
+			CreatedAt:     s.CreatedAt.UnixMilli(),
+			UpdatedAt:     s.UpdatedAt.UnixMilli(),
+		})
 	}
 
 	return &responsex.GetStudentListResponse{
@@ -59,24 +61,16 @@ func (sm StudentManager) CreateStudent(ctx context.Context, req *requestx.Create
 	logger.Info("Creating one student",
 		logger.String("student_name", req.Name),
 		logger.String("phone", req.Phone),
-		logger.Int("hours", req.Hours),
-		logger.UInt("teacher_id", req.TeacherID),
+		logger.String("gender", req.Gender),
 		logger.String("remark", req.Remark),
 	)
 
 	err := sm.repo.CreateStudent(ctx, &entity.Student{
-		Name:      req.Name,
-		Gender:    req.Gender,
-		Hours:     req.Hours,
-		Phone:     req.Phone,
-		TeacherID: req.TeacherID,
-		Remark:    req.Remark,
+		Name:   req.Name,
+		Gender: req.Gender,
+		Phone:  req.Phone,
+		Remark: req.Remark,
 	})
-
-	if errors.Is(err, dao.ErrDuplicatedKey) {
-		logger.Error("duplicate student name", logger.String("student_name", req.Name))
-		return "", fmt.Errorf("duplicate : student name [%s] already exists", req.Name)
-	}
 
 	if err != nil {
 		logger.Error("failed to create student", logger.ErrorType(err))
@@ -86,18 +80,41 @@ func (sm StudentManager) CreateStudent(ctx context.Context, req *requestx.Create
 }
 
 func (sm StudentManager) UpdateStudent(ctx context.Context, req *requestx.UpdateStudentRequest) (string, error) {
-	return "updated successfully", sm.repo.UpdateStudentByID(ctx, &entity.Student{
-		ID:        req.ID,
-		Name:      req.Name,
-		Gender:    req.Gender,
-		Phone:     req.Phone,
-		TeacherID: req.TeacherID,
-		Remark:    req.Remark,
+	logger.Info("Updating one student",
+		logger.UInt("id", req.ID),
+		logger.String("student_name", req.Name),
+		logger.String("phone", req.Phone),
+		logger.String("gender", req.Gender),
+		logger.String("remark", req.Remark),
+	)
+
+	err := sm.repo.UpdateStudent(ctx, &entity.Student{
+		ID:     req.ID,
+		Name:   req.Name,
+		Gender: req.Gender,
+		Phone:  req.Phone,
+		Remark: req.Remark,
+		Status: req.Status,
 	})
+
+	if err != nil {
+		logger.Error("failed to update student", logger.ErrorType(err))
+		return "", fmt.Errorf("failed to update student: %w", err)
+	}
+	return "student updated", nil
 }
 
 func (sm StudentManager) DeleteStudent(ctx context.Context, req *requestx.DeleteStudentRequest) (string, error) {
-	return "deleted successfully", sm.repo.DeleteStudentByID(ctx, req.ID)
+	logger.Info("Deleting one student",
+		logger.UInt("id", req.ID),
+	)
+	err := sm.repo.DeleteStudent(ctx, req.ID)
+	if err != nil && !errors.Is(err, dao.ErrRecordNotFound) {
+		logger.Error("failed to delete student", logger.ErrorType(err))
+		return "", fmt.Errorf("failed to delete student: %w", err)
+	}
+
+	return "deleted successfully", nil
 }
 
 func (sm StudentManager) Export2Excel(ctx context.Context) (string, error) {
@@ -113,26 +130,10 @@ func (sm StudentManager) Export2Excel(ctx context.Context) (string, error) {
 		return "cancel", nil
 	}
 
-	stus, _, err := sm.repo.GetStudentList(ctx, "", 0, -1)
+	// Get all students with status <= 3 (正常，停课，退出)
+	stus, _, err := sm.repo.ListStudentsWithStatus(ctx, "", 0, -1, 3)
 	if err != nil {
 		return "", err
-	}
-
-	// Get teachers for mapping
-	teachers, _, err := sm.repoT.GetTeacherList(ctx, "", 0, -1)
-	if err != nil {
-		return "", err
-	}
-	teacherMap := make(map[uint]string)
-	for _, teacher := range teachers {
-		teacherMap[teacher.ID] = teacher.Name
-	}
-
-	// Map teacher names
-	for i, stu := range stus {
-		if name, ok := teacherMap[stu.TeacherID]; ok {
-			stus[i].TeacherName = name
-		}
 	}
 
 	// export to excel
@@ -145,15 +146,15 @@ func (sm StudentManager) Export2Excel(ctx context.Context) (string, error) {
 }
 
 func (sm StudentManager) exportToExcel(path string, students []entity.Student) error {
-	headers := []string{"学生姓名", "性别", "课时数", "电话号码", "授课老师", "备注"}
+	headers := []string{"编号", "学生姓名", "性别", "电话号码", "状态", "备注"}
 	rows := make([][]string, 0, len(students))
 	for _, s := range students {
 		rows = append(rows, []string{
+			s.StudentNumber,
 			s.Name,
 			pkg.Gender(s.Gender).ZhString(),
-			fmt.Sprintf("%d", s.Hours),
 			s.Phone,
-			s.TeacherName,
+			model.StudentStatusToString(s.Status),
 			s.Remark,
 		})
 	}
@@ -161,9 +162,9 @@ func (sm StudentManager) exportToExcel(path string, students []entity.Student) e
 }
 
 func (sm StudentManager) RegisterRoute(d *dispatcher.Dispatcher) {
-	dispatcher.RegisterTyped(d, "student_manager:get_student_list", sm.GetStudentList)
-	dispatcher.RegisterTyped(d, "student_manager:create_student", sm.CreateStudent)
-	dispatcher.RegisterTyped(d, "student_manager:update_student", sm.UpdateStudent)
-	dispatcher.RegisterTyped(d, "student_manager:delete_student", sm.DeleteStudent)
-	dispatcher.RegisterNoReq(d, "student_manager:export_students", sm.Export2Excel)
+	dispatcher.RegisterTyped(d, "student_manager/get_student_list", sm.GetStudentList)
+	dispatcher.RegisterTyped(d, "student_manager/create_student", sm.CreateStudent)
+	dispatcher.RegisterTyped(d, "student_manager/update_student", sm.UpdateStudent)
+	dispatcher.RegisterTyped(d, "student_manager/delete_student", sm.DeleteStudent)
+	dispatcher.RegisterNoReq(d, "student_manager/export_students", sm.Export2Excel)
 }

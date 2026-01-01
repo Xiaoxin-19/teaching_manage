@@ -3,6 +3,7 @@ package dao
 import (
 	"os"
 	"path/filepath"
+	"teaching_manage/backend/model"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -41,7 +42,14 @@ func InitDB(path string) error {
 	sqlDB.SetConnMaxLifetime(0)
 
 	// 生产环境建议使用版本化迁移工具；AutoMigrate 可用于开发/快速原型
-	if err := db.AutoMigrate(&Student{}, &Teacher{}, &Order{}, &Record{}); err != nil {
+	if err := db.AutoMigrate(
+		&model.Student{},
+		&model.Teacher{},
+		&model.Record{},
+		&model.Subject{},
+		&model.StudentSubject{},
+		&model.RechargeOrder{},
+	); err != nil {
 		return err
 	}
 	global_db = db

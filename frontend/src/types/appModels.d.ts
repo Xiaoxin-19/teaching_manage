@@ -13,14 +13,14 @@ export interface TeacherData {
   lastModified?: string
 }
 
-export interface StudentItem {
+export interface Student {
   id: number;
+  student_number: string;
   name: string;
   phone: string;
-  balance: number;
   gender: string;
-  teacher_id: number | string | null;
-  note: string;
+  remark: string;
+  status: number;
   lastModified?: string;
 }
 
@@ -28,10 +28,9 @@ export interface StudentData {
   id?: number;
   name: string;
   phone: string;
-  balance: number;
   gender: string;
-  teacher_id: number | string | null;
-  note: string;
+  status: number;
+  remark: string;
   lastModified?: string;
 }
 

@@ -1,12 +1,12 @@
 // 后端返回的原始数据结构
 export interface StudentDTO {
   id: number
+  student_number: string
   name: string
   gender: string
-  hours: number
   phone: string
   remark: string
-  teacher_id: number
+  status: number
   created_at: number
   updated_at: number
 }

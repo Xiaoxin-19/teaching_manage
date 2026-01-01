@@ -6,15 +6,13 @@ type GetStudentListResponse struct {
 }
 
 type StudentDTO struct {
-	ID          uint   `json:"id"`
-	Name        string `json:"name"`
-	Gender      string `json:"gender"`
-	Hours       int    `json:"hours"`
-	Phone       string `json:"phone"`
-	TeacherID   uint   `json:"teacher_id"`
-	Remark      string `json:"remark"`
-	TeacherName string `json:"teacher_name"`
-	CreatedAt   int64  `json:"created_at"`
-	UpdatedAt   int64  `json:"updated_at"`
-	DeletedAt   int64  `json:"deleted_at"`
+	ID            uint   `json:"id"`
+	StudentNumber string `json:"student_number"`
+	Name          string `json:"name"`
+	Gender        string `json:"gender"`
+	Phone         string `json:"phone"`
+	Remark        string `json:"remark"`
+	Status        int    `json:"status"`
+	CreatedAt     int64  `json:"created_at"`
+	UpdatedAt     int64  `json:"updated_at"`
 }

@@ -3,18 +3,20 @@ package dao
 import (
 	"context"
 	"errors"
+	"teaching_manage/backend/model"
+	"teaching_manage/backend/pkg/logger"
 
 	"gorm.io/gorm"
 )
 
 type StudentDao interface {
-	CreateStudent(ctx context.Context, stu *Student) error
-	UpdateStudent(ctx context.Context, stu *Student) error
+	CreateStudent(ctx context.Context, stu *model.Student) error
+	UpdateStudent(ctx context.Context, stu *model.Student) error
 	DeleteStudent(ctx context.Context, id uint) error
-	GetStudentByID(ctx context.Context, id uint) (*Student, error)
-	GetStudentByIdWithDeleted(ctx context.Context, id uint) (*Student, error)
-	GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error)
-	GetStudentByName(ctx context.Context, name string) (*Student, error)
+	GetStudentByID(ctx context.Context, id uint) (*model.Student, error)
+	GetStudentByIdWithDeleted(ctx context.Context, id uint) (*model.Student, error)
+	GetStudentListWithStatus(ctx context.Context, key string, offset int, limit int, status model.StudentStatus) ([]model.Student, int64, error)
+	GetStudentByName(ctx context.Context, name string) (*model.Student, error)
 	UpdateStudentHours(ctx context.Context, id uint, hours int) error
 	UpdateStudentHoursWithDeleted(ctx context.Context, id uint, hours int) error
 }
@@ -27,33 +29,21 @@ func NewStudentDao(db *gorm.DB) StudentDao {
 	return &StudentGormDao{db: db}
 }
 
-type Student struct {
-	gorm.Model
-	Name      string `gorm:"column:name;not null;comment:学生姓名;unique;index" json:"name"`
-	Gender    string `gorm:"column:gender;comment:学生性别" json:"gender"`
-	Hours     int    `gorm:"column:hours;default:0;comment:课时数" json:"hours"`
-	Phone     string `gorm:"column:phone;comment:学生电话号码" json:"phone"`
-	TeacherID uint   `gorm:"column:teacher_id;not null;comment:授课老师" json:"teacher_id"`
-	// Student -> Teacher (belongs to)：使用 TeacherID 作为外键，更新级联，删除受限
-	Teacher Teacher `gorm:"foreignKey:TeacherID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"teacher,omitempty"`
-	Remark  string  `gorm:"column:remark;comment:备注" json:"remark"`
-}
-
-func (s StudentGormDao) CreateStudent(ctx context.Context, stu *Student) error {
-	err := gorm.G[Student](s.db).Create(ctx, stu)
+func (s StudentGormDao) CreateStudent(ctx context.Context, stu *model.Student) error {
+	err := gorm.G[model.Student](s.db).Create(ctx, stu)
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		return ErrDuplicatedKey
 	}
 	return err
 }
 
-func (s StudentGormDao) UpdateStudent(ctx context.Context, stu *Student) error {
-	_, err := gorm.G[Student](s.db).Where("id = ?", stu.ID).Select(
+func (s StudentGormDao) UpdateStudent(ctx context.Context, stu *model.Student) error {
+	_, err := gorm.G[model.Student](s.db).Where("id = ?", stu.ID).Select(
 		"name",
 		"gender",
 		"phone",
-		"teacher_id",
 		"remark",
+		"status",
 	).Updates(ctx, *stu)
 	if err != nil {
 		return err
@@ -62,7 +52,7 @@ func (s StudentGormDao) UpdateStudent(ctx context.Context, stu *Student) error {
 }
 
 func (s StudentGormDao) UpdateStudentHours(ctx context.Context, id uint, diff int) error {
-	_, err := gorm.G[Student](s.db).Where("id = ?", id).Update(ctx, "hours", gorm.Expr("hours + ?", diff))
+	_, err := gorm.G[model.Student](s.db).Where("id = ?", id).Update(ctx, "hours", gorm.Expr("hours + ?", diff))
 	if err != nil {
 		return err
 	}
@@ -70,7 +60,7 @@ func (s StudentGormDao) UpdateStudentHours(ctx context.Context, id uint, diff in
 }
 
 func (s StudentGormDao) UpdateStudentHoursWithDeleted(ctx context.Context, id uint, diff int) error {
-	_, err := s.db.Unscoped().WithContext(ctx).Model(&Student{}).
+	_, err := s.db.Unscoped().WithContext(ctx).Model(&model.Student{}).
 		Where("id = ?", id).Update("hours", gorm.Expr("hours + ?", diff)).RowsAffected, s.db.Error
 	if err != nil {
 		return err
@@ -79,15 +69,18 @@ func (s StudentGormDao) UpdateStudentHoursWithDeleted(ctx context.Context, id ui
 }
 
 func (s StudentGormDao) DeleteStudent(ctx context.Context, id uint) error {
-	_, err := gorm.G[Student](s.db).Where("id = ?", id).Delete(ctx)
+	_, err := gorm.G[model.Student](s.db).Where("id = ?", id).Delete(ctx)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRecordNotFound
+		}
 		return err
 	}
 	return nil
 }
 
-func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*Student, error) {
-	stu, err := gorm.G[Student](s.db).Where("id = ?", id).Preload("Teacher", nil).First(ctx)
+func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*model.Student, error) {
+	stu, err := gorm.G[model.Student](s.db).Where("id = ?", id).Preload("Teacher", nil).First(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -95,8 +88,8 @@ func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*Student, 
 }
 
 // GetStudentByIdWithDeleted retrieves a student by ID, including those that have been soft-deleted.
-func (s StudentGormDao) GetStudentByIdWithDeleted(ctx context.Context, id uint) (*Student, error) {
-	stu := Student{}
+func (s StudentGormDao) GetStudentByIdWithDeleted(ctx context.Context, id uint) (*model.Student, error) {
+	stu := model.Student{}
 
 	err := s.db.Unscoped().WithContext(ctx).Where("id = ?", id).Preload("Teacher", nil).First(&stu).Error
 	if err != nil {
@@ -105,27 +98,36 @@ func (s StudentGormDao) GetStudentByIdWithDeleted(ctx context.Context, id uint) 
 	return &stu, nil
 }
 
-func (s StudentGormDao) GetStudentList(ctx context.Context, key string, offset int, limit int) ([]Student, int64, error) {
-	var students []Student
+func (s StudentGormDao) GetStudentListWithStatus(ctx context.Context, key string, offset int, limit int,
+	status model.StudentStatus) ([]model.Student, int64, error) {
+
+	defaultStatus := model.StudentStatusSuspended
+	if status != model.StudentStatusNone {
+		defaultStatus = status
+	}
+
+	logger.Info("Fetching student list with status filter:", logger.Int("status", int(defaultStatus)))
+	var students []model.Student
 	var total int64
-	query := gorm.G[Student](s.db).Where("")
+
+	query := gorm.G[model.Student](s.db).Where("status <= ?", defaultStatus)
 	if key != "" {
-		query = query.Where("name LIKE ?", "%"+key+"%")
+		query = query.Where("name LIKE ?", "%"+key+"%").Or("phone LIKE ?", "%"+key+"%").Or("student_number LIKE ?", "%"+key+"%")
 	}
 	total, err := query.Count(ctx, "*")
 	if err != nil {
 		return nil, 0, err
 	}
-	students, err = query.Offset(offset).Limit(limit).Order("hours asc").Find(ctx)
+	students, err = query.Offset(offset).Limit(limit).Order("created_at desc").Find(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
 	return students, total, nil
 }
 
-func (s StudentGormDao) GetStudentByName(ctx context.Context, name string) (*Student, error) {
+func (s StudentGormDao) GetStudentByName(ctx context.Context, name string) (*model.Student, error) {
 
-	stu, err := gorm.G[Student](s.db).Where("name = ?", name).Preload("Teacher", nil).First(ctx)
+	stu, err := gorm.G[model.Student](s.db).Where("name = ?", name).Preload("Teacher", nil).First(ctx)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrRecordNotFound
 	}

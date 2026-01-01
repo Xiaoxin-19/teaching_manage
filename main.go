@@ -32,28 +32,28 @@ func main() {
 		panic(err)
 	}
 
-	// Setup teacher manager
-	teacherDao := dao.NewTeacherDao(db)
-	teacherRepository := repository.NewTeacherRepository(teacherDao)
-	teacherManager := service.NewTeacherManager(teacherRepository)
+	// // Setup teacher manager
+	// teacherDao := dao.NewTeacherDao(db)
+	// teacherRepository := repository.NewTeacherRepository(teacherDao)
+	// teacherManager := service.NewTeacherManager(teacherRepository)
 
 	// Setup student manager
 	studentDao := dao.NewStudentDao(db)
 	studentRepository := repository.NewStudentRepository(studentDao)
-	studentManager := service.NewStudentManager(studentRepository, teacherRepository)
+	studentManager := service.NewStudentManager(studentRepository)
 
-	// Setup order manager
-	orderDao := dao.NewOrderDao(db)
-	orderRepository := repository.NewOrderRepository(orderDao)
-	orderManager := service.NewOrderManager(orderRepository, studentRepository)
+	// // Setup order manager
+	// orderDao := dao.NewOrderDao(db)
+	// orderRepository := repository.NewOrderRepository(orderDao)
+	// orderManager := service.NewOrderManager(orderRepository, studentRepository)
 
-	// Setup record manager
-	recordDao := dao.NewRecordDao(db)
-	recordRepository := repository.NewRecordRepository(recordDao)
-	recordManager := service.NewRecordManager(recordRepository, studentRepository)
+	// // Setup record manager
+	// recordDao := dao.NewRecordDao(db)
+	// recordRepository := repository.NewRecordRepository(recordDao)
+	// recordManager := service.NewRecordManager(recordRepository, studentRepository)
 
-	// Setup Dashboard manager
-	dashboardManager := service.NewDashboardManager()
+	// // Setup Dashboard manager
+	// dashboardManager := service.NewDashboardManager()
 
 	// Setup dispatcher
 	dispatcher := dispatcher.New()
@@ -78,18 +78,18 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup: func(ctx context.Context) {
 			app.startup(ctx)
-			teacherManager.Ctx = ctx
+			// teacherManager.Ctx = ctx
 			studentManager.Ctx = ctx
-			orderManager.Ctx = ctx
-			recordManager.Ctx = ctx
-			dashboardManager.Ctx = ctx
+			// orderManager.Ctx = ctx
+			// recordManager.Ctx = ctx
+			// dashboardManager.Ctx = ctx
 
 			// Register routes
 			studentManager.RegisterRoute(dispatcher)
-			teacherManager.RegisterRoute(dispatcher)
-			orderManager.RegisterRoute(dispatcher)
-			recordManager.RegisterRoute(dispatcher)
-			dashboardManager.RegisterRoute(dispatcher)
+			// teacherManager.RegisterRoute(dispatcher)
+			// orderManager.RegisterRoute(dispatcher)
+			// recordManager.RegisterRoute(dispatcher)
+			// dashboardManager.RegisterRoute(dispatcher)
 		},
 		Bind: []interface{}{
 			app,

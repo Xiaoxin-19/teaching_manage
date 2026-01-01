@@ -17,16 +17,17 @@ CREATE TABLE `teachers` (
 import (
 	"context"
 	"errors"
+	"teaching_manage/backend/model"
 
 	"gorm.io/gorm"
 )
 
 type TeacherDao interface {
-	CreateTeacher(ctx context.Context, t *Teacher) error
-	UpdateTeacher(ctx context.Context, t *Teacher) error
+	CreateTeacher(ctx context.Context, t *model.Teacher) error
+	UpdateTeacher(ctx context.Context, t *model.Teacher) error
 	DeleteTeacher(ctx context.Context, id uint) error
-	GetTeacherByID(ctx context.Context, id uint) (*Teacher, error)
-	GetTeacherList(ctx context.Context, key string, offset int, limit int) ([]Teacher, int64, error)
+	GetTeacherByID(ctx context.Context, id uint) (*model.Teacher, error)
+	GetTeacherList(ctx context.Context, key string, offset int, limit int) ([]model.Teacher, int64, error)
 }
 
 type TeacherGormDao struct {
@@ -37,16 +38,8 @@ func NewTeacherDao(db *gorm.DB) TeacherDao {
 	return &TeacherGormDao{db: db}
 }
 
-type Teacher struct {
-	gorm.Model
-	Name   string `gorm:"column:name;not null;comment:教师姓名;index;unique" json:"name"`
-	Gender string `gorm:"column:gender;comment:教师性别" json:"gender"`
-	Phone  string `gorm:"column:phone;comment:电话号码" json:"phone"`
-	Remark string `gorm:"column:remark;comment:备注" json:"remark"`
-}
-
-func (s TeacherGormDao) CreateTeacher(ctx context.Context, t *Teacher) error {
-	err := gorm.G[Teacher](s.db).Create(ctx, &Teacher{
+func (s TeacherGormDao) CreateTeacher(ctx context.Context, t *model.Teacher) error {
+	err := gorm.G[model.Teacher](s.db).Create(ctx, &model.Teacher{
 		Name:   t.Name,
 		Gender: t.Gender,
 		Phone:  t.Phone,
@@ -58,8 +51,8 @@ func (s TeacherGormDao) CreateTeacher(ctx context.Context, t *Teacher) error {
 	return err
 }
 
-func (s TeacherGormDao) UpdateTeacher(ctx context.Context, t *Teacher) error {
-	_, err := gorm.G[Teacher](s.db).Where("id = ?", t.ID).Select("name", "gender", "phone", "remark").Updates(ctx, Teacher{
+func (s TeacherGormDao) UpdateTeacher(ctx context.Context, t *model.Teacher) error {
+	_, err := gorm.G[model.Teacher](s.db).Where("id = ?", t.ID).Select("name", "gender", "phone", "remark").Updates(ctx, model.Teacher{
 		Name:   t.Name,
 		Gender: t.Gender,
 		Phone:  t.Phone,
@@ -72,15 +65,15 @@ func (s TeacherGormDao) UpdateTeacher(ctx context.Context, t *Teacher) error {
 }
 
 func (s TeacherGormDao) DeleteTeacher(ctx context.Context, id uint) error {
-	_, err := gorm.G[Teacher](s.db).Where("id = ?", id).Delete(ctx)
+	_, err := gorm.G[model.Teacher](s.db).Where("id = ?", id).Delete(ctx)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s TeacherGormDao) GetTeacherByID(ctx context.Context, id uint) (*Teacher, error) {
-	t, err := gorm.G[Teacher](s.db).Where("id = ?", id).First(ctx)
+func (s TeacherGormDao) GetTeacherByID(ctx context.Context, id uint) (*model.Teacher, error) {
+	t, err := gorm.G[model.Teacher](s.db).Where("id = ?", id).First(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -88,9 +81,9 @@ func (s TeacherGormDao) GetTeacherByID(ctx context.Context, id uint) (*Teacher, 
 }
 
 // Get teacher list
-func (s TeacherGormDao) GetTeacherList(ctx context.Context, key string, offset int, limit int) ([]Teacher, int64, error) {
-	var teachers []Teacher
-	query := gorm.G[Teacher](s.db).Where("")
+func (s TeacherGormDao) GetTeacherList(ctx context.Context, key string, offset int, limit int) ([]model.Teacher, int64, error) {
+	var teachers []model.Teacher
+	query := gorm.G[model.Teacher](s.db).Where("")
 
 	if key != "" {
 		query = query.Where("name LIKE ?", "%"+key+"%")
