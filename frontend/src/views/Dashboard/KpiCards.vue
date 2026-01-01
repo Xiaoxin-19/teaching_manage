@@ -13,8 +13,10 @@
           </v-avatar>
         </div>
         <div class="d-flex align-center mt-2">
-          <v-chip size="small" color="success" variant="tonal" label class="font-weight-bold">
-            <v-icon start size="small">mdi-arrow-up</v-icon> {{ summaryData.newStudentsThisMonth }} 本月新增
+          <v-chip size="small" :color="summaryData.newStudentsThisMonth >= 0 ? 'success' : 'error'" variant="tonal"
+            label class="font-weight-bold">
+            <v-icon start size="small">{{ summaryData.newStudentsThisMonth >= 0 ? 'mdi-arrow-up' : 'mdi-arrow-down'
+              }}</v-icon> {{ summaryData.newStudentsThisMonth }} 本月新增
           </v-chip>
         </div>
       </v-card>
@@ -33,8 +35,11 @@
           </v-avatar>
         </div>
         <div class="d-flex align-center mt-2">
-          <v-chip size="small" color="success" variant="tonal" label class="font-weight-bold">
-            <v-icon start size="small">mdi-trending-up</v-icon> {{ summaryData.monthOverMonth }} 环比增长
+          <v-chip size="small" :color="summaryData.monthOverMonth.includes('-') ? 'error' : 'success'" variant="tonal"
+            label class="font-weight-bold">
+            <v-icon start size="small">{{ summaryData.monthOverMonth.includes('-') ? 'mdi-trending-down' :
+              'mdi-trending-up' }}</v-icon> {{ summaryData.monthOverMonth }} 环比{{
+                summaryData.monthOverMonth.includes('-') ? '下降' : '增长' }}
           </v-chip>
         </div>
       </v-card>
