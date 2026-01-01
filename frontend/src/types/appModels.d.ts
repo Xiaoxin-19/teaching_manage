@@ -38,6 +38,16 @@ export interface Teacher {
   lastModified?: string;
 }
 
+export interface Subject {
+  id: number;
+  subject_number: string;
+  name: string;
+  student_count: number; // 关联学员数
+  created_at?: number;
+  updated_at?: number;
+  lastModified?: string;
+}
+
 
 // 新增：教学记录状态类型
 export type RecordStatus = 'active' | 'pending';

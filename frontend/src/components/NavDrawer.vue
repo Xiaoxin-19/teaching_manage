@@ -20,6 +20,7 @@ const menuItems = [
   { title: '数据看板', icon: 'mdi-view-dashboard', to: { name: 'dashboard' } },
   { title: '学生档案', icon: 'mdi-account-group', to: { name: 'students' } },
   { title: '教师管理', icon: 'mdi-human-male-board', to: { name: 'teachers' } },
+  { title: '科目管理', icon: 'mdi-bookshelf', to: { name: 'subjects' } },
   { title: '上课记录', icon: 'mdi-clipboard-text-clock', to: { name: 'records' } },
   { divider: true },
   { title: '系统设置', icon: 'mdi-cog', to: { name: 'settings' } },

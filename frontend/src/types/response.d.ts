@@ -102,3 +102,9 @@ export interface BalanceStat {
 export interface GetStudentBalanceDataResponse {
   stats: BalanceStat[]
 }
+
+
+export interface GetSubjectListResponse {
+  subjects: Subject[];
+  total: number;
+}

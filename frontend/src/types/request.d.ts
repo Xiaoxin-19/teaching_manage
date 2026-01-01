@@ -53,3 +53,26 @@ export interface GetTeacherListRequest {
 export interface DeleteTeacherRequest {
   ID: number;
 }
+
+// Subject related requests
+// --- 类型定义 (建议后续移动到 src/types/request.d.ts 和 response.d.ts) ---
+
+
+export interface GetSubjectListRequest {
+  Offset: number;
+  Limit: number;
+  Keyword: string;
+}
+
+export interface CreateSubjectRequest {
+  Name: string;
+}
+
+export interface UpdateSubjectRequest {
+  ID: number;
+  Name: string;
+}
+
+export interface DeleteSubjectRequest {
+  ID: number;
+}
