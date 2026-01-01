@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"teaching_manage/pkg"
+	"teaching_manage/backend/pkg"
 	"time"
 )
 

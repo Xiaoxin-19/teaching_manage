@@ -3,7 +3,7 @@ package dao
 import (
 	"context"
 	"errors"
-	"teaching_manage/pkg/logger"
+	"teaching_manage/backend/pkg/logger"
 	"time"
 
 	"gorm.io/gorm"

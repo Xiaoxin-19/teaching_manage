@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"teaching_manage/dao"
-	"teaching_manage/pkg/dispatcher"
-	"teaching_manage/pkg/logger"
-	requestx "teaching_manage/service/request"
-	responsex "teaching_manage/service/response"
+	"teaching_manage/backend/dao"
+	"teaching_manage/backend/pkg/dispatcher"
+	"teaching_manage/backend/pkg/logger"
+	requestx "teaching_manage/backend/service/request"
+	responsex "teaching_manage/backend/service/response"
 	"time"
 )
 

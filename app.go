@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"teaching_manage/pkg/dispatcher"
+	"teaching_manage/backend/pkg/dispatcher"
 )
 
 // App struct

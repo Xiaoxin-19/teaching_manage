@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	valdiatex "teaching_manage/pkg/valdiate"
-	"teaching_manage/pkg/wraper"
+	valdiatex "teaching_manage/backend/pkg/valdiate"
+	"teaching_manage/backend/pkg/wraper"
 )
 
 // ErrHandlerNotFound is returned when a route/handler name is not registered.

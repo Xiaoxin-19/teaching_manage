@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
-	"teaching_manage/dao"
-	"teaching_manage/entity"
+	"teaching_manage/backend/dao"
+	"teaching_manage/backend/entity"
 )
 
 type TeacherRepository interface {

@@ -2,8 +2,8 @@ package wirex
 
 import (
 	"os"
-	"teaching_manage/dao"
-	"teaching_manage/pkg/logger"
+	"teaching_manage/backend/dao"
+	"teaching_manage/backend/pkg/logger"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

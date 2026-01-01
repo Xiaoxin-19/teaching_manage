@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"embed"
-	"teaching_manage/dao"
-	"teaching_manage/pkg/dispatcher"
-	"teaching_manage/pkg/logger"
-	"teaching_manage/repository"
-	"teaching_manage/service"
-	"teaching_manage/wirex"
+	"teaching_manage/backend/dao"
+	"teaching_manage/backend/pkg/dispatcher"
+	"teaching_manage/backend/pkg/logger"
+	"teaching_manage/backend/repository"
+	"teaching_manage/backend/service"
+	"teaching_manage/backend/wirex"
 
 	"github.com/wailsapp/wails/v2"
 
