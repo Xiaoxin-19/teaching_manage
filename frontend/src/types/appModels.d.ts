@@ -48,6 +48,18 @@ export interface Subject {
   lastModified?: string;
 }
 
+export interface Course {
+  id: number;
+  student: Student;
+  subject: Subject;
+  teacher: Teacher;
+  balance: number;
+  remark: string;
+  status: number;
+  created_at: number;
+  updated_at: number;
+}
+
 
 // 新增：教学记录状态类型
 export type RecordStatus = 'active' | 'pending';

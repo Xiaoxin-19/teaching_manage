@@ -69,12 +69,15 @@ func (s StudentGormDao) UpdateStudentHoursWithDeleted(ctx context.Context, id ui
 }
 
 func (s StudentGormDao) DeleteStudent(ctx context.Context, id uint) error {
-	_, err := gorm.G[model.Student](s.db).Where("id = ?", id).Delete(ctx)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	// 使用 ID 初始化 struct，确保 AfterDelete 钩子能获取到 ID
+	stu := model.Student{Model: gorm.Model{ID: id}}
+
+	result := s.db.WithContext(ctx).Delete(&stu)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return ErrRecordNotFound
 		}
-		return err
+		return result.Error
 	}
 	return nil
 }

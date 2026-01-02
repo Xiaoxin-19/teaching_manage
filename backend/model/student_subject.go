@@ -11,12 +11,13 @@ type StudentSubject struct {
 	SubjectID uint    `gorm:"uniqueIndex:idx_stu_sub;not null;comment:科目ID" `
 	Subject   Subject `gorm:"foreignKey:SubjectID" `
 
-	TeacherID uint    `gorm:"comment:该科目的授课老师" `
+	TeacherID uint    `gorm:"not null;comment:该科目的授课老师" `
 	Teacher   Teacher `gorm:"foreignKey:TeacherID" `
 
 	Balance  int    `gorm:"default:0;comment:剩余课时" `
 	TotalBuy int    `gorm:"default:0;comment:累计购买课时" `
 	Remark   string `gorm:"type:text;comment:备注" `
+	Status   int    `gorm:"default:1;comment:状态，1-正常，2-停学 3-结课" `
 }
 
 func (StudentSubject) TableName() string {

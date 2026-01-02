@@ -6,7 +6,8 @@
         <span class="text-subtitle-1 font-weight-bold text-warning-darken-2">办理退课</span>
       </v-card-title>
       <v-card-text class="pa-4 pt-5">
-        <div class="text-body-1 font-weight-bold mb-2">您确定要为 {{ course.studentName }} 办理 {{ course.subjectName }} 退课吗？
+        <div class="text-body-1 font-weight-bold mb-2">您确定要为 {{ course.student?.name }} 办理 {{ course.subject?.name }}
+          退课吗？
         </div>
         <div class="text-body-2 text-medium-emphasis mb-4">此操作将终止课程服务，状态变更为“已结课”。</div>
         <div v-if="(course.balance || 0) > 0" class="bg-amber-lighten-5 pa-3 rounded border border-warning mb-3">
@@ -29,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { type Course } from '../../api/course'
+import { Course } from '../../types/appModels'
 
 defineProps<{
   modelValue: boolean

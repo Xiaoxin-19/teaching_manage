@@ -7,7 +7,7 @@
       </v-card-title>
       <v-card-text class="pa-4 pt-5">
         <div class="text-body-1 font-weight-bold mb-2 text-error">高危操作警告</div>
-        <div class="text-body-2 mb-4">您正在尝试彻底删除 <strong>{{ course.studentName }} - {{ course.subjectName }}</strong>
+        <div class="text-body-2 mb-4">您正在尝试彻底删除 <strong>{{ course.student?.name }} - {{ course.subject?.name }}</strong>
           的课程记录。</div>
         <div class="bg-red-lighten-5 pa-3 rounded border border-error text-caption text-error">
           <v-icon size="small" color="error"
@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { type Course } from '../../api/course'
+import { Course } from '../../types/appModels'
 
 defineProps<{
   modelValue: boolean

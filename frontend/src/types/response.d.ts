@@ -1,4 +1,4 @@
-import { Teacher } from "./appModels"
+import { Teacher, Course } from "./appModels"
 
 // 后端返回的原始数据结构
 export interface StudentDTO {
@@ -106,5 +106,12 @@ export interface GetStudentBalanceDataResponse {
 
 export interface GetSubjectListResponse {
   subjects: Subject[];
+  total: number;
+}
+
+// Student Course relate
+
+export interface GetCourseListResponse {
+  courses: Course[];
   total: number;
 }

@@ -41,11 +41,10 @@ func (sr SubjectRepositoryImpl) GetSubjectList(ctx context.Context, key string, 
 				var studentSubjects []entity.StudentSubject
 				for _, ss := range s.StudentSubjects {
 					studentSubjects = append(studentSubjects, entity.StudentSubject{
-						ID:       ss.ID,
-						Teacher:  entity.Teacher{ID: ss.ID},
-						Student:  entity.Student{ID: ss.StudentID},
-						Balance:  ss.Balance,
-						TotalBuy: ss.TotalBuy,
+						ID:      ss.ID,
+						Teacher: entity.Teacher{ID: ss.ID},
+						Student: entity.Student{ID: ss.StudentID},
+						Balance: ss.Balance,
 					})
 				}
 				return studentSubjects

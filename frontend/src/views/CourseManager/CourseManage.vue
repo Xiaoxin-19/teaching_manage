@@ -31,11 +31,12 @@
             <div class="d-flex align-center justify-start"><span>{{ column.title }}</span><v-menu
                 :close-on-content-click="false" location="bottom"><template v-slot:activator="{ props }"><v-btn icon
                     variant="text" density="compact" size="small" v-bind="props" class="ml-1 header-filter-icon"
-                    :class="{ 'active': filters.studentName }" :color="filters.studentName ? 'primary' : ''"><v-icon
+                    :class="{ 'active': filters.studentId }" :color="filters.studentId ? 'primary' : ''"><v-icon
                       size="16">mdi-filter-variant</v-icon></v-btn></template><v-sheet min-width="250"
-                  class="pa-4 rounded-lg" elevation="4"><v-text-field v-model="filters.studentName" label="搜索姓名或学号"
-                    density="compact" variant="outlined" hide-details prepend-inner-icon="mdi-magnify"
-                    clearable></v-text-field></v-sheet></v-menu></div>
+                  class="pa-4 rounded-lg" elevation="4"><v-autocomplete v-model="filters.studentId"
+                    :items="studentOptions" item-title="title" item-value="value" :loading="isStudentLoading"
+                    @update:search="onStudentSearch" label="搜索姓名或学号" density="compact" variant="outlined" hide-details
+                    clearable no-filter :return-object="false"></v-autocomplete></v-sheet></v-menu></div>
           </template>
           <template v-slot:header.subjectName="{ column }">
             <div class="d-flex align-center justify-center"><span>{{ column.title }}</span><v-menu
@@ -45,7 +46,7 @@
                     :color="filters.subjects.length > 0 ? 'primary' : ''"><v-icon
                       size="16">mdi-filter-variant</v-icon></v-btn></template><v-sheet min-width="250"
                   class="pa-4 rounded-lg" elevation="4"><v-autocomplete v-model="filters.subjects"
-                    :items="subjectOptions" item-title="title" item-value="title" :loading="isSubjectLoading"
+                    :items="subjectOptions" item-title="title" item-value="value" :loading="isSubjectLoading"
                     @update:search="onSubjectSearch" label="搜索或选择科目" multiple chips closable-chips density="compact"
                     variant="outlined" hide-details clearable no-filter
                     :return-object="false"></v-autocomplete></v-sheet></v-menu></div>
@@ -58,7 +59,7 @@
                     :color="filters.teachers.length > 0 ? 'primary' : ''"><v-icon
                       size="16">mdi-filter-variant</v-icon></v-btn></template><v-sheet min-width="250"
                   class="pa-4 rounded-lg" elevation="4"><v-autocomplete v-model="filters.teachers"
-                    :items="teacherOptions" item-title="title" item-value="title" :loading="isTeacherLoading"
+                    :items="teacherOptions" item-title="title" item-value="value" :loading="isTeacherLoading"
                     @update:search="onTeacherSearch" label="搜索或选择老师" multiple chips closable-chips density="compact"
                     variant="outlined" hide-details clearable no-filter
                     :return-object="false"></v-autocomplete></v-sheet></v-menu></div>
@@ -89,24 +90,25 @@
                       size="16">mdi-filter-variant</v-icon></v-btn></template><v-sheet min-width="220"
                   class="pa-2 rounded-lg" elevation="4"><v-list density="compact"
                     select-strategy="leaf"><v-list-subheader class="text-caption">选择状态</v-list-subheader><template
-                      v-for="s in statusOptions" :key="s.value"><v-checkbox v-model="filters.status" :label="s.title"
-                        :value="s.value" density="compact" hide-details
-                        color="primary"></v-checkbox></template></v-list></v-sheet></v-menu>
+                      v-for="s in statusOptions" :key="s.value"><v-checkbox v-model="filters.status" :value="s.value"
+                        :label="s.title" density="compact" hide-details :color="s.color"><template v-slot:label><span
+                            :class="`text-${s.color}`">{{ s.title
+                            }}</span></template></v-checkbox></template></v-list></v-sheet></v-menu>
             </div>
           </template>
 
           <!-- 表格内容 -->
           <template v-slot:item.studentName="{ item }">
-            <span class="font-weight-bold text-body-2">{{ item.studentName }}</span>
-            <span class="text-caption text-medium-emphasis ml-1">- {{ item.studentCode }}</span>
+            <span class="font-weight-bold text-body-2">{{ item.student.name }}</span>
+            <span class="text-caption text-medium-emphasis ml-1">- {{ item.student.student_number }}</span>
           </template>
           <template v-slot:item.subjectName="{ item }">
             <v-chip size="small" variant="outlined" color="indigo" label class="font-weight-medium fixed-chip"
-              :class="{ 'text-shrink': (item.subjectName || '').length > 4 }">{{ item.subjectName }}</v-chip>
+              :class="{ 'text-shrink': (item.subject.name || '').length > 4 }">{{ item.subject.name }}</v-chip>
           </template>
           <template v-slot:item.teacherName="{ item }">
-            <div class="d-flex align-center justify-center"><span class="text-medium-emphasis">{{ item.teacherName
-                }}</span><span class="text-caption text-disabled ml-1">- {{ item.teacherCode }}</span></div>
+            <div class="d-flex align-center justify-center"><span class="text-medium-emphasis">{{ item.teacher.name
+                }}</span><span class="text-caption text-disabled ml-1">- {{ item.teacher.teacher_number }}</span></div>
           </template>
           <template v-slot:item.balance="{ item }">
             <div class="d-flex align-center justify-center"><v-tooltip location="top"><template
@@ -117,48 +119,52 @@
                       item.balance }} 节 - {{ getBalanceLabel(item.balance) }}</span></v-tooltip></div>
           </template>
           <template v-slot:item.status="{ item }">
-            <v-tooltip location="top" :disabled="!getEffectiveStatus(item).disabled && item.courseStatus !== 2">
-              <template v-slot:activator="{ props }">
-                <div v-bind="props" class="d-flex align-center justify-center"><v-chip size="small"
-                    :color="getEffectiveStatus(item).color" variant="tonal" label class="font-weight-medium fixed-chip"
-                    :class="{ 'text-shrink': (getEffectiveStatus(item).label || '').length > 4 }">{{
-                      getEffectiveStatus(item).label }}</v-chip></div>
-              </template>
-              <span>{{ getEffectiveStatus(item).desc }}</span>
-            </v-tooltip>
+            <template v-for="status in [getEffectiveStatus(item)]" :key="item.status">
+              <v-tooltip location="top" :disabled="!status.disabled && item.status !== 2">
+                <template v-slot:activator="{ props }">
+                  <div v-bind="props" class="d-flex align-center justify-center"><v-chip size="small"
+                      :color="status.color" variant="tonal" label class="font-weight-medium fixed-chip"
+                      :class="{ 'text-shrink': (status.label || '').length > 4 }">{{
+                        status.label }}</v-chip></div>
+                </template>
+                <span>{{ status.desc }}</span>
+              </v-tooltip>
+            </template>
           </template>
           <template v-slot:item.actions="{ item }">
-            <div class="d-flex justify-end align-center gap-2">
-              <v-btn size="small" color="primary" variant="text" prepend-icon="mdi-wallet-plus"
-                @click="openRecharge(item)" :disabled="getEffectiveStatus(item).label === '学员退学'">续费</v-btn>
-              <v-menu location="bottom end"><template v-slot:activator="{ props }"><v-btn icon="mdi-dots-vertical"
-                    variant="text" size="small" v-bind="props" color="medium-emphasis"></v-btn></template><v-list
-                  density="compact" elevation="3" class="rounded-lg">
-                  <v-list-item @click="openEdit(item)" color="primary"
-                    :disabled="getEffectiveStatus(item).disabled && item.courseStatus !== 2"><template
-                      v-slot:prepend><v-icon
-                        color="primary">mdi-account-switch-outline</v-icon></template><v-list-item-title
-                      class="text-body-2">更换老师</v-list-item-title></v-list-item>
-                  <v-list-item @click="openDeduction(item)" color="warning"
-                    :disabled="getEffectiveStatus(item).label === '学员退学'"><template v-slot:prepend><v-icon
-                        color="warning">mdi-cash-minus</v-icon></template><v-list-item-title
-                      class="text-body-2 text-warning">退费/扣课时</v-list-item-title></v-list-item>
-                  <v-list-item @click="toggleStatus(item)" :disabled="item.studentStatus !== 1"><template
-                      v-slot:prepend><v-icon :color="item.courseStatus === 1 ? 'warning' : 'success'">{{
-                        item.courseStatus === 1 ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'
-                      }}</v-icon></template><v-list-item-title class="text-body-2"
-                      :class="item.courseStatus === 1 ? 'text-warning' : 'text-success'">{{ item.courseStatus === 1 ?
-                        '办理停课' : '恢复上课' }}</v-list-item-title><template v-if="item.studentStatus !== 1"
-                      v-slot:append><v-icon size="x-small" color="grey">mdi-lock</v-icon></template></v-list-item>
-                  <v-divider class="my-1"></v-divider>
-                  <v-list-item @click="openDelete(item)" color="warning"><template v-slot:prepend><v-icon
-                        color="warning">mdi-archive-remove-outline</v-icon></template><v-list-item-title
-                      class="text-body-2 text-warning">办理退课</v-list-item-title></v-list-item>
-                  <v-list-item @click="openForceDelete(item)" color="error"><template v-slot:prepend><v-icon
-                        color="error">mdi-delete-forever</v-icon></template><v-list-item-title
-                      class="text-body-2 text-error">彻底删除</v-list-item-title></v-list-item>
-                </v-list></v-menu>
-            </div>
+            <template v-for="status in [getEffectiveStatus(item)]" :key="item.status">
+              <div class="d-flex justify-end align-center gap-2">
+                <v-btn size="small" color="primary" variant="text" prepend-icon="mdi-wallet-plus"
+                  @click="openRecharge(item)" :disabled="status.label === '学员退学'">续费</v-btn>
+                <v-menu location="bottom end"><template v-slot:activator="{ props }"><v-btn icon="mdi-dots-vertical"
+                      variant="text" size="small" v-bind="props" color="medium-emphasis"></v-btn></template><v-list
+                    density="compact" elevation="3" class="rounded-lg">
+                    <v-list-item @click="openEdit(item)" color="primary"
+                      :disabled="status.disabled && item.status !== 2"><template v-slot:prepend><v-icon
+                          color="primary">mdi-account-switch-outline</v-icon></template><v-list-item-title
+                        class="text-body-2">更换老师</v-list-item-title></v-list-item>
+                    <v-list-item @click="openDeduction(item)" color="warning"
+                      :disabled="status.label === '学员退学' || status.label === '已结课'"><template v-slot:prepend><v-icon
+                          color="warning">mdi-cash-minus</v-icon></template><v-list-item-title
+                        class="text-body-2 text-warning">退费/扣课时</v-list-item-title></v-list-item>
+                    <v-list-item @click="toggleStatus(item)" :disabled="item.student.status !== 1"><template
+                        v-slot:prepend><v-icon :color="item.status === 1 ? 'warning' : 'success'">{{
+                          item.status === 1 ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'
+                        }}</v-icon></template><v-list-item-title class="text-body-2"
+                        :class="item.status === 1 ? 'text-warning' : 'text-success'">{{ item.status === 1 ?
+                          '办理停课' : '恢复上课' }}</v-list-item-title><template v-if="item.student.status !== 1"
+                        v-slot:append><v-icon size="x-small" color="grey">mdi-lock</v-icon></template></v-list-item>
+                    <v-divider class="my-1"></v-divider>
+                    <v-list-item @click="openDelete(item)" color="warning" :disabled="status.label === '已结课'"><template
+                        v-slot:prepend><v-icon
+                          color="warning">mdi-archive-remove-outline</v-icon></template><v-list-item-title
+                        class="text-body-2 text-warning">办理退课</v-list-item-title></v-list-item>
+                    <v-list-item @click="openForceDelete(item)" color="error"><template v-slot:prepend><v-icon
+                          color="error">mdi-delete-forever</v-icon></template><v-list-item-title
+                        class="text-body-2 text-error">彻底删除</v-list-item-title></v-list-item>
+                  </v-list></v-menu>
+              </div>
+            </template>
           </template>
         </v-data-table-server>
       </v-card>
@@ -177,10 +183,10 @@
 
       <!-- 4. Edit Dialog -->
       <CourseEditDialog v-model="dialogVisible" :is-edit="isEdit" :course="currentItem" :form="enrollForm"
-        :student-options="studentOptions" :subject-options="subjectOptions" :teacher-options="teacherOptions"
-        :student-loading="isStudentLoading" :subject-loading="isSubjectLoading" :teacher-loading="isTeacherLoading"
-        @search-student="onStudentSearch" @search-subject="onSubjectSearch" @search-teacher="onTeacherSearch"
-        @save="handleSave" />
+        :student-options="enrollStudentOptions" :subject-options="subjectOptions" :teacher-options="teacherOptions"
+        :student-loading="isEnrollStudentLoading" :subject-loading="isSubjectLoading"
+        :teacher-loading="isTeacherLoading" @search-student="onEnrollStudentSearch" @search-subject="onSubjectSearch"
+        @search-teacher="onTeacherSearch" @save="handleSave" />
     </div>
   </v-sheet>
 </template>
@@ -199,9 +205,9 @@ const {
   rechargeMode, rechargeDialogRef, // 导出 ref
   deleteForm, isDeleteValid, enrollForm,
   filters, activeFilters,
-  studentOptions, subjectOptions, teacherOptions, statusOptions,
-  isStudentLoading, isSubjectLoading, isTeacherLoading,
-  onStudentSearch, onSubjectSearch, onTeacherSearch,
+  studentOptions, enrollStudentOptions, subjectOptions, teacherOptions, statusOptions,
+  isStudentLoading, isEnrollStudentLoading, isSubjectLoading, isTeacherLoading,
+  onStudentSearch, onEnrollStudentSearch, onSubjectSearch, onTeacherSearch,
   loadData, clearFilter,
   openEnroll, openEdit, handleSave,
   openRecharge, openDeduction, handleRechargeSubmit,

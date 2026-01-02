@@ -17,7 +17,7 @@
           v-model="form.studentId" no-filter :return-object="false"></v-autocomplete>
         <div v-else class="mb-4 text-body-2 text-medium-emphasis d-flex align-center bg-grey-lighten-4 pa-3 rounded">
           <v-icon start size="small">mdi-account</v-icon>学员：<span class="font-weight-bold text-high-emphasis ml-1">{{
-            course.studentName }}</span>
+            course.student?.name }}</span>
         </div>
         <v-row dense>
           <v-col cols="12" sm="6">
@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { type Course } from '../../api/course'
+import { Course } from '../../types/appModels'
 
 interface EnrollForm {
   studentId: any
