@@ -59,7 +59,8 @@ async function loadStudents(): Promise<void> {
       Offset: (page.value - 1) * itemsPerPage.value,
       Limit: itemsPerPage.value,
       keyword: search.value,
-      Status: filterStatus.value == null ? 0 : filterStatus.value // 传递状态筛选
+      Status_Level: 3, // 传递状态筛选
+      Status_Target: filterStatus.value === null ? 0 : filterStatus.value
     })
 
     console.log('Fetched student list:', data)

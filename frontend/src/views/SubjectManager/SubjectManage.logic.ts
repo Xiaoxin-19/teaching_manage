@@ -51,9 +51,7 @@ export function useSubjectManage() {
       // 简单的数据转换，确保字段匹配
       subjects.value = subjectsList.map(item => ({
         ...item,
-        // 如果后端返回的是 created_at 时间戳，这里可以预处理成可读字符串
-        // 假设后端 Subject 结构中有 updated_at 字段
-        // lastModified: item.updated_at ? new Date(item.updated_at).toLocaleString() : '' 
+        lastModified: item.updated_at ? new Date(item.updated_at).toLocaleString() : ''
       }))
       totalItems.value = data.total || 0 // 假设后端返回的 data 中包含总数信息
     } catch (e: any) {

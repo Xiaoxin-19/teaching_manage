@@ -4,7 +4,8 @@ export interface GetStudentListRequest {
   Offset: number;
   Limit: number;
   keyword: string;
-  Status: number;
+  Status_Level: number;
+  Status_Target: number;
 }
 
 export interface CreateStudentRequest {

@@ -28,16 +28,15 @@ func NewStudentManager(repo repository.StudentRepository) *StudentManager {
 }
 
 func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetStudentListRequest) (*responsex.GetStudentListResponse, error) {
-	studentDs, total, err := sm.repo.ListStudentsWithStatus(ctx, req.Keyword, req.Offset, req.Limit, 3)
+
+	studentDs, total, err := sm.repo.ListStudentsWithStatus(ctx, req.Keyword, req.Offset, req.Limit, req.StatusLevel, req.StatusTarget)
 	if err != nil {
 		return nil, err
 	}
 
 	studentDTOs := make([]responsex.StudentDTO, 0, len(studentDs))
 	for _, s := range studentDs {
-		if req.Status != 0 && s.Status != req.Status {
-			continue
-		}
+
 		studentDTOs = append(studentDTOs, responsex.StudentDTO{
 			ID:            s.ID,
 			StudentNumber: s.StudentNumber,
@@ -131,7 +130,7 @@ func (sm StudentManager) Export2Excel(ctx context.Context) (string, error) {
 	}
 
 	// Get all students with status <= 3 (正常，停课，退出)
-	stus, _, err := sm.repo.ListStudentsWithStatus(ctx, "", 0, -1, 3)
+	stus, _, err := sm.repo.ListStudentsWithStatus(ctx, "", 0, -1, 3, 0)
 	if err != nil {
 		return "", err
 	}

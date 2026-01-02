@@ -11,7 +11,7 @@ import (
 )
 
 type StudentRepository interface {
-	ListStudentsWithStatus(ctx context.Context, key string, offset int, limit int, status int) ([]entity.Student, int64, error)
+	ListStudentsWithStatus(ctx context.Context, key string, offset int, limit int, levelStatus int, targetStatus int) ([]entity.Student, int64, error)
 	// GetStudentByName(ctx context.Context, name string) (*entity.Student, error)
 	// GetStudentByID(ctx context.Context, id uint) (*entity.Student, error)
 	UpdateStudent(ctx context.Context, stu *entity.Student) error
@@ -29,11 +29,11 @@ type StudentRepositoryImpl struct {
 func NewStudentRepository(dao dao.StudentDao) StudentRepository {
 	return &StudentRepositoryImpl{dao: dao}
 }
-func (sr StudentRepositoryImpl) ListStudentsWithStatus(ctx context.Context, key string, offset int, limit int, status int) ([]entity.Student, int64, error) {
-	if status <= 0 || status > 3 {
-		return nil, 0, fmt.Errorf("invalid status: %d", status)
+func (sr StudentRepositoryImpl) ListStudentsWithStatus(ctx context.Context, key string, offset int, limit int, levelStatus int, targetStatus int) ([]entity.Student, int64, error) {
+	if levelStatus <= 0 || levelStatus > 3 {
+		return nil, 0, fmt.Errorf("invalid status: %d", levelStatus)
 	}
-	students, total, err := sr.dao.GetStudentListWithStatus(ctx, key, offset, limit, model.StudentStatus(status))
+	students, total, err := sr.dao.GetStudentListWithStatus(ctx, key, offset, limit, model.StudentStatus(levelStatus), model.StudentStatus(targetStatus))
 	if err != nil {
 		return nil, 0, err
 	}

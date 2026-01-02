@@ -15,7 +15,7 @@ type StudentDao interface {
 	DeleteStudent(ctx context.Context, id uint) error
 	GetStudentByID(ctx context.Context, id uint) (*model.Student, error)
 	GetStudentByIdWithDeleted(ctx context.Context, id uint) (*model.Student, error)
-	GetStudentListWithStatus(ctx context.Context, key string, offset int, limit int, status model.StudentStatus) ([]model.Student, int64, error)
+	GetStudentListWithStatus(ctx context.Context, key string, offset int, limit int, status model.StudentStatus, targetStatus model.StudentStatus) ([]model.Student, int64, error)
 	GetStudentByName(ctx context.Context, name string) (*model.Student, error)
 	UpdateStudentHours(ctx context.Context, id uint, hours int) error
 	UpdateStudentHoursWithDeleted(ctx context.Context, id uint, hours int) error
@@ -99,25 +99,31 @@ func (s StudentGormDao) GetStudentByIdWithDeleted(ctx context.Context, id uint) 
 }
 
 func (s StudentGormDao) GetStudentListWithStatus(ctx context.Context, key string, offset int, limit int,
-	status model.StudentStatus) ([]model.Student, int64, error) {
+	statusLevel model.StudentStatus, statusTarget model.StudentStatus) ([]model.Student, int64, error) {
 
-	defaultStatus := model.StudentStatusSuspended
-	if status != model.StudentStatusNone {
-		defaultStatus = status
-	}
-
-	logger.Info("Fetching student list with status filter:", logger.Int("status", int(defaultStatus)))
+	logger.Info("Fetching student list with status filter:",
+		logger.Int("input_status", int(statusLevel)), logger.Int("target_status", int(statusTarget)))
 	var students []model.Student
 	var total int64
 
-	query := gorm.G[model.Student](s.db).Where("status <= ?", defaultStatus)
+	// student status filtering
+	query := gorm.G[model.Student](s.db).Where("status <= ?", statusLevel)
+	if statusTarget != 0 {
+		query = query.Where("status = ?", statusTarget)
+	}
+
+	// keyword filtering
 	if key != "" {
 		query = query.Where("name LIKE ?", "%"+key+"%").Or("phone LIKE ?", "%"+key+"%").Or("student_number LIKE ?", "%"+key+"%")
 	}
+
+	// get total count
 	total, err := query.Count(ctx, "*")
 	if err != nil {
 		return nil, 0, err
 	}
+
+	// get paginated results
 	students, err = query.Offset(offset).Limit(limit).Order("created_at desc").Find(ctx)
 	if err != nil {
 		return nil, 0, err

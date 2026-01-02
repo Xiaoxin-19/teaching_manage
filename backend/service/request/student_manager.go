@@ -1,10 +1,11 @@
 package requestx
 
 type GetStudentListRequest struct {
-	Keyword string `json:"keyword" validate:"max=100"`
-	Offset  int    `json:"offset" validate:"gte=0"`
-	Limit   int    `json:"limit" validate:"oneof=10 25 50 100 -1"`
-	Status  int    `json:"status" validate:"oneof=0 1 2 3"` // 0表示不筛选状态
+	Keyword      string `json:"keyword" validate:"max=100"`
+	Offset       int    `json:"offset" validate:"gte=0"`
+	Limit        int    `json:"limit" validate:"oneof=10 25 50 100 -1"`
+	StatusLevel  int    `json:"status_level" validate:"oneof= 1 2 3"`   // 状态层级， 只要比这个值 <= 的状态都会被返回
+	StatusTarget int    `json:"status_target" validate:"oneof=1 2 3 0"` // 目标状态筛选, 0表示不筛选
 }
 
 type CreateStudentRequest struct {
