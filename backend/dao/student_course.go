@@ -15,6 +15,7 @@ type StudentCourseDao interface {
 	GetStudentCourse(ctx context.Context, studentID, subjectID uint) (*model.StudentSubject, error)
 	GetStudentCourseWithDeleted(ctx context.Context, studentID, subjectID uint) (*model.StudentSubject, error)
 	UpdateBalance(ctx context.Context, id uint, delta int) error
+	Recharge(ctx context.Context, id uint, hours int) error
 	RestoreStudentCourse(ctx context.Context, id uint) error
 	GetStudentCourseList(ctx context.Context, students []uint, subjects []uint, teachers []uint, min *int, max *int, statuses []int, keyword string, offset int, limit int) ([]model.StudentSubject, int64, error)
 	UpdateStatus(ctx context.Context, id uint, status int) error
@@ -122,6 +123,18 @@ func (d *StudentCourseGormDao) UpdateBalance(ctx context.Context, id uint, delta
 		UpdateColumn("balance", gorm.Expr("balance + ?", delta)).Error
 }
 
+func (d *StudentCourseGormDao) Recharge(ctx context.Context, id uint, hours int) error {
+	updates := map[string]interface{}{
+		"balance": gorm.Expr("balance + ?", hours),
+	}
+	if hours > 0 {
+		updates["total_buy"] = gorm.Expr("total_buy + ?", hours)
+	}
+	return d.db.WithContext(ctx).Model(&model.StudentSubject{}).
+		Where("id = ?", id).
+		Updates(updates).Error
+}
+
 func (d *StudentCourseGormDao) RestoreStudentCourse(ctx context.Context, id uint) error {
 	return d.db.Unscoped().WithContext(ctx).Model(&model.StudentSubject{}).
 		Where("id = ?", id).
@@ -153,7 +166,8 @@ func (d *StudentCourseGormDao) UpdateStudentCourseInfo(ctx context.Context, id u
 }
 
 func (d *StudentCourseGormDao) Delete(ctx context.Context, id uint) error {
-	return d.db.WithContext(ctx).Delete(&model.StudentSubject{}, id).Error
+	ss := model.StudentSubject{Model: gorm.Model{ID: id}}
+	return d.db.WithContext(ctx).Delete(&ss).Error
 }
 
 func (d *StudentCourseGormDao) FinishCourse(ctx context.Context, id uint, remark string) error {

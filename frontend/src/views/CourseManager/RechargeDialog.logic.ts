@@ -19,6 +19,7 @@ export function useRechargeDialog(props: any, emit: any) {
   const mode = ref<'charge' | 'refund'>('charge')
   const form = reactive({
     hours: 10,
+    amount: null as number | null,
     remark: ''
   })
 
@@ -27,14 +28,20 @@ export function useRechargeDialog(props: any, emit: any) {
     if (val) {
       mode.value = props.initialMode || 'charge'
       form.hours = mode.value === 'charge' ? 10 : 1
+      form.amount = null
       form.remark = ''
     }
   })
 
   // 校验逻辑
   const isValid = computed(() => {
-    const val = Number(form.hours)
-    return !isNaN(val) && val > 0
+    const hoursVal = Number(form.hours)
+    const amountVal = form.amount === null ? 0 : Number(form.amount)
+
+    const isHoursValid = !isNaN(hoursVal) && hoursVal > 0
+    const isAmountValid = !isNaN(amountVal) && amountVal >= 0
+
+    return isHoursValid && isAmountValid
   })
 
   // 智能标签配置
@@ -66,13 +73,14 @@ export function useRechargeDialog(props: any, emit: any) {
     try {
       // 计算实际变动值 (充值为正，退费为负)
       const change = mode.value === 'charge' ? Number(form.hours) : -Number(form.hours)
+      const amount = form.amount ? Number(form.amount) : 0
 
       // 触发父组件的提交事件，将数据传出去
       // 注意：这里不直接调用 API，而是让父组件决定如何处理（如调用 API 后刷新列表）
       emit('submit', {
         courseId: currentCourse.value.id,
         hours: change, // 变动课时
-        amount: 0,     // 预留字段
+        amount: amount,     // 实际金额
         remark: form.remark
       })
 

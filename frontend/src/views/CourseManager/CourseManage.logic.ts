@@ -88,7 +88,16 @@ export function useCourseManage() {
       let reqData: GetStudentListRequest = { Offset: 0, Limit: 25, keyword, Status_Level: 3, Status_Target: 0 }
       const res: GetStudentListResponse = await GetStudentList(reqData)
       let students = res.students
-      studentOptions.value = students.map(s => ({ title: `${s.name} (${s.student_number})`, value: s.id, name: s.name }))
+      const newOptions = students.map(s => ({ title: `${s.name} (${s.student_number})`, value: s.id, name: s.name }))
+
+      // 保留当前选中的项
+      if (filters.studentId) {
+        const selected = studentOptions.value.find(o => o.value === filters.studentId)
+        if (selected && !newOptions.find(o => o.value === filters.studentId)) {
+          newOptions.push(selected)
+        }
+      }
+      studentOptions.value = newOptions
     } catch (e) {
       console.error(e)
     } finally {
@@ -103,7 +112,16 @@ export function useCourseManage() {
       let reqData: GetStudentListRequest = { Offset: 0, Limit: 25, keyword, Status_Level: 1, Status_Target: 1 }
       const res: GetStudentListResponse = await GetStudentList(reqData)
       let students = res.students
-      enrollStudentOptions.value = students.map(s => ({ title: `${s.name} (${s.student_number})`, value: s.id, name: s.name }))
+      const newOptions = students.map(s => ({ title: `${s.name} (${s.student_number})`, value: s.id, name: s.name }))
+
+      // 保留当前选中的项
+      if (enrollForm.studentId) {
+        const selected = enrollStudentOptions.value.find(o => o.value === enrollForm.studentId)
+        if (selected && !newOptions.find(o => o.value === enrollForm.studentId)) {
+          newOptions.push(selected)
+        }
+      }
+      enrollStudentOptions.value = newOptions
     } catch (e) {
       console.error(e)
     } finally {
@@ -116,7 +134,24 @@ export function useCourseManage() {
     try {
       const res: GetSubjectListResponse = await GetSubjectList({ Offset: 0, Limit: 25, Keyword: keyword })
       let subjectsList = res.subjects || []
-      subjectOptions.value = subjectsList.map(s => ({ title: s.name, value: s.id }))
+      const newOptions = subjectsList.map(s => ({ title: s.name, value: s.id }))
+
+      // 保留筛选中选中的项
+      filters.subjects.forEach(id => {
+        const selected = subjectOptions.value.find(o => o.value === id)
+        if (selected && !newOptions.find(o => o.value === id)) {
+          newOptions.push(selected)
+        }
+      })
+      // 保留表单中选中的项
+      if (enrollForm.subjectId) {
+        const selected = subjectOptions.value.find(o => o.value === enrollForm.subjectId)
+        if (selected && !newOptions.find(o => o.value === enrollForm.subjectId)) {
+          newOptions.push(selected)
+        }
+      }
+
+      subjectOptions.value = newOptions
     } catch (e) {
       console.error(e)
     } finally {
@@ -129,7 +164,24 @@ export function useCourseManage() {
     try {
       const res: GetTeacherListResponse = await GetTeacherList({ Offset: 0, Limit: 25, Keyword: keyword })
       let teachersList = res.teachers || []
-      teacherOptions.value = teachersList.map(t => ({ title: `${t.name} (${t.teacher_number})`, value: t.id, name: t.name }))
+      const newOptions = teachersList.map(t => ({ title: `${t.name} (${t.teacher_number})`, value: t.id, name: t.name }))
+
+      // 保留筛选中选中的项
+      filters.teachers.forEach(id => {
+        const selected = teacherOptions.value.find(o => o.value === id)
+        if (selected && !newOptions.find(o => o.value === id)) {
+          newOptions.push(selected)
+        }
+      })
+      // 保留表单中选中的项
+      if (enrollForm.teacherId) {
+        const selected = teacherOptions.value.find(o => o.value === enrollForm.teacherId)
+        if (selected && !newOptions.find(o => o.value === enrollForm.teacherId)) {
+          newOptions.push(selected)
+        }
+      }
+
+      teacherOptions.value = newOptions
     } catch (e) {
       console.error(e)
     } finally {
@@ -312,7 +364,7 @@ export function useCourseManage() {
       await RechargeCourse({
         course_id: data.courseId,
         hours: data.hours,
-        amount: 0,
+        amount: data.amount,
         remark: data.remark
       })
 

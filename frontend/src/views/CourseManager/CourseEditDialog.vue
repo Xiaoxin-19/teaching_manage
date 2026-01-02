@@ -48,10 +48,16 @@
 <script setup lang="ts">
 import { Course } from '../../types/appModels'
 
+interface SelectOption {
+  title: string
+  value: number
+  name?: string
+}
+
 interface EnrollForm {
-  studentId: any
-  subjectId: any
-  teacherId: any
+  studentId: number | null
+  subjectId: number | null
+  teacherId: number | null
   remark: string
 }
 
@@ -60,9 +66,9 @@ defineProps<{
   isEdit: boolean
   course: Partial<Course>
   form: EnrollForm
-  studentOptions: any[]
-  subjectOptions: any[]
-  teacherOptions: any[]
+  studentOptions: SelectOption[]
+  subjectOptions: SelectOption[]
+  teacherOptions: SelectOption[]
   studentLoading?: boolean
   subjectLoading?: boolean
   teacherLoading?: boolean

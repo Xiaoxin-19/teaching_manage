@@ -11,15 +11,18 @@ import (
 	"teaching_manage/backend/repository"
 	requestx "teaching_manage/backend/service/request"
 	responsex "teaching_manage/backend/service/response"
+
+	"gorm.io/gorm"
 )
 
 type CourseManager struct {
-	Ctx  context.Context
-	repo repository.CourseRepository
+	Ctx     context.Context
+	repo    repository.CourseRepository
+	stuRepo repository.StudentRepository
 }
 
-func NewCourseManager(repo repository.CourseRepository) *CourseManager {
-	return &CourseManager{repo: repo}
+func NewCourseManager(repo repository.CourseRepository, stuRepo repository.StudentRepository) *CourseManager {
+	return &CourseManager{repo: repo, stuRepo: stuRepo}
 }
 
 func (cm CourseManager) CreateCourse(ctx context.Context, req *requestx.CreateCourseRequest) (string, error) {
@@ -32,13 +35,13 @@ func (cm CourseManager) CreateCourse(ctx context.Context, req *requestx.CreateCo
 
 	// check student status
 	// Student Status: 3 = 退学
-	student, err := cm.repo.GetCourseByID(ctx, req.StudentId)
+	student, err := cm.stuRepo.GetStudentByID(ctx, req.StudentId)
 	if err != nil {
 		logger.Error("failed to get student", logger.ErrorType(err))
 		return "", fmt.Errorf("failed to get student: %w", err)
 	}
-	if student.Student.Status >= 2 {
-		logger.Warn("try to create course for a wrong student", logger.UInt("student_id", req.StudentId), logger.Int("student_status", student.Student.Status))
+	if student.Status >= 2 {
+		logger.Warn("try to create course for a wrong student", logger.UInt("student_id", req.StudentId), logger.Int("student_status", student.Status))
 		return "", fmt.Errorf("学员状态异常(停课或退学)，无法选课")
 	}
 
@@ -162,10 +165,62 @@ func (cm CourseManager) UpdateCourse(ctx context.Context, req *requestx.UpdateCo
 	return "course updated", nil
 }
 
+func (cm CourseManager) RechargeCourse(ctx context.Context, req *requestx.RechargeCourseRequest) (string, error) {
+	logger.Info("Recharging course", logger.UInt("course_id", req.CourseId), logger.Int("hours", req.Hours))
+
+	// 1. Get existing course
+	course, err := cm.repo.GetCourseByID(ctx, req.CourseId)
+	if err != nil {
+		logger.Error("failed to get course", logger.ErrorType(err))
+		return "", fmt.Errorf("failed to get course: %w", err)
+	}
+
+	// 2. Validate Status
+	if course.Student.Status == 3 {
+		return "", fmt.Errorf("学员已退学，无法充值/扣费")
+	}
+	if course.Status == 3 {
+		return "", fmt.Errorf("课程已结课，无法充值/扣费")
+	}
+
+	db := dao.GetDB()
+	// 3. Recharge (Transaction)
+	err = db.Transaction(func(tx *gorm.DB) error {
+		txCourseDao := dao.NewStudentCourseDao(tx)
+		txCourseRepo := repository.NewCourseRepository(txCourseDao)
+
+		txRechargeDao := dao.NewRechargeOrderDao(tx)
+		txRechargeRepo := repository.NewOrderRepository(txRechargeDao)
+
+		if err := txCourseRepo.RechargeCourse(ctx, req.CourseId, req.Hours); err != nil {
+			return err
+		}
+
+		record := &entity.RechargeOrder{
+			StudentCourse: entity.StudentSubject{ID: req.CourseId},
+			Hours:         req.Hours,
+			Amount:        req.Amount,
+			Remark:        req.Remark,
+		}
+		if err := txRechargeRepo.CreateOrder(ctx, *record); err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		logger.Error("failed to recharge course", logger.ErrorType(err))
+		return "", fmt.Errorf("failed to recharge course: %w", err)
+	}
+
+	return "course recharged", nil
+}
+
 func (cm CourseManager) RegisterRoute(d *dispatcher.Dispatcher) {
 	dispatcher.RegisterTyped(d, "course_manager/create_course", cm.CreateCourse)
 	dispatcher.RegisterTyped(d, "course_manager/get_course_list", cm.GetCourseList)
 	dispatcher.RegisterTyped(d, "course_manager/toggle_status", cm.ToggleStatus)
 	dispatcher.RegisterTyped(d, "course_manager/delete", cm.DeleteCourse)
 	dispatcher.RegisterTyped(d, "course_manager/update", cm.UpdateCourse)
+	dispatcher.RegisterTyped(d, "course_manager/recharge", cm.RechargeCourse)
 }

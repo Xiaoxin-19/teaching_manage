@@ -83,7 +83,7 @@ func (s StudentGormDao) DeleteStudent(ctx context.Context, id uint) error {
 }
 
 func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*model.Student, error) {
-	stu, err := gorm.G[model.Student](s.db).Where("id = ?", id).Preload("Teacher", nil).First(ctx)
+	stu, err := gorm.G[model.Student](s.db).Where("id = ?", id).First(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -13,6 +13,7 @@ type CourseRepository interface {
 		students []uint, subjects []uint, teachers []uint, min *int, max *int, statuses []int, keyword string, offset int, limit int) ([]entity.StudentSubject, int64, error)
 	GetCourseByID(ctx context.Context, id uint) (*entity.StudentSubject, error)
 	UpdateCourse(ctx context.Context, id uint, teacherID uint, remark string) error
+	RechargeCourse(ctx context.Context, id uint, hours int) error
 	ToggleStatus(ctx context.Context, id uint) error
 	DeleteCourse(ctx context.Context, id uint, isHardDelete bool, remark string) error
 }
@@ -110,4 +111,8 @@ func (cr CourseRepositoryImpl) GetCourseByID(ctx context.Context, id uint) (*ent
 
 func (cr CourseRepositoryImpl) UpdateCourse(ctx context.Context, id uint, teacherID uint, remark string) error {
 	return cr.dao.UpdateStudentCourseInfo(ctx, id, teacherID, remark)
+}
+
+func (cr CourseRepositoryImpl) RechargeCourse(ctx context.Context, id uint, hours int) error {
+	return cr.dao.Recharge(ctx, id, hours)
 }

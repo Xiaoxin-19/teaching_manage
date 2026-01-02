@@ -50,7 +50,7 @@ func main() {
 	// Set up course manager
 	courseDao := dao.NewStudentCourseDao(db)
 	courseRepository := repository.NewCourseRepository(courseDao)
-	courseManager := service.NewCourseManager(courseRepository)
+	courseManager := service.NewCourseManager(courseRepository, studentRepository)
 
 	// // Setup order manager
 	// orderDao := dao.NewOrderDao(db)

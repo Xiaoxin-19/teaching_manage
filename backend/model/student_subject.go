@@ -1,6 +1,10 @@
 package model
 
-import "gorm.io/gorm"
+import (
+	"teaching_manage/backend/pkg/logger"
+
+	"gorm.io/gorm"
+)
 
 // StudentSubject 学生-科目关联表，记录学生所学科目及对应的授课老师和课时余额等信息
 type StudentSubject struct {
@@ -22,4 +26,15 @@ type StudentSubject struct {
 
 func (StudentSubject) TableName() string {
 	return "student_subjects"
+}
+
+// AfterDelete GORM 钩子：删除关联的订单记录
+func (ss *StudentSubject) AfterDelete(tx *gorm.DB) (err error) {
+	logger.Debug("AfterDelete hook triggered for StudentSubject", logger.UInt("student_subject_id", ss.ID))
+	if err := tx.Where("student_course_id = ?", ss.ID).Debug().Delete(&RechargeOrder{}).Error; err != nil {
+		logger.Error("Failed to cascade delete RechargeOrder records", logger.ErrorType(err), logger.UInt("student_subject_id", ss.ID))
+		return err
+	}
+	logger.Info("Successfully cascaded delete of RechargeOrder records", logger.UInt("student_subject_id", ss.ID))
+	return nil
 }

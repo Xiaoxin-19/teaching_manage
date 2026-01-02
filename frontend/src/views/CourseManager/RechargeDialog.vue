@@ -17,11 +17,11 @@
         <div class="bg-grey-lighten-4 rounded pa-3 mb-4 d-flex justify-space-between align-center">
           <div>
             <div class="text-caption text-medium-emphasis">学员</div>
-            <div class="font-weight-bold text-body-2">{{ course.studentName }}</div>
+            <div class="font-weight-bold text-body-2">{{ course.student?.name ?? '未知学员' }}</div>
           </div>
           <div>
             <div class="text-caption text-medium-emphasis">科目</div>
-            <div class="font-weight-bold text-body-2">{{ course.subjectName }}</div>
+            <div class="font-weight-bold text-body-2">{{ course.subject.name }}</div>
           </div>
           <div class="text-right">
             <div class="text-caption text-medium-emphasis">当前剩余</div>
@@ -39,6 +39,11 @@
             autofocus min="0" :error-messages="!isValid && form.hours !== 0 ? ['请输入大于0的课时数'] : []"
             :disabled="loading"></v-text-field>
 
+          <!-- 实际金额 -->
+          <v-text-field v-model="form.amount" label="实际金额 (选填)" type="number" variant="outlined" density="comfortable"
+            class="mb-1" prepend-inner-icon="mdi-currency-cny" suffix="元" min="0"
+            :error-messages="form.amount !== null && form.amount < 0 ? ['金额必须大于等于0'] : []" :disabled="loading"
+            placeholder="0.00"></v-text-field>
           <!-- 智能标签 -->
           <div class="d-flex flex-wrap gap-2 mb-2">
             <v-chip v-for="tag in smartTags" :key="tag" size="small" link

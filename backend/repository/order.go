@@ -1,54 +1,31 @@
 package repository
 
-// import (
-// 	"context"
-// 	"teaching_manage/backend/dao"
-// 	"teaching_manage/backend/entity"
-// 	"teaching_manage/backend/model"
-// )
+import (
+	"context"
+	"teaching_manage/backend/dao"
+	"teaching_manage/backend/entity"
+	"teaching_manage/backend/model"
+)
 
-// type OrderRepository interface {
-// 	CreateOrder(ctx context.Context, order entity.Order) error
-// 	GetOrdersByStudentID(ctx context.Context, studentID uint, offset int, limit int) ([]entity.Order, int64, error)
-// }
+type OrderRepository interface {
+	CreateOrder(ctx context.Context, order entity.RechargeOrder) error
+}
 
-// type OrderRepositoryImpl struct {
-// 	dao dao.OrderDAO
-// 	// Implement the order repository
-// }
+type OrderRepositoryImpl struct {
+	dao dao.RechargeOrderDao
+}
 
-// func NewOrderRepository(dao dao.OrderDAO) OrderRepository {
-// 	return &OrderRepositoryImpl{dao: dao}
-// }
+func NewOrderRepository(dao dao.RechargeOrderDao) OrderRepository {
+	return &OrderRepositoryImpl{dao: dao}
+}
 
-// func (or *OrderRepositoryImpl) CreateOrder(ctx context.Context, order entity.Order) error {
-// 	o := model.Order{
-// 		StudentID: order.Student.ID,
-// 		Hours:     order.Hours,
-// 		Comment:   order.Comment,
-// 		Active:    order.Active,
-// 	}
+func (or *OrderRepositoryImpl) CreateOrder(ctx context.Context, order entity.RechargeOrder) error {
+	o := model.RechargeOrder{
+		StudentCourseID: order.StudentCourse.ID,
+		Hours:           order.Hours,
+		Amount:          order.Amount,
+		Remark:          order.Remark,
+	}
 
-// 	return (or.dao).CreateOrder(ctx, o)
-// }
-
-// func (or *OrderRepositoryImpl) GetOrdersByStudentID(ctx context.Context, studentID uint, offset int, limit int) ([]entity.Order, int64, error) {
-// 	orders, total, err := (or.dao).GetOrdersByStudentID(ctx, studentID, offset, limit)
-// 	if err != nil {
-// 		return nil, 0, err
-// 	}
-// 	var result []entity.Order
-// 	for _, o := range orders {
-// 		result = append(result, entity.Order{
-// 			Id:        o.ID,
-// 			CreatedAt: o.CreatedAt,
-// 			UpdatedAt: o.UpdatedAt,
-// 			Student:   entity.Student{ID: o.StudentID},
-// 			Hours:     o.Hours,
-// 			Comment:   o.Comment,
-// 			Active:    o.Active,
-// 		})
-// 	}
-
-// 	return result, total, nil
-// }
+	return or.dao.CreateRechargeRecord(ctx, &o)
+}

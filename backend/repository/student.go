@@ -13,7 +13,7 @@ import (
 type StudentRepository interface {
 	ListStudentsWithStatus(ctx context.Context, key string, offset int, limit int, levelStatus int, targetStatus int) ([]entity.Student, int64, error)
 	// GetStudentByName(ctx context.Context, name string) (*entity.Student, error)
-	// GetStudentByID(ctx context.Context, id uint) (*entity.Student, error)
+	GetStudentByID(ctx context.Context, id uint) (*entity.Student, error)
 	UpdateStudent(ctx context.Context, stu *entity.Student) error
 	CreateStudent(ctx context.Context, stu *entity.Student) error
 	DeleteStudent(ctx context.Context, id uint) error
@@ -70,29 +70,24 @@ func (sr StudentRepositoryImpl) ListStudentsWithStatus(ctx context.Context, key 
 // 	}, nil
 // }
 
-// func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*entity.Student, error) {
-// 	student, err := sr.dao.GetStudentByID(ctx, id)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*entity.Student, error) {
+	student, err := sr.dao.GetStudentByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
 
-// 	return &entity.Student{
-// 		ID:        student.ID,
-// 		Name:      student.Name,
-// 		Gender:    student.Gender,
-// 		Hours:     student.Hours,
-// 		Phone:     student.Phone,
-// 		TeacherID: student.TeacherID,
-// 		Remark:    student.Remark,
-// 		CreatedAt: student.CreatedAt,
-// 		UpdatedAt: student.UpdatedAt,
-// 		Teacher: entity.Teacher{
-// 			ID:        student.Teacher.ID,
-// 			Name:      student.Teacher.Name,
-// 			DeletedAt: student.Teacher.DeletedAt.Time,
-// 		},
-// 	}, nil
-// }
+	return &entity.Student{
+		ID:            student.ID,
+		StudentNumber: student.StudentNumber,
+		CreatedAt:     student.CreatedAt,
+		UpdatedAt:     student.UpdatedAt,
+		Name:          student.Name,
+		Gender:        student.Gender,
+		Phone:         student.Phone,
+		Status:        int(student.Status),
+		Remark:        student.Remark,
+	}, nil
+}
 
 // func (sr StudentRepositoryImpl) GetStudentByIdWithDeleted(ctx context.Context, id uint) (*entity.Student, error) {
 // 	student, err := sr.dao.GetStudentByIdWithDeleted(ctx, id)
