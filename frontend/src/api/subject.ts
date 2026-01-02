@@ -7,7 +7,7 @@ import { GetSubjectListResponse } from "../types/response";
 
 // --- API 方法 ---
 
-export async function GetSubjectList(req: GetSubjectListRequest): Promise<Subject[]> {
+export async function GetSubjectList(req: GetSubjectListRequest): Promise<GetSubjectListResponse> {
   try {
     // 假设后端接口: subject_manager/get_subject_list
     // 参数: {"keyword": "..."}
@@ -18,7 +18,7 @@ export async function GetSubjectList(req: GetSubjectListRequest): Promise<Subjec
     if (resp.code !== 200) {
       throw new Error(resp.message || '获取科目列表失败');
     }
-    return resp.data.subjects || [];
+    return resp.data;
   } catch (error: any) {
     console.error("API Error [GetSubjectList]:", error);
     throw error;
