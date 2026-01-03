@@ -4,6 +4,8 @@ import { useToast } from '../../composables/useToast'
 import { Dispatch } from '../../../wailsjs/go/main/App'
 import { ResponseWrapper } from '../../types/appModels'
 import { ImportExcelResponse, SelectFileResponse } from '../../types/response'
+import { DownloadRecordImportTemplate, ImportFromExcel, SelectFilePath } from '../../api/record'
+import { ImportFromExcelRequest } from '../../types/request'
 
 export function useImportRecord(props: { modelValue: boolean }, emit: any) {
   const { info, success, error } = useToast()
@@ -15,65 +17,62 @@ export function useImportRecord(props: { modelValue: boolean }, emit: any) {
     selectedFile.value = ''
   }
 
-  const importFile = (filePath: string) => {
-    const reqData = { filepath: filePath }
+  const importFile = async (filePath: string) => {
+    const reqData: ImportFromExcelRequest = { filepath: filePath }
     const reqDataJson = JSON.stringify(reqData)
-    Dispatch('record_manager:import_from_excel', reqDataJson).then((result: string) => {
-      console.log('导入响应原始数据:', result);
-      const resp = JSON.parse(result) as ResponseWrapper<ImportExcelResponse>;
-      console.log('导入响应:', resp);
-      if (resp.code === 200) {
-        success('导入成功，文件路径: ' + resp.data.filepath, 'top-right');
-        // 重新加载记录列表
-        emit('import-success')
-        close()
-      } else {
-        close();
-        error('导入失败: ' + resp.message, 'top-right');
-        // 如果有详细的错误信息(error_infos)，弹框，使用表格显示
-        console.error('导入失败详情:', resp.data.error_infos);
-        emit('import-failed', resp.data.error_infos)
+
+    try {
+      console.log('导入请求数据:', reqDataJson);
+      let result = await ImportFromExcel(reqData);
+      success('导入成功，文件路径: ' + result.filepath, 'top-right');
+      success(`导入总数: ${result.total_rows}, 错误数: ${result.error_infos.length}`, 'top-right');
+      // 重新加载记录列表
+      emit('import-success')
+      close()
+    } catch (e) {
+      close();
+      const err = e instanceof Error ? e.message : String(e);
+      const info = e && (e as any).data ? (e as any).data.error_infos : null;
+      if (info) {
+        console.error('导入失败详情:', info);
+        emit('import-failed', info)
       }
-    }).catch((err: any) => {
-      error('导入请求异常: ' + err, 'top-right');
-      emit('import-failed', err)
-    })
+      error('导入失败: ' + err, 'top-right');
+      return;
+    }
   }
 
-  const triggerFileInput = () => {
+  const triggerFileInput = async () => {
     // 触发文件选择对话框
-    Dispatch('record_manager:select_import_file', "").then((result: string) => {
-      const resp = JSON.parse(result) as ResponseWrapper<SelectFileResponse>;
-      console.log('选择文件响应:', resp);
-      if (resp.code === 200) {
-        if (resp.data.filepath === 'cancel') {
-          info('文件选择已取消', 'top-right');
-          return;
-        }
-        selectedFile.value = resp.data.filepath;
-        info(`已选择文件: ${selectedFile.value}`, 'top-right');
-      } else {
-        error('文件选择失败: ' + resp.message, 'top-right');
+    try {
+      console.log('触发文件选择对话框');
+      let result = await SelectFilePath();
+      if (result.includes('cancel')) {
+        info('文件选择已取消', 'top-right');
+        return;
       }
-    })
+      selectedFile.value = result;
+      info(`已选择文件: ${selectedFile.value}`, 'top-right');
+    } catch (e) {
+      error('文件选择失败: ' + e, 'top-right');
+      console.error('Failed to select file path:', e);
+    }
   }
 
-  const downloadTemplate = () => {
-    Dispatch('record_manager:download_import_template', "").then((result: any) => {
-      const resp = JSON.parse(result) as ResponseWrapper<string>;
-      console.log('下载模板响应:', resp);
-      if (resp.code === 200) {
-        if (resp.message.includes('cancel') || resp.data.includes('cancel')) {
-          info('已取消操作');
-          return;
-        }
-        success('模板下载成功，文件路径: ' + resp.data, 'top-right');
-      } else {
-
-        console.error('下载模板失败:', resp.message);
-        error('下载模板失败: ' + resp.message, 'top-right');
+  const downloadTemplate = async () => {
+    try {
+      let result = await DownloadRecordImportTemplate();
+      if (result.includes('cancel')) {
+        info('已取消操作');
+        return;
       }
-    })
+      success('模板下载成功，文件路径: ' + result, 'top-right');
+    } catch (e) {
+      if (e instanceof Error) {
+        error('下载模板失败: ' + e.message, 'top-right');
+        console.error('Failed to download import template:', e);
+      }
+    }
   }
 
   const startImport = () => {

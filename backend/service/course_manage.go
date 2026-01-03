@@ -155,8 +155,8 @@ func (cm CourseManager) UpdateCourse(ctx context.Context, req *requestx.UpdateCo
 		return "", fmt.Errorf("课程已结课，无法更新信息")
 	}
 
-	// 4. 更新课程信息
-	err = cm.repo.UpdateCourse(ctx, req.ID, req.TeacherId, req.Remark)
+	// 4. 更新教师信息
+	err = cm.repo.UpdateCourseTeacher(ctx, req.ID, req.TeacherId, req.Remark)
 	if err != nil {
 		logger.Error("failed to update course", logger.ErrorType(err))
 		return "", fmt.Errorf("failed to update course: %w", err)

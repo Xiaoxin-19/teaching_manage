@@ -1,21 +1,38 @@
 import { ref, computed, reactive, watch } from 'vue';
+import { debounce } from 'lodash';
 import { useToast } from '../../composables/useToast';
 import { useConfirm } from '../../composables/useConfirm';
 import type { ResponseWrapper, TeachingRecord } from '../../types/appModels';
 import { SaveRecordData } from './types';
 import { Dispatch } from '../../../wailsjs/go/main/App';
 import { GetRecordListResponse, RecordDTO } from '../../types/response';
+import { ActivateRecordRequest, CreateRecordRequest, DeleteRecordRequest, ExportRecordsRequest, GetRecordListRequest, GetStudentListRequest } from '../../types/request';
+import { ActivateAllPendingRecords, ActivateRecord, CreateRecord, DeleteRecordByID, ExportRecordToExcel, GetRecordList } from '../../api/record';
+import { GetStudentList } from '../../api/student';
+import { GetTeacherList } from '../../api/teacher';
+import { GetSubjectList } from '../../api/subject';
 
 export function useRecordManage() {
   const { success, error, info, warning } = useToast();
   const confirm = useConfirm();
 
   // --- 状态定义 ---
-  const searchStudent = ref('');
-  const searchTeacher = ref('');
+  const selectedStudents = ref<number[]>([]);
+  const selectedTeachers = ref<number[]>([]);
+  const selectedSubjects = ref<number[]>([]);
+
+  const studentOptions = ref<{ title: string, value: number }[]>([]);
+  const teacherOptions = ref<{ title: string, value: number }[]>([]);
+  const subjectOptions = ref<{ title: string, value: number }[]>([]);
+
+  const loadingStudents = ref(false);
+  const loadingTeachers = ref(false);
+  const loadingSubjects = ref(false);
+
   const filterDateType = ref('全部时间');
   const customStartDate = ref('');
   const customEndDate = ref('');
+  const activeFilter = ref<boolean | null>(null); // null: 全部, true: 激活, false: 未激活
   const pendingCount = ref(0);
 
   // 弹窗控制
@@ -33,6 +50,7 @@ export function useRecordManage() {
   // 表头定义 (key 使用下划线风格以兼容 DOM 模板)
   const headers: any = [
     { title: '学生', key: 'student_name', width: '130px', sortable: false },
+    { title: '科目', key: 'subject_name', width: '120px', sortable: false },
     { title: '授课老师', key: 'teacher_name', width: '130px', sortable: false },
     { title: '上课日期', key: 'date', width: '140px', sortable: false },
     { title: '时间段', key: 'time', width: '130px', sortable: false },
@@ -42,6 +60,11 @@ export function useRecordManage() {
   ];
 
   const dateOptions = ['全部时间', '本周', '上周', '本月', '上月', '自定义'];
+  const activeOptions = [
+    { title: '全部状态', value: null },
+    { title: '已激活', value: true },
+    { title: '未激活', value: false },
+  ];
 
   // --- 辅助函数 ---
   const formatDate = (date: Date) => {
@@ -91,9 +114,11 @@ export function useRecordManage() {
   // 是否有激活的筛选条件
   const hasActiveFilters = computed(() => {
     return (
-      !!searchStudent.value ||
-      !!searchTeacher.value ||
-      filterDateType.value !== '全部时间'
+      selectedStudents.value.length > 0 ||
+      selectedTeachers.value.length > 0 ||
+      selectedSubjects.value.length > 0 ||
+      filterDateType.value !== '全部时间' ||
+      activeFilter.value !== null
     );
   });
 
@@ -107,58 +132,143 @@ export function useRecordManage() {
     return text;
   });
 
+  const getSelectedNames = (ids: number[], options: { title: string; value: number }[], prefix: string) => {
+    if (ids.length === 0) return '';
+    const names = ids.map(id => {
+      const option = options.find(o => o.value === id);
+      return option ? option.title.split(' (')[0] : String(id);
+    });
+
+    const text = names.join(', ');
+    if (text.length > 20 && names.length > 1) {
+      return `${prefix}: ${names[0]} 等 ${ids.length} 人`;
+    }
+    return `${prefix}: ${text}`;
+  };
+
+  const selectedStudentText = computed(() => getSelectedNames(selectedStudents.value, studentOptions.value, '学生'));
+  const selectedTeacherText = computed(() => getSelectedNames(selectedTeachers.value, teacherOptions.value, '老师'));
+  const selectedSubjectText = computed(() => getSelectedNames(selectedSubjects.value, subjectOptions.value, '科目').replace('人', '个')); // 科目单位是个
+
+  // --- 搜索方法 (防抖) ---
+  const onStudentSearch = debounce(async (keyword: string) => {
+    if (!keyword) return;
+    loadingStudents.value = true;
+    try {
+      const res = await GetStudentList({ Offset: 0, Limit: 25, Keyword: keyword, Status_Level: 3, Status_Target: 0 } as any);
+      const newOptions = res.students.map(s => ({ title: `${s.name} (${s.student_number})`, value: s.id }));
+
+      // 保留已选中的项
+      if (selectedStudents.value.length > 0) {
+        const selected = studentOptions.value.filter(o => selectedStudents.value.includes(o.value));
+        selected.forEach(s => {
+          if (!newOptions.find(n => n.value === s.value)) {
+            newOptions.push(s);
+          }
+        });
+      }
+      studentOptions.value = newOptions;
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loadingStudents.value = false;
+    }
+  }, 300);
+
+  const onTeacherSearch = debounce(async (keyword: string) => {
+    if (!keyword) return;
+    loadingTeachers.value = true;
+    try {
+      const res = await GetTeacherList({ Offset: 0, Limit: 25, Keyword: keyword } as any);
+      const newOptions = res.teachers.map(t => ({ title: `${t.name} (${t.teacher_number})`, value: t.id }));
+
+      if (selectedTeachers.value.length > 0) {
+        const selected = teacherOptions.value.filter(o => selectedTeachers.value.includes(o.value));
+        selected.forEach(s => {
+          if (!newOptions.find(n => n.value === s.value)) {
+            newOptions.push(s);
+          }
+        });
+      }
+      teacherOptions.value = newOptions;
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loadingTeachers.value = false;
+    }
+  }, 300);
+
+  const onSubjectSearch = debounce(async (keyword: string) => {
+    if (!keyword) return;
+    loadingSubjects.value = true;
+    try {
+      const res = await GetSubjectList({ Offset: 0, Limit: 25, Keyword: keyword } as any);
+      const newOptions = res.subjects.map(s => ({ title: s.name, value: s.id }));
+
+      if (selectedSubjects.value.length > 0) {
+        const selected = subjectOptions.value.filter(o => selectedSubjects.value.includes(o.value));
+        selected.forEach(s => {
+          if (!newOptions.find(n => n.value === s.value)) {
+            newOptions.push(s);
+          }
+        });
+      }
+      subjectOptions.value = newOptions;
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loadingSubjects.value = false;
+    }
+  }, 300);
+
   // --- 核心方法 ---
 
   // 加载数据 
   const loadItems = async ({ page: p, itemsPerPage: ipp, sortBy }: any) => {
     loading.value = true;
 
-    let reqData: any = {
-      student_key: searchStudent.value || '',
-      teacher_key: searchTeacher.value || '',
+    let reqData: GetRecordListRequest = {
+      student_ids: selectedStudents.value.length > 0 ? selectedStudents.value : undefined,
+      teacher_ids: selectedTeachers.value.length > 0 ? selectedTeachers.value : undefined,
+      subject_ids: selectedSubjects.value.length > 0 ? selectedSubjects.value : undefined,
       start_date: effectiveDateRange.value?.start || '',
       end_date: effectiveDateRange.value?.end || '',
       offset: (p - 1) * ipp,
       limit: ipp,
+      active: activeFilter.value,
     };
 
     console.log('加载记录列表，参数:', reqData);
 
-    // json 转换
-    const reqStr: string = JSON.stringify(reqData);
-    Dispatch("record_manager:get_record_list", reqStr).then(
-      (result: any) => {
-        console.log('Received record list response:' + result);
-        const resp = JSON.parse(result) as ResponseWrapper<GetRecordListResponse>;
-        if (resp.code === 200) {
-          const items: TeachingRecord[] = resp.data.records.map((item) => ({
-            id: item.id,
-            status: item.active ? 'active' : 'pending',
-            date: item.teaching_date,
-            time: `${item.start_time}-${item.end_time}`,
-            startTime: item.start_time,
-            endTime: item.end_time,
-            studentId: item.student_id,
-            studentName: item.student_name,
-            teacherId: item.teacher_id,
-            teacherName: item.teacher_name,
-            remark: item.remark,
-          }));
-          serverItems.value = items;
-          totalItems.value = resp.data.total; // 需要后端支持返回总数
-          pendingCount.value = resp.data.total_pending;
-        } else {
-          console.error('获取记录列表失败:', resp.message);
-          error('获取记录列表失败: ' + resp.message);
-        }
-      }
-    );
-
-    loading.value = false;
+    try {
+      const data = await GetRecordList(reqData);
+      const items: TeachingRecord[] = data.records.map((item: RecordDTO) => ({
+        id: item.id,
+        status: item.active ? 'active' : 'pending',
+        date: item.teaching_date,
+        time: `${item.start_time}-${item.end_time}`,
+        startTime: item.start_time,
+        endTime: item.end_time,
+        studentId: item.student.id,
+        studentName: item.student.name,
+        teacherId: item.teacher.id,
+        teacherName: item.teacher.name,
+        subjectName: item.subject.name,
+        remark: item.remark,
+      }));
+      serverItems.value = items;
+      totalItems.value = data.total;
+      pendingCount.value = data.total_pending;
+    } catch (e: any) {
+      console.error('获取记录列表失败:', e);
+      error('获取记录列表失败: ' + e.message);
+    } finally {
+      loading.value = false;
+    }
   };
 
   // 监听筛选条件变化
-  watch([searchStudent, searchTeacher, effectiveDateRange], () => {
+  watch([selectedStudents, selectedTeachers, selectedSubjects, effectiveDateRange, activeFilter], () => {
     page.value = 1;
     loadItems({ page: 1, itemsPerPage: itemsPerPage.value, sortBy: [] });
   });
@@ -189,11 +299,13 @@ export function useRecordManage() {
   };
 
   const clearAllFilters = () => {
-    searchStudent.value = '';
-    searchTeacher.value = '';
+    selectedStudents.value = [];
+    selectedTeachers.value = [];
+    selectedSubjects.value = [];
     filterDateType.value = '全部时间';
     customStartDate.value = '';
     customEndDate.value = '';
+    activeFilter.value = null;
     info('已清空所有筛选条件');
   };
 
@@ -211,35 +323,45 @@ export function useRecordManage() {
 
   const saveRecord = async (data: SaveRecordData) => {
     console.log('保存记录数据:', data);
-    Dispatch('record_manager:create_record', JSON.stringify(data)).then((result: any) => {
-      console.log('Record created:', result);
-      const resp = JSON.parse(result) as ResponseWrapper<string>;
-      if (resp.code === 200) {
-        success('记录添加成功 (待生效)');
-        loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
-      } else {
-        error(`添加记录失败: ${resp.message}`);
+    let reqData: CreateRecordRequest = {
+      student_id: data.student_id,
+      subject_id: data.subject_id,
+      teaching_date: data.teaching_date,
+      start_time: data.start_time,
+      end_time: data.end_time,
+      remark: data.remark || '',
+    }
+
+    try {
+      console.log('Creating record with data:', reqData);
+      let result = await CreateRecord(reqData);
+      console.log('Record created successfully, result:', result);
+      success('记录添加成功 (待生效)');
+      loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
+    } catch (e) {
+      console.error('Failed to create record:', e);
+      if (e instanceof Error) {
+        error(`添加记录失败: ${e.message}`);
       }
-    });
+    }
   };
 
-  const activateRecord = (item: TeachingRecord) => {
-    let reqData = {
-      record_id: item.id,
+  const activateRecord = async (item: TeachingRecord) => {
+    let reqData: ActivateRecordRequest = {
+      id: item.id,
     };
 
     console.log('Activating record:', reqData);
-    Dispatch('record_manager:activate_record', JSON.stringify(reqData)).then((result: any) => {
-      console.log('Record activated:', result);
-      const resp = JSON.parse(result) as ResponseWrapper<string>;
-      if (resp.code === 200) {
-        success('记录已激活');
-        loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
-      } else if (resp.message.includes('fail')) {
-        console.error('激活记录失败:', resp.message);
-        error(`激活记录失败`);
+    try {
+      await ActivateRecord(reqData);
+      success(`记录已激活`);
+      loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
+    } catch (e) {
+      console.error('Failed to activate record:', e);
+      if (e instanceof Error) {
+        error(`激活记录失败: ${e.message}`);
       }
-    });
+    }
   };
 
   const processAllPending = async () => {
@@ -253,19 +375,17 @@ export function useRecordManage() {
       }
     );
     if (confirmed) {
-      console.log('Activating all pending records');
-      Dispatch('record_manager:activate_all_pending_records', "{}").then((result: any) => {
-        console.log('All pending records activated:', result);
-        const resp = JSON.parse(result) as ResponseWrapper<string>;
-        if (resp.code === 200) {
-          success('所有待处理记录已激活');
-          loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
-        } else if (resp.message.includes('fail')) {
-          console.error('批量激活记录失败:', resp.message);
-          error(`批量激活记录失败`);
+      try {
+        await ActivateAllPendingRecords();
+        success('所有待处理记录已激活');
+        loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
+      } catch (e) {
+        console.error('Failed to activate all pending records:', e);
+        if (e instanceof Error) {
+          error(`批量激活记录失败: ${e.message}`);
         }
-      })
-    };
+      }
+    }
   }
 
 
@@ -280,49 +400,49 @@ export function useRecordManage() {
       }
     );
     if (confirmed) {
-      let reqData = {
-        record_id: item.id,
+      let reqData: DeleteRecordRequest = {
+        id: item.id,
       };
       console.log('Deleting record:', reqData);
-      Dispatch('record_manager:delete_record_by_id', JSON.stringify(reqData)).then((result: any) => {
-        console.log('Record deleted:', result);
-        const resp = JSON.parse(result) as ResponseWrapper<string>;
-        if (resp.code === 200) {
-          if (item.status === 'active') {
-            info('记录已删除，学生课时已返还');
-          } else {
-            info('记录已删除');
-          }
-          loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
-        } else if (resp.message.includes('fail')) {
-          error(`删除记录失败`);
+
+      try {
+        await DeleteRecordByID(reqData);
+        success('记录已删除, 学生课时已返还');
+        loadItems({ page: page.value, itemsPerPage: itemsPerPage.value });
+      } catch (e) {
+        console.error('Failed to delete record:', e);
+        if (e instanceof Error) {
+          error(`删除记录失败: ${e.message}`);
         }
-      });
+      }
     }
   };
 
-  const exportRecords = () => {
-    const params = {
-      student_key: searchStudent.value || '',
-      teacher_key: searchTeacher.value || '',
+  const exportRecords = async () => {
+    const params: ExportRecordsRequest = {
+      student_ids: selectedStudents.value.length > 0 ? selectedStudents.value : undefined,
+      teacher_ids: selectedTeachers.value.length > 0 ? selectedTeachers.value : undefined,
+      subject_ids: selectedSubjects.value.length > 0 ? selectedSubjects.value : undefined,
       start_date: effectiveDateRange.value?.start,
       end_date: effectiveDateRange.value?.end,
+      active: activeFilter.value,
     };
     console.log('导出参数:', params);
-    Dispatch('record_manager:export_record_to_excel', JSON.stringify(params)).then((result: any) => {
-      console.log('Export records result:', result);
-      const resp = JSON.parse(result) as ResponseWrapper<string>;
-      if (resp.code === 200) {
-        success('记录导出成功');
-      } else {
-        if (resp.message.includes('cancel')) {
-          info('已取消导出操作');
-          return;
-        }
-        console.error('导出记录失败:', resp.message);
-        error('导出记录失败: ' + resp.message, 'top-right');
+
+    try {
+      let result = await ExportRecordToExcel(params);
+      if (result.includes('cancel')) {
+        info('已取消导出操作');
+        return;
       }
-    });
+      success('记录导出成功');
+    } catch (e) {
+      if (e instanceof Error) {
+        error('导出记录失败: ' + e.message, 'top-right');
+      }
+
+      console.error('Failed to export records:', e);
+    }
   };
 
   // 错误弹窗控制
@@ -343,8 +463,15 @@ export function useRecordManage() {
 
   return {
     // State
-    searchStudent,
-    searchTeacher,
+    selectedStudents,
+    selectedTeachers,
+    selectedSubjects,
+    studentOptions,
+    teacherOptions,
+    subjectOptions,
+    loadingStudents,
+    loadingTeachers,
+    loadingSubjects,
     filterDateType,
     dateOptions,
     page,
@@ -364,9 +491,17 @@ export function useRecordManage() {
     pendingCount,
     hasActiveFilters,
     dateRangeText,
+    selectedStudentText,
+    selectedTeacherText,
+    selectedSubjectText,
+    activeFilter,
+    activeOptions,
 
     // Methods
     loadItems,
+    onStudentSearch,
+    onTeacherSearch,
+    onSubjectSearch,
     selectDateFilter,
     handleCustomDateConfirm,
     handleCustomDateCancel,

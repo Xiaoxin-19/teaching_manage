@@ -89,7 +89,10 @@ func (d *SubjectGormDao) GetSubjectList(ctx context.Context, keyword string, off
 	if err != nil {
 		return nil, 0, err
 	}
-	subjects, err = query.Offset(offset).Limit(limit).Find(ctx)
+	if limit > 0 {
+		query = query.Offset(offset).Limit(limit)
+	}
+	subjects, err = query.Find(ctx)
 	if err != nil {
 		return nil, 0, err
 	}

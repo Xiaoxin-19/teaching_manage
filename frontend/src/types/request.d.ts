@@ -128,3 +128,44 @@ export interface GetOrderListRequest {
   Offset: number;
   Limit: number;
 }
+
+export interface CreateRecordRequest {
+  student_id: number;
+  subject_id: number;
+  teaching_date: string; // "YYYY-MM-DD"
+  start_time: string;    // "HH:mm"
+  end_time: string;      // "HH:mm"
+  remark?: string;
+}
+
+export interface GetRecordListRequest {
+  student_ids?: number[];
+  teacher_ids?: number[];
+  subject_ids?: number[];
+  start_date?: string;
+  end_date?: string;
+  offset: number;
+  limit: number;
+  active?: boolean | null;
+}
+
+export interface ActivateRecordRequest {
+  id: number;
+}
+
+export interface DeleteRecordRequest {
+  id: number;
+}
+
+export interface ExportRecordsRequest {
+  student_ids?: number[];
+  teacher_ids?: number[];
+  subject_ids?: number[];
+  start_date?: string;
+  end_date?: string;
+  active?: boolean | null;
+}
+
+export interface ImportFromExcelRequest {
+  filepath: string;
+}

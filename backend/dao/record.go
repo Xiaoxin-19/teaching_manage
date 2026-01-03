@@ -4,15 +4,14 @@ import (
 	"context"
 	"errors"
 	"teaching_manage/backend/model"
-	"teaching_manage/backend/pkg/logger"
 
 	"gorm.io/gorm"
 )
 
 type RecordDAO interface {
 	CreateRecord(ctx context.Context, record model.Record) error
-	GetRecordList(ctx context.Context, stuKey string, teachKey string,
-		startDate string, endDate string, offset int, limit int) ([]model.Record, int64, int64, error)
+	GetRecordList(ctx context.Context, stuIDs []uint, teacherIDs []uint, subjectIDs []uint,
+		startDate string, endDate string, offset int, limit int, active *bool) ([]model.Record, int64, int64, error)
 	ActivateRecord(ctx context.Context, recordID uint) error
 	GetRecordByID(ctx context.Context, d uint) (*model.Record, error)
 	DeleteRecordByID(ctx context.Context, id uint) error
@@ -46,20 +45,25 @@ func convertRecordTimeToUnixMs(r *model.Record) {
 	}
 }
 
-func (r *RecordGormDAO) GetRecordList(ctx context.Context, stuKey string, teachKey string,
-	startDate string, endDate string, offset int, limit int) ([]model.Record, int64, int64, error) {
+func (r *RecordGormDAO) GetRecordList(ctx context.Context, stuIDs []uint, teacherIDs []uint, subjectIDs []uint,
+	startDate string, endDate string, offset int, limit int, active *bool) ([]model.Record, int64, int64, error) {
 	var records []model.Record
 
-	// Unscoped 用于包含记录中学生和老师被软删除的记录
 	// 构建查询，关联学生和教师表以进行模糊搜索
-	query := r.db.WithContext(ctx).Model(&model.Record{}).Unscoped().Where("records.deleted_at is null")
-	query = query.Joins("Teacher").Joins("Student")
+	query := r.db.WithContext(ctx).Model(&model.Record{}).Where("records.deleted_at is null")
+	query = query.Joins("Teacher").Joins("Student").Joins("Subject")
 
-	if stuKey != "" {
-		query = query.Where("Student.name LIKE ?", "%"+stuKey+"%")
+	// 过滤学生ID
+	if len(stuIDs) > 0 {
+		query = query.Where("records.student_id IN ?", stuIDs)
 	}
-	if teachKey != "" {
-		query = query.Where("Teacher.name LIKE ?", "%"+teachKey+"%")
+	// 过滤教师ID
+	if len(teacherIDs) > 0 {
+		query = query.Where("records.teacher_id IN ?", teacherIDs)
+	}
+	// 过滤科目ID
+	if len(subjectIDs) > 0 {
+		query = query.Where("records.subject_id IN ?", subjectIDs)
 	}
 
 	// 过滤教学日期范围
@@ -69,6 +73,11 @@ func (r *RecordGormDAO) GetRecordList(ctx context.Context, stuKey string, teachK
 	if endDate != "" {
 		// 增加时间部分以包含当天的记录
 		query = query.Where("teaching_date <= ?", endDate+" 23:59:59")
+	}
+
+	// 过滤激活状态
+	if active != nil {
+		query = query.Where("records.active = ?", *active)
 	}
 
 	// 获取总记录数
@@ -109,8 +118,7 @@ func (r *RecordGormDAO) GetRecordByID(ctx context.Context, d uint) (*model.Recor
 func (r *RecordGormDAO) DeleteRecordByID(ctx context.Context, id uint) error {
 	_, err := gorm.G[model.Record](r.db).Where("id = ?", id).Delete(ctx)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		logger.Error("delete record but id not found", logger.ErrorType(err), logger.UInt("record_id", id))
-		return nil
+		return ErrRecordNotFound
 	}
 
 	if err != nil {

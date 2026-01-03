@@ -57,10 +57,10 @@ func main() {
 	orderRepository := repository.NewOrderRepository(orderDao)
 	orderManager := service.NewOrderManager(orderRepository, studentRepository)
 
-	// // Setup record manager
-	// recordDao := dao.NewRecordDao(db)
-	// recordRepository := repository.NewRecordRepository(recordDao)
-	// recordManager := service.NewRecordManager(recordRepository, studentRepository)
+	// Setup record manager
+	recordDao := dao.NewRecordDao(db)
+	recordRepository := repository.NewRecordRepository(recordDao)
+	recordManager := service.NewRecordManager(recordRepository, courseRepository, subjectRepository, studentRepository)
 
 	// // Setup Dashboard manager
 	// dashboardManager := service.NewDashboardManager()
@@ -93,7 +93,7 @@ func main() {
 			subjectManager.Ctx = ctx
 			courseManager.Ctx = ctx
 			orderManager.Ctx = ctx
-			// recordManager.Ctx = ctx
+			recordManager.Ctx = ctx
 			// dashboardManager.Ctx = ctx
 
 			// Register routes
@@ -102,7 +102,7 @@ func main() {
 			subjectManager.RegisterRoute(dispatcher)
 			courseManager.RegisterRoute(dispatcher)
 			orderManager.RegisterRoute(dispatcher)
-			// recordManager.RegisterRoute(dispatcher)
+			recordManager.RegisterRoute(dispatcher)
 			// dashboardManager.RegisterRoute(dispatcher)
 		},
 		Bind: []interface{}{

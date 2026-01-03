@@ -6,6 +6,7 @@ type Record struct {
 	ID           uint `json:"id"`
 	Student      Student
 	Teacher      Teacher
+	Subject      Subject
 	TeachingDate time.Time `json:"teaching_date"`
 	StartTime    time.Time `json:"start_time"`
 	EndTime      time.Time `json:"end_time"`

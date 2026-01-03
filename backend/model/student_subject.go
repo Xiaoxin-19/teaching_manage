@@ -35,6 +35,8 @@ func (ss *StudentSubject) AfterDelete(tx *gorm.DB) (err error) {
 		logger.Error("Failed to cascade delete RechargeOrder records", logger.ErrorType(err), logger.UInt("student_subject_id", ss.ID))
 		return err
 	}
+
+	
 	logger.Info("Successfully cascaded delete of RechargeOrder records", logger.UInt("student_subject_id", ss.ID))
 	return nil
 }

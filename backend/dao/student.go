@@ -16,7 +16,7 @@ type StudentDao interface {
 	GetStudentByID(ctx context.Context, id uint) (*model.Student, error)
 	GetStudentByIdWithDeleted(ctx context.Context, id uint) (*model.Student, error)
 	GetStudentListWithStatus(ctx context.Context, key string, offset int, limit int, status model.StudentStatus, targetStatus model.StudentStatus) ([]model.Student, int64, error)
-	GetStudentByName(ctx context.Context, name string) (*model.Student, error)
+	GetStudentByName(ctx context.Context, name string) ([]model.Student, error)
 	UpdateStudentHours(ctx context.Context, id uint, hours int) error
 	UpdateStudentHoursWithDeleted(ctx context.Context, id uint, hours int) error
 }
@@ -134,9 +134,9 @@ func (s StudentGormDao) GetStudentListWithStatus(ctx context.Context, key string
 	return students, total, nil
 }
 
-func (s StudentGormDao) GetStudentByName(ctx context.Context, name string) (*model.Student, error) {
+func (s StudentGormDao) GetStudentByName(ctx context.Context, name string) ([]model.Student, error) {
 
-	stu, err := gorm.G[model.Student](s.db).Where("name = ?", name).Preload("Teacher", nil).First(ctx)
+	students, err := gorm.G[model.Student](s.db).Where("name = ?", name).Find(ctx)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrRecordNotFound
 	}
@@ -144,5 +144,5 @@ func (s StudentGormDao) GetStudentByName(ctx context.Context, name string) (*mod
 	if err != nil {
 		return nil, err
 	}
-	return &stu, nil
+	return students, nil
 }

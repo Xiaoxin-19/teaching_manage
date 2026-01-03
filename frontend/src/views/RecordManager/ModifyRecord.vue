@@ -21,26 +21,38 @@
           <v-autocomplete v-model="formData.student" v-model:search="studentSearch" :items="studentOptions"
             :loading="loadingStudents" item-title="name" item-value="id" label="上课学生" placeholder="输入姓名搜索..."
             variant="outlined" density="comfortable" prepend-inner-icon="mdi-account-school" class="mb-3"
-            :rules="[(v) => !!v || '请选择学生']" no-filter hide-no-data @update:search="onStudentSearch" return-object>
+            :rules="[(v) => !!v || '请选择学生']" no-filter hide-no-data @update:search="onStudentSearch" return-object
+            autocomplete="off">
+          </v-autocomplete>
+
+          <!-- 科目选择 (支持后端模糊搜索) -->
+          <v-autocomplete v-model="formData.subject" :items="subjectOptions" :loading="loadingSubjects"
+            item-title="name" item-value="id" label="上课科目" :placeholder="formData.student ? '请选择科目' : '请先选择学生'"
+            variant="outlined" density="comfortable" prepend-inner-icon="mdi-book-open-variant" class="mb-3"
+            :rules="[(v) => !!v || '请选择科目']" :disabled="!formData.student" return-object
+            :hint="formData.student ? '已自动加载该学生的课程列表' : '选择学生后自动加载课程'" persistent-hint autocomplete="off">
+            <template v-slot:item="{ props, item }">
+              <v-list-item v-bind="props" :subtitle="`剩余课时: ${item.raw.balance}`"></v-list-item>
+            </template>
           </v-autocomplete>
 
           <!-- 日期与时间 -->
           <v-row dense>
             <v-col cols="6">
               <v-text-field v-model="formData.date" label="上课日期" type="date" variant="outlined" density="comfortable"
-                class="mb-3" :rules="[(v) => !!v || '请选择日期']"></v-text-field>
+                class="mb-3" :rules="[(v) => !!v || '请选择日期']" autocomplete="off"></v-text-field>
             </v-col>
             <v-col cols="3">
               <v-text-field v-model="formData.startTime" label="开始" type="time" variant="outlined" density="comfortable"
-                class="mb-3" :rules="startTimeRules"></v-text-field>
+                class="mb-3" :rules="startTimeRules" autocomplete="off"></v-text-field>
             </v-col>
             <v-col cols="3">
               <v-text-field v-model="formData.endTime" label="结束" type="time" variant="outlined" density="comfortable"
-                class="mb-3" :rules="endTimeRules"></v-text-field>
+                class="mb-3" :rules="endTimeRules" autocomplete="off"></v-text-field>
             </v-col>
           </v-row>
           <v-textarea v-model="formData.remark" label="备注" variant="outlined" density="comfortable" rows="2" no-resize
-            prepend-inner-icon="mdi-comment-text-outline"></v-textarea>
+            prepend-inner-icon="mdi-comment-text-outline" autocomplete="off"></v-textarea>
         </v-form>
       </v-card-text>
       <v-divider></v-divider>
@@ -71,6 +83,8 @@ const {
   studentSearch,
   studentOptions,
   loadingStudents,
+  subjectOptions,
+  loadingSubjects,
   formData,
   startTimeRules,
   endTimeRules,

@@ -23,6 +23,7 @@ type StudentCourseDao interface {
 	UpdateStudentCourseInfo(ctx context.Context, id uint, teacherID uint, remark string) error
 	FinishCourse(ctx context.Context, id uint, remark string) error
 	Delete(ctx context.Context, id uint) error
+	GetByStudentIDAndSubjectID(ctx context.Context, studentID uint, subjectID uint) (*model.StudentSubject, error)
 }
 
 type StudentCourseGormDao struct {
@@ -120,7 +121,7 @@ func (d *StudentCourseGormDao) GetStudentCourseWithDeleted(ctx context.Context, 
 func (d *StudentCourseGormDao) UpdateBalance(ctx context.Context, id uint, delta int) error {
 	return d.db.WithContext(ctx).Model(&model.StudentSubject{}).
 		Where("id = ?", id).
-		UpdateColumn("balance", gorm.Expr("balance + ?", delta)).Error
+		Update("balance", gorm.Expr("balance + ?", delta)).Error
 }
 
 func (d *StudentCourseGormDao) Recharge(ctx context.Context, id uint, hours int) error {
@@ -177,4 +178,21 @@ func (d *StudentCourseGormDao) FinishCourse(ctx context.Context, id uint, remark
 			"status": 3,
 			"remark": remark,
 		}).Error
+}
+
+func (s StudentCourseGormDao) GetByStudentIDAndSubjectID(ctx context.Context, studentID uint, subjectID uint) (*model.StudentSubject, error) {
+	var sc model.StudentSubject
+	err := s.db.WithContext(ctx).
+		Where("student_id = ? AND subject_id = ?", studentID, subjectID).
+		Preload("Student").Preload("Teacher").Preload("Subject").
+		First(&sc).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrRecordNotFound
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return &sc, nil
 }

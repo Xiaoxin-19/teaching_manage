@@ -14,6 +14,25 @@ type SubjectRepository interface {
 	CreateSubject(ctx context.Context, subject entity.Subject) error
 	UpdateSubject(ctx context.Context, subject entity.Subject) error
 	DeleteSubject(ctx context.Context, id uint) error
+	GetAllSubjects(ctx context.Context) ([]entity.Subject, error)
+}
+
+func (s SubjectRepositoryImpl) GetAllSubjects(ctx context.Context) ([]entity.Subject, error) {
+	subjects, _, err := s.dao.GetSubjectList(ctx, "", 0, -1)
+	if err != nil {
+		return nil, err
+	}
+	var entities []entity.Subject
+	for _, s := range subjects {
+		entities = append(entities, entity.Subject{
+			ID:            s.ID,
+			SubjectNumber: s.SubjectNumber,
+			Name:          s.Name,
+			CreatedAt:     s.CreatedAt,
+			UpdatedAt:     s.UpdatedAt,
+		})
+	}
+	return entities, nil
 }
 
 type SubjectRepositoryImpl struct {

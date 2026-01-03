@@ -76,6 +76,7 @@ export interface TeachingRecord {
   studentName: string;
   teacherId: number | null;
   teacherName: string;
+  subjectName: string;
   remark: string;
 }
 

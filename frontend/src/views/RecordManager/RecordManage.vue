@@ -51,19 +51,29 @@
                   当前筛选:
                 </div>
 
-                <v-chip v-if="searchStudent" closable size="small" color="primary" variant="flat"
-                  @click:close="searchStudent = ''">
-                  学生: {{ searchStudent }}
+                <v-chip v-if="selectedStudents.length > 0" closable size="small" color="primary" variant="flat"
+                  @click:close="selectedStudents = []">
+                  {{ selectedStudentText }}
                 </v-chip>
 
-                <v-chip v-if="searchTeacher" closable size="small" color="primary" variant="flat"
-                  @click:close="searchTeacher = ''">
-                  老师: {{ searchTeacher }}
+                <v-chip v-if="selectedTeachers.length > 0" closable size="small" color="primary" variant="flat"
+                  @click:close="selectedTeachers = []">
+                  {{ selectedTeacherText }}
+                </v-chip>
+
+                <v-chip v-if="selectedSubjects.length > 0" closable size="small" color="primary" variant="flat"
+                  @click:close="selectedSubjects = []">
+                  {{ selectedSubjectText }}
                 </v-chip>
 
                 <v-chip v-if="filterDateType !== '全部时间'" closable size="small" color="primary" variant="flat"
                   @click:close="clearDateFilter">
                   时间: {{ dateRangeText }}
+                </v-chip>
+
+                <v-chip v-if="activeFilter !== null" closable size="small" color="primary" variant="flat"
+                  @click:close="activeFilter = null">
+                  状态: {{ activeFilter ? '已激活' : '未激活' }}
                 </v-chip>
 
                 <v-spacer></v-spacer>
@@ -79,53 +89,65 @@
 
           <!-- 1. 学生列头筛选 -->
           <template v-slot:header.student_name="{ column }">
-            <div class="header-filter-container">
-              <span class="font-weight-bold mr-2">{{ column.title }}</span>
+            <div class="d-flex align-center justify-start">
+              <span>{{ column.title }}</span>
               <v-menu :close-on-content-click="false" location="bottom start" offset="5">
                 <template v-slot:activator="{ props }">
-                  <v-icon v-bind="props" :icon="searchStudent ? 'mdi-filter' : 'mdi-filter-outline'" size="small"
-                    class="filter-icon" :class="{ active: searchStudent }"></v-icon>
+                  <v-btn icon variant="text" density="compact" size="small" v-bind="props"
+                    class="ml-1 header-filter-icon" :class="{ 'active': selectedStudents.length > 0 }"
+                    :color="selectedStudents.length > 0 ? 'primary' : ''">
+                    <v-icon size="16">mdi-filter-variant</v-icon>
+                  </v-btn>
                 </template>
                 <v-card min-width="260" class="pa-4 rounded-lg elevation-4">
-                  <div class="text-subtitle-2 mb-3 font-weight-bold d-flex align-center">
-                    <v-icon size="small" class="mr-2" color="primary">
-                      mdi-account-school
-                    </v-icon>
-                    筛选学生姓名
-                  </div>
-                  <v-text-field v-model="searchStudent" placeholder="输入关键字 (如: 张)" density="compact" variant="outlined"
-                    hide-details autofocus prepend-inner-icon="mdi-magnify" clearable
-                    @click:clear="searchStudent = ''"></v-text-field>
-                  <div class="text-caption text-medium-emphasis mt-2">
-                    * 支持模糊搜索
-                  </div>
+                  <v-autocomplete v-model="selectedStudents" :items="studentOptions" item-title="title"
+                    item-value="value" :loading="loadingStudents" @update:search="onStudentSearch" label="搜索学生姓名"
+                    multiple chips closable-chips density="compact" variant="outlined" hide-details clearable no-filter
+                    :return-object="false" placeholder="输入关键字搜索" autocomplete="off"></v-autocomplete>
                 </v-card>
               </v-menu>
             </div>
           </template>
 
-          <!-- 2. 老师列头筛选 -->
-          <template v-slot:header.teacher_name="{ column }">
-            <div class="header-filter-container">
-              <span class="font-weight-bold mr-2">{{ column.title }}</span>
+          <!-- 2. 科目列头筛选 -->
+          <template v-slot:header.subject_name="{ column }">
+            <div class="d-flex align-center justify-start">
+              <span>{{ column.title }}</span>
               <v-menu :close-on-content-click="false" location="bottom start" offset="5">
                 <template v-slot:activator="{ props }">
-                  <v-icon v-bind="props" :icon="searchTeacher ? 'mdi-filter' : 'mdi-filter-outline'" size="small"
-                    class="filter-icon" :class="{ active: searchTeacher }"></v-icon>
+                  <v-btn icon variant="text" density="compact" size="small" v-bind="props"
+                    class="ml-1 header-filter-icon" :class="{ 'active': selectedSubjects.length > 0 }"
+                    :color="selectedSubjects.length > 0 ? 'primary' : ''">
+                    <v-icon size="16">mdi-filter-variant</v-icon>
+                  </v-btn>
                 </template>
                 <v-card min-width="260" class="pa-4 rounded-lg elevation-4">
-                  <div class="text-subtitle-2 mb-3 font-weight-bold d-flex align-center">
-                    <v-icon size="small" class="mr-2" color="primary">
-                      mdi-account-tie
-                    </v-icon>
-                    筛选老师姓名
-                  </div>
-                  <v-text-field v-model="searchTeacher" placeholder="输入关键字 (如: 王)" density="compact" variant="outlined"
-                    hide-details autofocus prepend-inner-icon="mdi-magnify" clearable
-                    @click:clear="searchTeacher = ''"></v-text-field>
-                  <div class="text-caption text-medium-emphasis mt-2">
-                    * 支持模糊搜索
-                  </div>
+                  <v-autocomplete v-model="selectedSubjects" :items="subjectOptions" item-title="title"
+                    item-value="value" :loading="loadingSubjects" @update:search="onSubjectSearch" label="搜索科目名称"
+                    multiple chips closable-chips density="compact" variant="outlined" hide-details clearable no-filter
+                    :return-object="false" placeholder="输入关键字搜索" autocomplete="off"></v-autocomplete>
+                </v-card>
+              </v-menu>
+            </div>
+          </template>
+
+          <!-- 3. 老师列头筛选 -->
+          <template v-slot:header.teacher_name="{ column }">
+            <div class="d-flex align-center justify-start">
+              <span>{{ column.title }}</span>
+              <v-menu :close-on-content-click="false" location="bottom start" offset="5">
+                <template v-slot:activator="{ props }">
+                  <v-btn icon variant="text" density="compact" size="small" v-bind="props"
+                    class="ml-1 header-filter-icon" :class="{ 'active': selectedTeachers.length > 0 }"
+                    :color="selectedTeachers.length > 0 ? 'primary' : ''">
+                    <v-icon size="16">mdi-filter-variant</v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="260" class="pa-4 rounded-lg elevation-4">
+                  <v-autocomplete v-model="selectedTeachers" :items="teacherOptions" item-title="title"
+                    item-value="value" :loading="loadingTeachers" @update:search="onTeacherSearch" label="搜索老师姓名"
+                    multiple chips closable-chips density="compact" variant="outlined" hide-details clearable no-filter
+                    :return-object="false" placeholder="输入关键字搜索" autocomplete="off"></v-autocomplete>
                 </v-card>
               </v-menu>
             </div>
@@ -133,14 +155,15 @@
 
           <!-- 3. 日期列头筛选 -->
           <template v-slot:header.date="{ column }">
-            <div class="header-filter-container">
-              <span class="font-weight-bold mr-2">{{ column.title }}</span>
+            <div class="d-flex align-center justify-start">
+              <span>{{ column.title }}</span>
               <v-menu :close-on-content-click="false" location="bottom start" offset="5">
                 <template v-slot:activator="{ props }">
-                  <v-icon v-bind="props" :icon="filterDateType !== '全部时间'
-                    ? 'mdi-filter'
-                    : 'mdi-filter-outline'
-                    " size="small" class="filter-icon" :class="{ active: filterDateType !== '全部时间' }"></v-icon>
+                  <v-btn icon variant="text" density="compact" size="small" v-bind="props"
+                    class="ml-1 header-filter-icon" :class="{ 'active': filterDateType !== '全部时间' }"
+                    :color="filterDateType !== '全部时间' ? 'primary' : ''">
+                    <v-icon size="16">mdi-filter-variant</v-icon>
+                  </v-btn>
                 </template>
                 <v-list density="compact" nav class="rounded-lg elevation-4" width="160">
                   <v-list-subheader class="font-weight-bold text-caption">
@@ -157,20 +180,46 @@
             </div>
           </template>
 
+          <!-- 4. 状态列头筛选 -->
+          <template v-slot:header.status="{ column }">
+            <div class="d-flex align-center justify-center">
+              <span>{{ column.title }}</span>
+              <v-menu :close-on-content-click="false" location="bottom start" offset="5">
+                <template v-slot:activator="{ props }">
+                  <v-btn icon variant="text" density="compact" size="small" v-bind="props"
+                    class="ml-1 header-filter-icon" :class="{ 'active': activeFilter !== null }"
+                    :color="activeFilter !== null ? 'primary' : ''">
+                    <v-icon size="16">mdi-filter-variant</v-icon>
+                  </v-btn>
+                </template>
+                <v-list density="compact" nav class="rounded-lg elevation-4" width="160">
+                  <v-list-subheader class="font-weight-bold text-caption">
+                    激活状态
+                  </v-list-subheader>
+                  <v-list-item v-for="item in activeOptions" :key="String(item.value)" :value="item.value"
+                    :active="activeFilter === item.value" color="primary" @click="activeFilter = item.value"
+                    class="rounded mb-1">
+                    <v-list-item-title class="text-body-2">
+                      {{ item.title }}
+                    </v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+            </div>
+          </template>
+
           <!-- 表格内容插槽 -->
           <template v-slot:item.student_name="{ item }">
             <div class="d-flex align-center py-2">
-              <v-avatar color="primary" variant="tonal" size="32" class="mr-3">
-                <span class="text-subtitle-2 font-weight-bold">
-                  {{ item.studentName.charAt(0) }}
-                </span>
-              </v-avatar>
-              <div>
-                <div class="font-weight-medium text-body-2">
-                  {{ item.studentName }}
-                </div>
-              </div>
+              <v-icon icon="mdi-account-outline" size="small" class="mr-1 text-medium-emphasis"></v-icon>
+              <span class="text-body-2">{{ item.studentName }}</span>
             </div>
+          </template>
+
+          <template v-slot:item.subject_name="{ item }">
+            <v-chip size="small" variant="outlined" color="indigo" label class="font-weight-medium">
+              {{ item.subjectName }}
+            </v-chip>
           </template>
 
           <template v-slot:item.teacher_name="{ item }">
@@ -278,9 +327,17 @@ import ImportRecord from './ImportRecord.vue';
 import DateRangeDialog from './DateRangeDialog.vue';
 import ImportErrorDialog from './ImportErrorDialog.vue';
 
+
 const {
-  searchStudent,
-  searchTeacher,
+  selectedStudents,
+  selectedTeachers,
+  selectedSubjects,
+  studentOptions,
+  teacherOptions,
+  subjectOptions,
+  loadingStudents,
+  loadingTeachers,
+  loadingSubjects,
   filterDateType,
   dateOptions,
   page,
@@ -297,9 +354,17 @@ const {
   pendingCount,
   hasActiveFilters,
   dateRangeText,
+  selectedStudentText,
+  selectedTeacherText,
+  selectedSubjectText,
   customStartDate,
   customEndDate,
+  activeFilter,
+  activeOptions,
   loadItems,
+  onStudentSearch,
+  onTeacherSearch,
+  onSubjectSearch,
   selectDateFilter,
   handleCustomDateConfirm,
   handleCustomDateCancel,
@@ -321,32 +386,13 @@ onActivated(() => {
 </script>
 
 <style scoped>
-.header-filter-container {
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-  border-radius: 4px;
-  padding: 2px 4px;
-  transition: background-color 0.2s;
+.header-filter-icon {
+  opacity: 0.4;
+  transition: opacity 0.2s;
 }
 
-.header-filter-container:hover {
-  background-color: rgba(var(--v-theme-on-surface), 0.05);
-}
-
-.filter-icon {
-  opacity: 0.6;
-  transition: all 0.2s;
-}
-
-.header-filter-container:hover .filter-icon {
+.header-filter-icon:hover,
+.header-filter-icon.active {
   opacity: 1;
-  color: rgba(var(--v-theme-on-surface), 0.8);
-}
-
-.filter-icon.active {
-  opacity: 1 !important;
-  color: rgb(var(--v-theme-primary)) !important;
-  transform: scale(1.1);
 }
 </style>

@@ -7,18 +7,17 @@ type GetRecordListResponse struct {
 }
 
 type RecordDTO struct {
-	ID           uint   `json:"id"`
-	StudentID    uint   `json:"student_id"`
-	TeacherID    uint   `json:"teacher_id"`
-	StudentName  string `json:"student_name"`
-	TeacherName  string `json:"teacher_name"`
-	TeachingDate string `json:"teaching_date"`
-	StartTime    string `json:"start_time"`
-	EndTime      string `json:"end_time"`
-	Active       bool   `json:"active"`
-	Remark       string `json:"remark"`
-	CreatedAt    int64  `json:"created_at"`
-	UpdatedAt    int64  `json:"updated_at"`
+	ID           uint       `json:"id"`
+	Student      StudentDTO `json:"student"`
+	Teacher      TeacherDTO `json:"teacher"`
+	Subject      SubjectDTO `json:"subject"`
+	TeachingDate string     `json:"teaching_date"`
+	StartTime    string     `json:"start_time"`
+	EndTime      string     `json:"end_time"`
+	Active       bool       `json:"active"`
+	Remark       string     `json:"remark"`
+	CreatedAt    int64      `json:"created_at"`
+	UpdatedAt    int64      `json:"updated_at"`
 }
 
 type ImportFromExcelResponse struct {

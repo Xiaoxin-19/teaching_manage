@@ -1,4 +1,4 @@
-import { Teacher, Course } from "./appModels"
+import { Teacher, Course, Subject } from "./appModels"
 
 // 后端返回的原始数据结构
 export interface StudentDTO {
@@ -30,10 +30,9 @@ export interface GetOrdersByStudentIdResponse {
 
 export interface RecordDTO {
   id: number
-  student_id: number
-  teacher_id: number
-  student_name: string
-  teacher_name: string
+  student: StudentDTO
+  teacher: Teacher
+  subject: Subject
   teaching_date: string
   start_time: string
   end_time: string

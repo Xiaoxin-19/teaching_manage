@@ -12,7 +12,7 @@ import (
 
 type StudentRepository interface {
 	ListStudentsWithStatus(ctx context.Context, key string, offset int, limit int, levelStatus int, targetStatus int) ([]entity.Student, int64, error)
-	// GetStudentByName(ctx context.Context, name string) (*entity.Student, error)
+	GetStudentByName(ctx context.Context, name string) ([]entity.Student, error)
 	GetStudentByID(ctx context.Context, id uint) (*entity.Student, error)
 	UpdateStudent(ctx context.Context, stu *entity.Student) error
 	CreateStudent(ctx context.Context, stu *entity.Student) error
@@ -54,21 +54,27 @@ func (sr StudentRepositoryImpl) ListStudentsWithStatus(ctx context.Context, key 
 	return result, total, nil
 }
 
-// func (sr StudentRepositoryImpl) GetStudentByName(ctx context.Context, name string) (*entity.Student, error) {
-// 	student, err := sr.dao.GetStudentByName(ctx, name)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return &entity.Student{
-// 		ID:        student.ID,
-// 		CreatedAt: student.CreatedAt,
-// 		UpdatedAt: student.UpdatedAt,
-// 		Name:      student.Name,
-// 		Gender:    student.Gender,
-// 		Phone:     student.Phone,
-// 		Remark:    student.Remark,
-// 	}, nil
-// }
+func (sr StudentRepositoryImpl) GetStudentByName(ctx context.Context, name string) ([]entity.Student, error) {
+	students, err := sr.dao.GetStudentByName(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	var result []entity.Student
+	for _, stu := range students {
+		result = append(result, entity.Student{
+			ID:            stu.ID,
+			StudentNumber: stu.StudentNumber,
+			CreatedAt:     stu.CreatedAt,
+			UpdatedAt:     stu.UpdatedAt,
+			Name:          stu.Name,
+			Gender:        stu.Gender,
+			Phone:         stu.Phone,
+			Status:        int(stu.Status),
+			Remark:        stu.Remark,
+		})
+	}
+	return result, nil
+}
 
 func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*entity.Student, error) {
 	student, err := sr.dao.GetStudentByID(ctx, id)
