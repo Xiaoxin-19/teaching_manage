@@ -117,3 +117,14 @@ export interface UpdateCourseRequest {
   teacher_id: number;
   remark?: string;
 }
+
+export interface GetOrderListRequest {
+  student_id?: number;
+  subject_ids?: number[];
+  teacher_ids?: number[];
+  type?: string[];
+  date_start?: string;
+  date_end?: string;
+  Offset: number;
+  Limit: number;
+}

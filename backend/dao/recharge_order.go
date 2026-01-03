@@ -10,6 +10,7 @@ import (
 type RechargeOrderDao interface {
 	CreateRechargeRecord(ctx context.Context, record *model.RechargeOrder) error
 	GetRechargeRecords(ctx context.Context, studentID uint, offset, limit int) ([]model.RechargeOrder, int64, error)
+	GetRechargeOrderList(ctx context.Context, studentID uint, subjectIDs []uint, orderType []string, dateStart string, dateEnd string, offset int, limit int) ([]model.RechargeOrder, int64, error)
 }
 
 type RechargeOrderGormDao struct {
@@ -47,4 +48,49 @@ func (d *RechargeOrderGormDao) GetRechargeRecords(ctx context.Context, studentID
 		Find(&records).Error
 
 	return records, total, err
+}
+
+func (d *RechargeOrderGormDao) GetRechargeOrderList(ctx context.Context, studentID uint, subjectIDs []uint, orderType []string, dateStart string, dateEnd string, offset int, limit int) ([]model.RechargeOrder, int64, error) {
+	query := d.db.WithContext(ctx).Model(&model.RechargeOrder{}).Joins("StudentCourse").
+		Preload("StudentCourse.Student").
+		Preload("StudentCourse.Subject").
+		Preload("StudentCourse.Teacher")
+
+	// 过滤条件
+	if studentID > 0 {
+		query = query.Where("StudentCourse.student_id = ?", studentID)
+	}
+
+	if len(subjectIDs) > 0 {
+		query = query.Where("StudentCourse.subject_id IN ?", subjectIDs)
+	}
+
+	if len(orderType) > 0 {
+		for _, t := range orderType {
+			switch t {
+			case "increase":
+				query = query.Where("hours >= 0")
+			case "decrease":
+				query = query.Where("hours < 0")
+			}
+		}
+	}
+
+	if dateStart != "" {
+		query = query.Where("recharge_orders.created_at >= ?", dateStart)
+	}
+
+	if dateEnd != "" {
+		query = query.Where("recharge_orders.created_at <= ?", dateEnd)
+	}
+
+	var total int64
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var orders []model.RechargeOrder
+	err = query.Order("recharge_orders.created_at desc").Offset(offset).Limit(limit).Find(&orders).Error
+	return orders, total, err
 }

@@ -1,18 +1,22 @@
 package responsex
 
-type GetOrdersByStudentIDResponse struct {
+type GetOrdersListResponse struct {
 	Orders []OrderDTO `json:"orders"`
 	Total  int64      `json:"total"`
 }
 
 type OrderDTO struct {
-	Id        uint   `json:"id"`
-	CreatedAt int64  `json:"created_at"`
-	UpdatedAt int64  `json:"updated_at"`
-	Hours     int    `json:"hours"`
-	Comment   string `json:"comment"`
-	Active    bool   `json:"active"`
-	Type      string `json:"type" validate:"oneof=increase decrease"`
+	ID        uint       `json:"id"`
+	OrderNo   string     `json:"order_number"`
+	Student   StudentDTO `json:"student"`
+	Subject   SubjectDTO `json:"subject"`
+	Teacher   TeacherDTO `json:"teacher"`
+	Hours     int        `json:"hours"`
+	Amount    float64    `json:"amount"`
+	Type      string     `json:"type" validate:"oneof=increase decrease"`
+	Remark    string     `json:"remark"`
+	CreatedAt int64      `json:"created_at"`
+	UpdatedAt int64      `json:"updated_at"`
 }
 
 func OrderDTOTypeToString(hours int) string {

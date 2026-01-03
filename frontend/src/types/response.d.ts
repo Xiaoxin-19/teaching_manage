@@ -115,3 +115,8 @@ export interface GetCourseListResponse {
   courses: Course[];
   total: number;
 }
+
+export interface GetOrderListResponse {
+  orders: Order[];
+  total: number;
+}

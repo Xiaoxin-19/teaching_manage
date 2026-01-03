@@ -23,6 +23,7 @@ const menuItems = [
   { title: '科目管理', icon: 'mdi-bookshelf', to: { name: 'subjects' } },
   { title: '课程管理', icon: 'mdi-school-outline', to: { name: 'courses' } },
   { title: '上课记录', icon: 'mdi-clipboard-text-clock', to: { name: 'records' } },
+  { title: '财务管理', icon: 'mdi-currency-usd', to: { name: 'finance' } },
   { divider: true },
   { title: '系统设置', icon: 'mdi-cog', to: { name: 'settings' } },
 ]

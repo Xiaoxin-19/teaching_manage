@@ -110,3 +110,22 @@ export interface OrderDTO {
   created_at: number;
   updated_at: number;
 }
+
+export interface Order {
+  id: number
+  order_number: string
+  student: Student
+  subject: Subject
+  teacher: Teacher
+  type: 'increase' | 'decrease'
+  amount: number
+  hours: number
+  created_at: number
+  updated_at: number
+  remark: string
+  tags: OrderTag[]
+  // 仅用于前端模拟筛选的字段，对接真实后端时不需要
+  _studentId?: number
+  _subjectId?: number
+  _subjectName?: string
+}
