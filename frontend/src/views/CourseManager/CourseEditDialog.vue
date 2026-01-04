@@ -11,10 +11,14 @@
       </v-card-title>
       <v-divider></v-divider>
       <v-card-text class="pa-6">
+        <!-- 防止浏览器自动填充：隐藏凭证字段作为诱饵 -->
+        <input type="text" autocomplete="username" style="display:none" />
+        <input type="password" autocomplete="new-password" style="display:none" />
+
         <v-autocomplete v-if="!isEdit" label="选择学员" :items="studentOptions" item-title="title" item-value="value"
           :loading="studentLoading" @update:search="$emit('searchStudent', $event)" variant="outlined"
           density="comfortable" prepend-inner-icon="mdi-account" placeholder="输入姓名搜索" class="mb-2"
-          v-model="form.studentId" no-filter :return-object="false"></v-autocomplete>
+          v-model="form.studentId" no-filter :return-object="false" autocomplete="off"></v-autocomplete>
         <div v-else class="mb-4 text-body-2 text-medium-emphasis d-flex align-center bg-grey-lighten-4 pa-3 rounded">
           <v-icon start size="small">mdi-account</v-icon>学员：<span class="font-weight-bold text-high-emphasis ml-1">{{
             course.student?.name }}</span>
@@ -24,22 +28,22 @@
             <v-autocomplete label="选择科目" :items="subjectOptions" item-title="title" item-value="value"
               :loading="subjectLoading" @update:search="$emit('searchSubject', $event)" variant="outlined"
               density="comfortable" prepend-inner-icon="mdi-bookshelf" :disabled="isEdit" v-model="form.subjectId"
-              no-filter :return-object="false"></v-autocomplete>
+              no-filter :return-object="false" autocomplete="off"></v-autocomplete>
           </v-col>
           <v-col cols="12" sm="6">
             <v-autocomplete label="授课老师" :items="teacherOptions" item-title="title" item-value="value"
               :loading="teacherLoading" @update:search="$emit('searchTeacher', $event)" variant="outlined"
               density="comfortable" prepend-inner-icon="mdi-account-tie" v-model="form.teacherId" no-filter
-              :return-object="false"></v-autocomplete>
+              :return-object="false" autocomplete="off"></v-autocomplete>
           </v-col>
         </v-row>
         <v-textarea label="备注" rows="2" variant="outlined" density="comfortable"
-          prepend-inner-icon="mdi-comment-outline" class="mt-2" v-model="form.remark"></v-textarea>
+          prepend-inner-icon="mdi-comment-outline" class="mt-2" v-model="form.remark" autocomplete="off"></v-textarea>
       </v-card-text>
       <v-card-actions class="pa-4 pt-0">
         <v-spacer></v-spacer>
         <v-btn variant="text" @click="$emit('update:modelValue', false)">取消</v-btn>
-        <v-btn color="primary" variant="elevated" @click="$emit('save')" class="px-6">保存</v-btn>
+        <v-btn color="primary" variant="elevated" @click="$emit('save')" class="px-6" :disabled="!isValid">保存</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -47,6 +51,7 @@
 
 <script setup lang="ts">
 import { Course } from '../../types/appModels'
+import { computed } from 'vue'
 
 interface SelectOption {
   title: string
@@ -61,7 +66,7 @@ interface EnrollForm {
   remark: string
 }
 
-defineProps<{
+const props = defineProps<{
   modelValue: boolean
   isEdit: boolean
   course: Partial<Course>
@@ -74,11 +79,15 @@ defineProps<{
   teacherLoading?: boolean
 }>()
 
-defineEmits<{
+const emits = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'save'): void
   (e: 'searchStudent', value: string): void
   (e: 'searchSubject', value: string): void
   (e: 'searchTeacher', value: string): void
 }>()
+
+const isValid = computed(() => {
+  return props.form.studentId !== null && props.form.subjectId !== null && props.form.teacherId !== null
+})
 </script>
