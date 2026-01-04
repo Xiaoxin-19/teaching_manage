@@ -85,12 +85,14 @@ const getOption = (isDark: boolean) => {
       data: data,
       label: { show: false }, // 格子太小，隐藏数字
       itemStyle: {
-        emphasis: {
-          shadowBlur: 10,
-          shadowColor: 'rgba(0, 0, 0, 0.5)'
-        },
         borderColor: isDark ? '#333' : '#fff',
         borderWidth: 1
+      },
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 10,
+          shadowColor: 'rgba(0, 0, 0, 0.5)'
+        }
       }
     }]
   };

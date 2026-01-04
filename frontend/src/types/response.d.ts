@@ -69,9 +69,20 @@ export interface GetDashboardSummaryResponse {
 
 export interface GetFinanceChartDataResponse {
   x_axis: string[]
-  recharge_data: number[]
-  consume_data: number[]
+  recharge_data: number[]      // 充值课时
+  recharge_amount: number[]    // 充值金额 (可选显示)
+  consume_data: number[]       // 消课课时
+  consume_amount: number[]     // 消课金额 (可选显示)
   net_data: number[]
+}
+
+export interface SubjectRank {
+  name: string
+  value: number
+}
+
+export interface GetSubjectRankDataResponse {
+  data: SubjectRank[]
 }
 
 export interface EngagementStat {

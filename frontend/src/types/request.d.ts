@@ -169,3 +169,8 @@ export interface ExportRecordsRequest {
 export interface ImportFromExcelRequest {
   filepath: string;
 }
+
+// Dashboard related requests
+export interface GetFinanceChartRequest {
+  type: '1m' | '6m' | '12m' | 'all';  // 时间范围: 近一月、近半年、近一年、全部
+}

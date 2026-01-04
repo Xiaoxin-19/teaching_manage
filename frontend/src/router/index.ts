@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
-  { path: '/', name: 'dashboard', component: () => import('../views/StudentManager/StudentManage.vue') },
+  { path: '/', name: 'dashboard', component: () => import('../views/Dashboard/Dashboard.vue') },
   { path: '/students', name: 'students', component: () => import('../views/StudentManager/StudentManage.vue') },
   { path: '/teachers', name: 'teachers', component: () => import('../views/TeacherManager/TeacherManage.vue') },
   { path: '/subjects', name: 'subjects', component: () => import('../views/SubjectManager/SubjectManage.vue') },

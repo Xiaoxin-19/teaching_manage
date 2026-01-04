@@ -19,10 +19,12 @@ type ChartDataDTO struct {
 
 // FinanceChartDTO 资金/课时流转图表
 type FinanceChartDTO struct {
-	XAxis        []string `json:"x_axis"`
-	RechargeData []int64  `json:"recharge_data"`
-	ConsumeData  []int64  `json:"consume_data"`
-	NetData      []int64  `json:"net_data"`
+	XAxis          []string  `json:"x_axis"`
+	RechargeData   []int64   `json:"recharge_data"`   // 充值课时
+	RechargeAmount []float64 `json:"recharge_amount"` // 充值金额
+	ConsumeData    []int64   `json:"consume_data"`    // 消课课时
+	ConsumeAmount  []float64 `json:"consume_amount"`  // 消课金额
+	NetData        []int64   `json:"net_data"`        // 净增库存(课时)
 }
 
 // TeacherRankDTO 教师排行
@@ -47,4 +49,15 @@ type BalanceStat struct {
 
 type GetStudentBalanceDataResponse struct {
 	Stats []BalanceStat `json:"stats"`
+}
+
+// SubjectRank 科目排行数据项
+type SubjectRank struct {
+	Name  string `json:"name"`
+	Value int64  `json:"value"`
+}
+
+// GetSubjectRankDataResponse 科目消课占比响应
+type GetSubjectRankDataResponse struct {
+	Data []SubjectRank `json:"data"`
 }
