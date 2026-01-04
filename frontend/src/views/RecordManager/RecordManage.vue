@@ -85,6 +85,12 @@
               </div>
             </v-expand-transition>
             <v-divider v-if="hasActiveFilters"></v-divider>
+            <!-- 删除项说明 -->
+            <div class="px-4 py-3 d-flex align-center"
+              style="background-color: rgba(var(--v-theme-warning), 0.05); border-left: 3px solid #ff9800;">
+              <v-icon size="small" class="mr-2" color="warning">mdi-information-outline</v-icon>
+              <span class="text-caption text-medium-emphasis">{{ deletedItemLegend }}</span>
+            </div>
           </template>
 
           <!-- 1. 学生列头筛选 -->
@@ -103,7 +109,17 @@
                   <v-autocomplete v-model="selectedStudents" :items="studentOptions" item-title="title"
                     item-value="value" :loading="loadingStudents" @update:search="onStudentSearch" label="搜索学生姓名"
                     multiple chips closable-chips density="compact" variant="outlined" hide-details clearable no-filter
-                    :return-object="false" placeholder="输入关键字搜索" autocomplete="off"></v-autocomplete>
+                    :return-object="false" placeholder="输入关键字搜索" autocomplete="off">
+                    <template v-slot:item="{ props, item }">
+                      <v-list-item v-bind="props" :title="undefined">
+                        <template v-slot:title>
+                          <span>{{ (item.title || item.raw?.title || '').replace('*', '') }}</span>
+                          <v-chip v-if="(item.title || item.raw?.title || '').includes('*')" size="x-small"
+                            color="warning" variant="flat" class="ml-2">已删除</v-chip>
+                        </template>
+                      </v-list-item>
+                    </template>
+                  </v-autocomplete>
                 </v-card>
               </v-menu>
             </div>
@@ -125,7 +141,17 @@
                   <v-autocomplete v-model="selectedSubjects" :items="subjectOptions" item-title="title"
                     item-value="value" :loading="loadingSubjects" @update:search="onSubjectSearch" label="搜索科目名称"
                     multiple chips closable-chips density="compact" variant="outlined" hide-details clearable no-filter
-                    :return-object="false" placeholder="输入关键字搜索" autocomplete="off"></v-autocomplete>
+                    :return-object="false" placeholder="输入关键字搜索" autocomplete="off">
+                    <template v-slot:item="{ props, item }">
+                      <v-list-item v-bind="props" :title="undefined">
+                        <template v-slot:title>
+                          <span>{{ (item.title || item.raw?.title || '').replace('*', '') }}</span>
+                          <v-chip v-if="(item.title || item.raw?.title || '').includes('*')" size="x-small"
+                            color="warning" variant="flat" class="ml-2">已删除</v-chip>
+                        </template>
+                      </v-list-item>
+                    </template>
+                  </v-autocomplete>
                 </v-card>
               </v-menu>
             </div>
@@ -147,7 +173,17 @@
                   <v-autocomplete v-model="selectedTeachers" :items="teacherOptions" item-title="title"
                     item-value="value" :loading="loadingTeachers" @update:search="onTeacherSearch" label="搜索老师姓名"
                     multiple chips closable-chips density="compact" variant="outlined" hide-details clearable no-filter
-                    :return-object="false" placeholder="输入关键字搜索" autocomplete="off"></v-autocomplete>
+                    :return-object="false" placeholder="输入关键字搜索" autocomplete="off">
+                    <template v-slot:item="{ props, item }">
+                      <v-list-item v-bind="props" :title="undefined">
+                        <template v-slot:title>
+                          <span>{{ (item.title || item.raw?.title || '').replace('*', '') }}</span>
+                          <v-chip v-if="(item.title || item.raw?.title || '').includes('*')" size="x-small"
+                            color="warning" variant="flat" class="ml-2">已删除</v-chip>
+                        </template>
+                      </v-list-item>
+                    </template>
+                  </v-autocomplete>
                 </v-card>
               </v-menu>
             </div>
@@ -211,21 +247,36 @@
           <!-- 表格内容插槽 -->
           <template v-slot:item.student_name="{ item }">
             <div class="d-flex align-center py-2">
-              <v-icon icon="mdi-account-outline" size="small" class="mr-1 text-medium-emphasis"></v-icon>
-              <span class="text-body-2">{{ item.studentName }}</span>
+              <span class="font-weight-bold text-body-2">{{ item.studentName.replace(/\*$/, '') }}</span>
+              <span class="text-caption text-medium-emphasis ml-1">- {{ item.studentNumber || '' }}</span>
+              <v-tooltip v-if="isStudentDeleted(item.studentId)" text="该学生已删除" location="top">
+                <template #activator="{ props }">
+                  <span v-bind="props" class="deleted-marker ml-1">*</span>
+                </template>
+              </v-tooltip>
             </div>
           </template>
 
           <template v-slot:item.subject_name="{ item }">
             <v-chip size="small" variant="outlined" color="indigo" label class="font-weight-medium">
-              {{ item.subjectName }}
+              {{ item.subjectName.replace(/\*$/, '') }}
             </v-chip>
+            <v-tooltip v-if="isSubjectDeleted(item.subjectName)" text="该科目已删除" location="top">
+              <template #activator="{ props }">
+                <span v-bind="props" class="deleted-marker ml-1">*</span>
+              </template>
+            </v-tooltip>
           </template>
 
           <template v-slot:item.teacher_name="{ item }">
             <div class="d-flex align-center">
               <v-icon icon="mdi-account-tie-outline" size="small" class="mr-1 text-medium-emphasis"></v-icon>
-              <span class="text-body-2">{{ item.teacherName }}</span>
+              <span class="text-body-2">{{ item.teacherName.replace(/\*$/, '') }}</span>
+              <v-tooltip v-if="isTeacherDeleted(item.teacherId)" text="该教师已删除" location="top">
+                <template #activator="{ props }">
+                  <span v-bind="props" class="deleted-marker ml-1">*</span>
+                </template>
+              </v-tooltip>
             </div>
           </template>
 
@@ -357,6 +408,7 @@ const {
   selectedStudentText,
   selectedTeacherText,
   selectedSubjectText,
+  deletedItemLegend,
   customStartDate,
   customEndDate,
   activeFilter,
@@ -378,6 +430,9 @@ const {
   exportRecords,
   onImportSuccess,
   onImportFailed,
+  isStudentDeleted,
+  isTeacherDeleted,
+  isSubjectDeleted,
 } = useRecordManage();
 
 onActivated(() => {
@@ -394,5 +449,11 @@ onActivated(() => {
 .header-filter-icon:hover,
 .header-filter-icon.active {
   opacity: 1;
+}
+
+.deleted-marker {
+  color: #ff9800;
+  font-weight: bold;
+  font-size: 0.875rem;
 }
 </style>

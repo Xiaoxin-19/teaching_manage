@@ -15,6 +15,7 @@ type SubjectRepository interface {
 	UpdateSubject(ctx context.Context, subject entity.Subject) error
 	DeleteSubject(ctx context.Context, id uint) error
 	GetAllSubjects(ctx context.Context) ([]entity.Subject, error)
+	GetSubjectListUnscoped(ctx context.Context, key string, offset int, limit int) ([]entity.Subject, int64, error)
 }
 
 func (s SubjectRepositoryImpl) GetAllSubjects(ctx context.Context) ([]entity.Subject, error) {
@@ -69,6 +70,37 @@ func (sr SubjectRepositoryImpl) GetSubjectList(ctx context.Context, key string, 
 				}
 				return studentSubjects
 			}(),
+		})
+	}
+	return entities, total, nil
+}
+
+func (sr SubjectRepositoryImpl) GetSubjectListUnscoped(ctx context.Context, key string, offset int, limit int) ([]entity.Subject, int64, error) {
+	subjects, total, err := sr.dao.GetSubjectListUnscoped(ctx, key, offset, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	var entities []entity.Subject
+	for _, s := range subjects {
+		studentsubjects := make([]entity.StudentSubject, 0, len(s.StudentSubjects))
+		for _, ss := range s.StudentSubjects {
+			studentsubjects = append(studentsubjects, entity.StudentSubject{
+				ID:      ss.ID,
+				Teacher: entity.Teacher{ID: ss.ID},
+				Student: entity.Student{ID: ss.StudentID},
+				Balance: ss.Balance,
+				Status:  entity.ParseStudentSubjectStatus(ss.Status),
+			})
+		}
+
+		entities = append(entities, entity.Subject{
+			ID:              s.ID,
+			SubjectNumber:   s.SubjectNumber,
+			Name:            s.Name,
+			CreatedAt:       s.CreatedAt,
+			UpdatedAt:       s.UpdatedAt,
+			DeletedAt:       s.DeletedAt.Time,
+			StudentSubjects: studentsubjects,
 		})
 	}
 	return entities, total, nil

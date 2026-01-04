@@ -15,6 +15,7 @@ type SubjectDao interface {
 	UpdateSubject(ctx context.Context, subject *model.Subject) error
 	DeleteSubject(ctx context.Context, id uint) error
 	GetSubjectList(ctx context.Context, keyword string, offset int, limit int) ([]model.Subject, int64, error)
+	GetSubjectListUnscoped(ctx context.Context, keyword string, offset int, limit int) ([]model.Subject, int64, error)
 }
 
 type SubjectGormDao struct {
@@ -93,6 +94,29 @@ func (d *SubjectGormDao) GetSubjectList(ctx context.Context, keyword string, off
 		query = query.Offset(offset).Limit(limit)
 	}
 	subjects, err = query.Find(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	return subjects, total, nil
+}
+
+func (d *SubjectGormDao) GetSubjectListUnscoped(ctx context.Context, keyword string, offset int, limit int) ([]model.Subject, int64, error) {
+	var subjects []model.Subject
+	query := d.db.Unscoped().WithContext(ctx).Model(&model.Subject{}).Preload("StudentSubjects", func(db *gorm.DB) *gorm.DB {
+		return db.Unscoped()
+	})
+	if keyword != "" {
+		query = query.Where("name LIKE ?", "%"+keyword+"%")
+	}
+	total := int64(0)
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if limit > 0 {
+		query = query.Offset(offset).Limit(limit)
+	}
+	err = query.Find(&subjects).Error
 	if err != nil {
 		return nil, 0, err
 	}

@@ -49,7 +49,15 @@
                   <v-autocomplete v-model="filters.studentId" :items="studentOptions" :loading="isStudentLoading"
                     @update:search="onStudentSearch" item-title="title" item-value="value" label="搜索学员姓名/学号"
                     placeholder="输入关键词" density="compact" variant="outlined" hide-details
-                    prepend-inner-icon="mdi-account-search" clearable no-filter :return-object="false"></v-autocomplete>
+                    prepend-inner-icon="mdi-account-search" clearable no-filter :return-object="false">
+                    <template v-slot:item="{ props, item }">
+                      <v-list-item v-bind="props">
+                        <template v-slot:append v-if="item.raw.deleted_at">
+                          <v-chip size="x-small" color="error" variant="tonal">已删除</v-chip>
+                        </template>
+                      </v-list-item>
+                    </template>
+                  </v-autocomplete>
                   <div class="text-caption text-medium-emphasis mt-2 pl-1">* 输入文字自动从服务器搜索</div>
                 </v-sheet>
               </v-menu>
@@ -71,8 +79,15 @@
                 <v-sheet min-width="250" class="pa-4 rounded-lg" elevation="4">
                   <v-autocomplete v-model="filters.subjectIds" :items="subjectOptions" :loading="isSubjectLoading"
                     @update:search="onSubjectSearch" item-title="title" item-value="value" label="选择科目" multiple chips
-                    closable-chips density="compact" variant="outlined" hide-details clearable
-                    no-filter></v-autocomplete>
+                    closable-chips density="compact" variant="outlined" hide-details clearable no-filter>
+                    <template v-slot:item="{ props, item }">
+                      <v-list-item v-bind="props">
+                        <template v-slot:append v-if="item.raw.deleted_at">
+                          <v-chip size="x-small" color="error" variant="tonal">已删除</v-chip>
+                        </template>
+                      </v-list-item>
+                    </template>
+                  </v-autocomplete>
                 </v-sheet>
               </v-menu>
             </div>
@@ -133,12 +148,25 @@
 
           <!-- 学员列 -->
           <template v-slot:item.studentName="{ item }">
-            <span class="font-weight-medium text-body-2">{{ item.student.name }}</span>
+            <span class="font-weight-bold text-body-2">{{ item.student.name }}</span>
+            <span class="text-caption text-medium-emphasis ml-1">- {{ item.student.student_number }}</span>
+            <v-tooltip v-if="isStudentDeleted(item)" location="top">
+              <template v-slot:activator="{ props }">
+                <span v-bind="props" class="text-error ml-1">*</span>
+              </template>
+              <span>该学员已删除</span>
+            </v-tooltip>
           </template>
 
           <!-- 科目列 -->
-          <template v-slot:item.subjectName="{ item }">
+          <template v-slot:item._subjectName="{ item }">
             <span class="text-body-2">{{ item.subject.name }}</span>
+            <v-tooltip v-if="isSubjectDeleted(item)" location="top">
+              <template v-slot:activator="{ props }">
+                <span v-bind="props" class="text-error ml-1">*</span>
+              </template>
+              <span>该科目已删除</span>
+            </v-tooltip>
           </template>
 
           <!-- 类型列 (去色) -->
@@ -273,6 +301,8 @@ const {
   activeFilters,
   loadItems,
   clearFilter,
+  isStudentDeleted,
+  isSubjectDeleted,
   getTypeColor,
   getTypeText,
   formatCurrency,

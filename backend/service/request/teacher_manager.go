@@ -17,10 +17,11 @@ type UpdateTeacherRequest struct {
 }
 
 type GetTeacherListRequest struct {
-	KeyWord string `json:"keyword"`
-	Status  int    `json:"status"` // 0: All, 1: Active, 2: Resigned
-	Offset  int    `json:"offset" validate:"gte=0"`
-	Limit   int    `json:"limit" validate:"oneof=10 25 50 100 -1"`
+	KeyWord     string `json:"keyword"`
+	Status      int    `json:"status"` // 0: All, 1: Active, 2: Resigned
+	Offset      int    `json:"offset" validate:"gte=0"`
+	Limit       int    `json:"limit" validate:"oneof=10 25 50 100 -1"`
+	ShowDeleted bool   `json:"show_deleted" validate:""` // 是否包含已删除的教师
 }
 
 type DeleteTeacherRequest struct {

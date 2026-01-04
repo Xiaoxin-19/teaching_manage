@@ -51,10 +51,16 @@ func (d *RechargeOrderGormDao) GetRechargeRecords(ctx context.Context, studentID
 }
 
 func (d *RechargeOrderGormDao) GetRechargeOrderList(ctx context.Context, studentID uint, subjectIDs []uint, orderType []string, dateStart string, dateEnd string, offset int, limit int) ([]model.RechargeOrder, int64, error) {
-	query := d.db.WithContext(ctx).Model(&model.RechargeOrder{}).Joins("StudentCourse").
-		Preload("StudentCourse.Student").
-		Preload("StudentCourse.Subject").
-		Preload("StudentCourse.Teacher")
+	query := d.db.WithContext(ctx).Unscoped().Model(&model.RechargeOrder{}).Joins("StudentCourse").
+		Preload("StudentCourse.Student", func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}).
+		Preload("StudentCourse.Subject", func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}).
+		Preload("StudentCourse.Teacher", func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		})
 
 	// 过滤条件
 	if studentID > 0 {

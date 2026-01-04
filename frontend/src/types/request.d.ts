@@ -6,6 +6,7 @@ export interface GetStudentListRequest {
   keyword: string;
   Status_Level: number;
   Status_Target: number;
+  Show_Deleted?: boolean;
 }
 
 export interface CreateStudentRequest {
@@ -51,6 +52,7 @@ export interface GetTeacherListRequest {
   Limit: number;
   Keyword: string;
   Status: number;
+  Show_Deleted?: boolean;
 }
 
 export interface DeleteTeacherRequest {
@@ -65,6 +67,7 @@ export interface GetSubjectListRequest {
   Offset: number;
   Limit: number;
   Keyword: string;
+  Show_Deleted?: boolean;
 }
 
 export interface CreateSubjectRequest {

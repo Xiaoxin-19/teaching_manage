@@ -1,19 +1,5 @@
 package dao
 
-/*
-CREATE TABLE `teachers` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(10) NOT NULL COMMENT '教师姓名',
-  `gender` char(3) DEFAULT NULL COMMENT '教师性别',
-  `phone_code` varchar(11) DEFAULT NULL COMMENT '电话号码',
-  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
-  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
-  `delete_time` datetime DEFAULT NULL COMMENT '软删除标记时间戳',
-  PRIMARY KEY (`id`) USING BTREE,
-  KEY `name` (`name`) USING BTREE COMMENT '教师姓名索引'
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;
-*/
-
 import (
 	"context"
 	"errors"
@@ -28,6 +14,7 @@ type TeacherDao interface {
 	DeleteTeacher(ctx context.Context, id uint) error
 	GetTeacherByID(ctx context.Context, id uint) (*model.Teacher, error)
 	GetTeacherList(ctx context.Context, key string, status int, offset int, limit int) ([]model.Teacher, int64, error)
+	GetTeacherListUnscoped(ctx context.Context, key string, status int, offset int, limit int) ([]model.Teacher, int64, error)
 }
 
 type TeacherGormDao struct {
@@ -91,7 +78,7 @@ func (s TeacherGormDao) GetTeacherList(ctx context.Context, key string, status i
 	query := gorm.G[model.Teacher](s.db).Where("")
 
 	if key != "" {
-		query = query.Where("name LIKE ?", "%"+key+"%")
+		query = query.Where("(name LIKE ? OR phone LIKE ? OR teacher_number LIKE ?)", "%"+key+"%", "%"+key+"%", "%"+key+"%")
 	}
 	if status != 0 {
 		query = query.Where("status = ?", status)
@@ -102,11 +89,37 @@ func (s TeacherGormDao) GetTeacherList(ctx context.Context, key string, status i
 	}
 
 	// 处理没有分页参数的情况
-	if limit == 0 {
-		offset = 0
-		limit = int(total)
+	if limit > 0 {
+		query = query.Offset(offset).Limit(limit)
 	}
 
-	teachers, err = query.Offset(offset).Limit(limit).Find(ctx)
+	teachers, err = query.Find(ctx)
+	return teachers, total, nil
+}
+
+// Get teacher list including soft-deleted records
+func (s TeacherGormDao) GetTeacherListUnscoped(ctx context.Context, key string, status int, offset int, limit int) ([]model.Teacher, int64, error) {
+	var teachers []model.Teacher
+	query := s.db.Unscoped().WithContext(ctx).Model(&model.Teacher{})
+	if key != "" {
+		likeKey := "%" + key + "%"
+		query = query.Where("(name LIKE ? OR phone LIKE ? OR teacher_number LIKE ?)", likeKey, likeKey, likeKey)
+	}
+	if status != 0 {
+		query = query.Where("status = ?", status)
+	}
+	total := int64(0)
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	teachers = []model.Teacher{}
+	if limit > 0 {
+		query = query.Offset(offset).Limit(limit)
+	}
+	err = query.Find(&teachers).Error
+	if err != nil {
+		return nil, 0, err
+	}
 	return teachers, total, nil
 }

@@ -30,14 +30,28 @@ func NewStudentManager(repo repository.StudentRepository, repoCourse repository.
 
 func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetStudentListRequest) (*responsex.GetStudentListResponse, error) {
 
-	studentDs, total, err := sm.repo.ListStudentsWithStatus(ctx, req.Keyword, req.Offset, req.Limit, req.StatusLevel, req.StatusTarget)
-	if err != nil {
-		return nil, err
+	studentDs := []entity.Student{}
+	var total int64
+	var err error
+	if req.ShowDeleted {
+		// 如果包含已删除的学生，则调用 Unscoped 版本的方法
+		studentDs, total, err = sm.repo.ListStudentsWithStatusUnscoped(ctx, req.Keyword, req.Offset, req.Limit, req.StatusLevel, req.StatusTarget)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		studentDs, total, err = sm.repo.ListStudentsWithStatus(ctx, req.Keyword, req.Offset, req.Limit, req.StatusLevel, req.StatusTarget)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	studentDTOs := make([]responsex.StudentDTO, 0, len(studentDs))
 	for _, s := range studentDs {
-
+		deleteAt := int64(0)
+		if !s.DeletedAt.IsZero() {
+			deleteAt = s.DeletedAt.UnixMilli()
+		}
 		studentDTOs = append(studentDTOs, responsex.StudentDTO{
 			ID:            s.ID,
 			StudentNumber: s.StudentNumber,
@@ -48,6 +62,7 @@ func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetSt
 			Remark:        s.Remark,
 			CreatedAt:     s.CreatedAt.UnixMilli(),
 			UpdatedAt:     s.UpdatedAt.UnixMilli(),
+			DeletedAt:     deleteAt,
 		})
 	}
 

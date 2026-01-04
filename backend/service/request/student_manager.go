@@ -6,6 +6,7 @@ type GetStudentListRequest struct {
 	Limit        int    `json:"limit" validate:"oneof=10 25 50 100 -1"`
 	StatusLevel  int    `json:"status_level" validate:"oneof= 1 2 3"`   // 状态层级， 只要比这个值 <= 的状态都会被返回
 	StatusTarget int    `json:"status_target" validate:"oneof=1 2 3 0"` // 目标状态筛选, 0表示不筛选
+	ShowDeleted  bool   `json:"show_deleted" validate:""`               // 是否包含已删除的学生
 }
 
 type CreateStudentRequest struct {

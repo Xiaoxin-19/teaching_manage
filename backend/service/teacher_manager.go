@@ -57,14 +57,27 @@ func (tm TeacherManager) CreateTeacher(ctx context.Context, teacher *requestx.Cr
 }
 
 func (tm TeacherManager) GetTeacherList(ctx context.Context, req *requestx.GetTeacherListRequest) (responsex.GetTeacherListResponse, error) {
-
-	teachers, total, err := tm.repo.GetTeacherList(ctx, req.KeyWord, req.Status, req.Offset, req.Limit)
-	if err != nil {
-		return responsex.GetTeacherListResponse{}, fmt.Errorf("internal server error")
+	var teachers []entity.Teacher
+	var total int64
+	var err error
+	if req.ShowDeleted {
+		teachers, total, err = tm.repo.GetTeacherListUnscoped(ctx, req.KeyWord, req.Status, req.Offset, req.Limit)
+		if err != nil {
+			return responsex.GetTeacherListResponse{}, fmt.Errorf("internal server error")
+		}
+	} else {
+		teachers, total, err = tm.repo.GetTeacherList(ctx, req.KeyWord, req.Status, req.Offset, req.Limit)
+		if err != nil {
+			return responsex.GetTeacherListResponse{}, fmt.Errorf("internal server error")
+		}
 	}
 
 	teacherDtos := make([]responsex.TeacherDTO, len(teachers))
 	for i, t := range teachers {
+		deletedAt := int64(0)
+		if !t.DeletedAt.IsZero() {
+			deletedAt = t.DeletedAt.UnixMilli()
+		}
 		teacherDtos[i] = responsex.TeacherDTO{
 			ID:            t.ID,
 			Name:          t.Name,
@@ -75,6 +88,7 @@ func (tm TeacherManager) GetTeacherList(ctx context.Context, req *requestx.GetTe
 			Remark:        t.Remark,
 			CreatedAt:     t.CreatedAt.UnixMilli(),
 			UpdatedAt:     t.UpdatedAt.UnixMilli(),
+			DeletedAt:     deletedAt,
 		}
 	}
 	return responsex.GetTeacherListResponse{

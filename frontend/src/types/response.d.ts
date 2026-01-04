@@ -11,6 +11,8 @@ export interface StudentDTO {
   status: number
   created_at: number
   updated_at: number
+  deleted_at?: number
+  lastModified?: string
 }
 
 export interface GetTeacherListResponse {

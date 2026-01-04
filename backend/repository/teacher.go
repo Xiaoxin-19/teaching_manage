@@ -10,6 +10,7 @@ import (
 
 type TeacherRepository interface {
 	GetTeacherList(ctx context.Context, key string, status int, offset int, limit int) ([]entity.Teacher, int64, error)
+	GetTeacherListUnscoped(ctx context.Context, key string, status int, offset int, limit int) ([]entity.Teacher, int64, error)
 	CreateTeacher(ctx context.Context, teacher entity.Teacher) error
 	DeleteTeacher(ctx context.Context, id uint) error
 	UpdateTeacher(ctx context.Context, teacher entity.Teacher) error
@@ -41,6 +42,29 @@ func (tr TeacherRepositoryImpl) GetTeacherList(ctx context.Context, key string, 
 			Remark:        t.Remark,
 			CreatedAt:     t.CreatedAt,
 			UpdatedAt:     t.UpdatedAt,
+		})
+	}
+	return entities, total, nil
+}
+
+func (tr TeacherRepositoryImpl) GetTeacherListUnscoped(ctx context.Context, key string, status int, offset int, limit int) ([]entity.Teacher, int64, error) {
+	teachers, total, err := tr.dao.GetTeacherListUnscoped(ctx, key, status, offset, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	var entities []entity.Teacher
+	for _, t := range teachers {
+		entities = append(entities, entity.Teacher{
+			ID:            t.ID,
+			Name:          t.Name,
+			TeacherNumber: t.TeacherNumber,
+			Gender:        pkg.Gender(t.Gender),
+			Phone:         t.Phone,
+			Status:        t.Status,
+			Remark:        t.Remark,
+			CreatedAt:     t.CreatedAt,
+			UpdatedAt:     t.UpdatedAt,
+			DeletedAt:     t.DeletedAt.Time,
 		})
 	}
 	return entities, total, nil

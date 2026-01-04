@@ -12,6 +12,9 @@ export interface Student {
   gender: string;
   remark: string;
   status: number;
+  created_at?: number;
+  updated_at?: number;
+  deleted_at?: number;
   lastModified?: string;
 }
 
@@ -36,6 +39,7 @@ export interface Teacher {
   remark: string;
   updated_at: string;
   created_at: string;
+  deleted_at?: number;
   lastModified?: string;
 }
 
@@ -46,6 +50,7 @@ export interface Subject {
   student_count: number; // 关联学员数
   created_at?: number;
   updated_at?: number;
+  deleted_at?: number;
   lastModified?: string;
 }
 
@@ -75,6 +80,7 @@ export interface TeachingRecord {
   endTime: string;
   studentId: number | null;
   studentName: string;
+  studentNumber?: string;
   teacherId: number | null;
   teacherName: string;
   subjectName: string;
@@ -130,4 +136,5 @@ export interface Order {
   _studentId?: number
   _subjectId?: number
   _subjectName?: string
+  _studentName?: string
 }

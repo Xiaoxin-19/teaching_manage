@@ -48,11 +48,41 @@ func (om OrderManager) GetOrderList(ctx context.Context, req *requestx.GetOrderL
 
 	var orderDTOs []responsex.OrderDTO
 	for _, order := range orders {
+		// 处理学员 DeletedAt
+		var studentDeletedAt int64 = 0
+		if !order.StudentCourse.Student.DeletedAt.IsZero() {
+			studentDeletedAt = order.StudentCourse.Student.DeletedAt.UnixMilli()
+		}
+
+		// 处理科目 DeletedAt
+		var subjectDeletedAt int64 = 0
+		if !order.StudentCourse.Subject.DeletedAt.IsZero() {
+			subjectDeletedAt = order.StudentCourse.Subject.DeletedAt.UnixMilli()
+		}
+
 		orderDTOs = append(orderDTOs, responsex.OrderDTO{
-			ID:        order.ID,
-			OrderNo:   order.OrderNumber,
-			Student:   responsex.StudentDTO{ID: order.StudentCourse.Student.ID, Name: order.StudentCourse.Student.Name, StudentNumber: order.StudentCourse.Student.StudentNumber},
-			Subject:   responsex.SubjectDTO{ID: order.StudentCourse.Subject.ID, Name: order.StudentCourse.Subject.Name},
+			ID:      order.ID,
+			OrderNo: order.OrderNumber,
+			Student: responsex.StudentDTO{
+				ID:            order.StudentCourse.Student.ID,
+				Name:          order.StudentCourse.Student.Name,
+				StudentNumber: order.StudentCourse.Student.StudentNumber,
+				Gender:        order.StudentCourse.Student.Gender,
+				Phone:         order.StudentCourse.Student.Phone,
+				Remark:        order.StudentCourse.Student.Remark,
+				Status:        order.StudentCourse.Student.Status,
+				CreatedAt:     order.StudentCourse.Student.CreatedAt.UnixMilli(),
+				UpdatedAt:     order.StudentCourse.Student.UpdatedAt.UnixMilli(),
+				DeletedAt:     studentDeletedAt,
+			},
+			Subject: responsex.SubjectDTO{
+				ID:            order.StudentCourse.Subject.ID,
+				Name:          order.StudentCourse.Subject.Name,
+				SubjectNumber: order.StudentCourse.Subject.SubjectNumber,
+				CreatedAt:     order.StudentCourse.Subject.CreatedAt.UnixMilli(),
+				UpdatedAt:     order.StudentCourse.Subject.UpdatedAt.UnixMilli(),
+				DeletedAt:     subjectDeletedAt,
+			},
 			Teacher:   responsex.TeacherDTO{ID: order.StudentCourse.Teacher.ID, Name: order.StudentCourse.Teacher.Name},
 			Hours:     order.Hours,
 			Amount:    order.Amount,

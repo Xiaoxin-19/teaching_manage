@@ -14,11 +14,9 @@ type StudentDao interface {
 	UpdateStudent(ctx context.Context, stu *model.Student) error
 	DeleteStudent(ctx context.Context, id uint) error
 	GetStudentByID(ctx context.Context, id uint) (*model.Student, error)
-	GetStudentByIdWithDeleted(ctx context.Context, id uint) (*model.Student, error)
 	GetStudentListWithStatus(ctx context.Context, key string, offset int, limit int, status model.StudentStatus, targetStatus model.StudentStatus) ([]model.Student, int64, error)
+	GetStudentListWithStatusUnscoped(ctx context.Context, key string, offset int, limit int, status model.StudentStatus, targetStatus model.StudentStatus) ([]model.Student, int64, error)
 	GetStudentByName(ctx context.Context, name string) ([]model.Student, error)
-	UpdateStudentHours(ctx context.Context, id uint, hours int) error
-	UpdateStudentHoursWithDeleted(ctx context.Context, id uint, hours int) error
 }
 
 type StudentGormDao struct {
@@ -52,23 +50,6 @@ func (s StudentGormDao) UpdateStudent(ctx context.Context, stu *model.Student) e
 	return nil
 }
 
-func (s StudentGormDao) UpdateStudentHours(ctx context.Context, id uint, diff int) error {
-	_, err := gorm.G[model.Student](s.db).Where("id = ?", id).Update(ctx, "hours", gorm.Expr("hours + ?", diff))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s StudentGormDao) UpdateStudentHoursWithDeleted(ctx context.Context, id uint, diff int) error {
-	_, err := s.db.Unscoped().WithContext(ctx).Model(&model.Student{}).
-		Where("id = ?", id).Update("hours", gorm.Expr("hours + ?", diff)).RowsAffected, s.db.Error
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s StudentGormDao) DeleteStudent(ctx context.Context, id uint) error {
 	// 使用 ID 初始化 struct，确保 AfterDelete 钩子能获取到 ID
 	stu := model.Student{Model: gorm.Model{ID: id}}
@@ -91,17 +72,6 @@ func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*model.Stu
 	return &stu, nil
 }
 
-// GetStudentByIdWithDeleted retrieves a student by ID, including those that have been soft-deleted.
-func (s StudentGormDao) GetStudentByIdWithDeleted(ctx context.Context, id uint) (*model.Student, error) {
-	stu := model.Student{}
-
-	err := s.db.Unscoped().WithContext(ctx).Where("id = ?", id).Preload("Teacher", nil).First(&stu).Error
-	if err != nil {
-		return nil, err
-	}
-	return &stu, nil
-}
-
 func (s StudentGormDao) GetStudentListWithStatus(ctx context.Context, key string, offset int, limit int,
 	statusLevel model.StudentStatus, statusTarget model.StudentStatus) ([]model.Student, int64, error) {
 
@@ -118,7 +88,7 @@ func (s StudentGormDao) GetStudentListWithStatus(ctx context.Context, key string
 
 	// keyword filtering
 	if key != "" {
-		query = query.Where("name LIKE ?", "%"+key+"%").Or("phone LIKE ?", "%"+key+"%").Or("student_number LIKE ?", "%"+key+"%")
+		query = query.Where("(name LIKE ? OR phone LIKE ? OR student_number LIKE ?)", "%"+key+"%", "%"+key+"%", "%"+key+"%")
 	}
 
 	// get total count
@@ -129,6 +99,34 @@ func (s StudentGormDao) GetStudentListWithStatus(ctx context.Context, key string
 
 	// get paginated results
 	students, err = query.Offset(offset).Limit(limit).Order("created_at desc").Find(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	return students, total, nil
+}
+
+func (s StudentGormDao) GetStudentListWithStatusUnscoped(ctx context.Context, key string, offset int, limit int,
+	statusLevel model.StudentStatus, statusTarget model.StudentStatus) ([]model.Student, int64, error) {
+	query := s.db.Unscoped().WithContext(ctx).Model(&model.Student{})
+	// student status filtering
+	query = query.Where("status <= ?", statusLevel)
+	if statusTarget != 0 {
+		query = query.Where("status = ?", statusTarget)
+	}
+	// keyword filtering
+	if key != "" {
+		query = query.Where("(name LIKE ? OR phone LIKE ? OR student_number LIKE ?)", "%"+key+"%", "%"+key+"%", "%"+key+"%")
+	}
+
+	// get total count
+	var total int64
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	// get paginated results
+	var students []model.Student
+	err = query.Offset(offset).Limit(limit).Order("created_at desc").Find(&students).Error
 	if err != nil {
 		return nil, 0, err
 	}

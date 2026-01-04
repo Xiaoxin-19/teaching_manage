@@ -150,13 +150,38 @@ export function useRecordManage() {
   const selectedTeacherText = computed(() => getSelectedNames(selectedTeachers.value, teacherOptions.value, '老师'));
   const selectedSubjectText = computed(() => getSelectedNames(selectedSubjects.value, subjectOptions.value, '科目').replace('人', '个')); // 科目单位是个
 
+  // 删除项说明文本
+  const deletedItemLegend = computed(() => {
+    return '* 表示已删除的条目';
+  });
+
+  // 检查学生是否被删除
+  const isStudentDeleted = (studentId: number | null): boolean => {
+    if (!studentId) return false;
+    const record = serverItems.value.find(item => item.studentId === studentId);
+    return record?.studentName?.endsWith('*') || false;
+  };
+
+  // 检查教师是否被删除
+  const isTeacherDeleted = (teacherId: number | null): boolean => {
+    if (!teacherId) return false;
+    const record = serverItems.value.find(item => item.teacherId === teacherId);
+    return record?.teacherName?.endsWith('*') || false;
+  };
+
+  // 检查科目是否被删除
+  const isSubjectDeleted = (subjectName: string): boolean => {
+    if (!subjectName) return false;
+    return subjectName.endsWith('*');
+  };
+
   // --- 搜索方法 (防抖) ---
   const onStudentSearch = debounce(async (keyword: string) => {
     if (!keyword) return;
     loadingStudents.value = true;
     try {
-      const res = await GetStudentList({ Offset: 0, Limit: 25, Keyword: keyword, Status_Level: 3, Status_Target: 0 } as any);
-      const newOptions = res.students.map(s => ({ title: `${s.name} (${s.student_number})`, value: s.id }));
+      const res = await GetStudentList({ Offset: 0, Limit: 25, Keyword: keyword, Status_Level: 3, Status_Target: 0, Show_Deleted: true } as any);
+      const newOptions = res.students.map(s => ({ title: `${s.name}${s.deleted_at ? '*' : ''} (${s.student_number})`, value: s.id }));
 
       // 保留已选中的项
       if (selectedStudents.value.length > 0) {
@@ -179,8 +204,8 @@ export function useRecordManage() {
     if (!keyword) return;
     loadingTeachers.value = true;
     try {
-      const res = await GetTeacherList({ Offset: 0, Limit: 25, Keyword: keyword } as any);
-      const newOptions = res.teachers.map(t => ({ title: `${t.name} (${t.teacher_number})`, value: t.id }));
+      const res = await GetTeacherList({ Offset: 0, Limit: 25, Keyword: keyword, Show_Deleted: true } as any);
+      const newOptions = res.teachers.map(t => ({ title: `${t.name}${t.deleted_at ? '*' : ''} (${t.teacher_number})`, value: t.id }));
 
       if (selectedTeachers.value.length > 0) {
         const selected = teacherOptions.value.filter(o => selectedTeachers.value.includes(o.value));
@@ -202,8 +227,8 @@ export function useRecordManage() {
     if (!keyword) return;
     loadingSubjects.value = true;
     try {
-      const res = await GetSubjectList({ Offset: 0, Limit: 25, Keyword: keyword } as any);
-      const newOptions = res.subjects.map(s => ({ title: s.name, value: s.id }));
+      const res = await GetSubjectList({ Offset: 0, Limit: 25, Keyword: keyword, Show_Deleted: true } as any);
+      const newOptions = res.subjects.map(s => ({ title: `${s.name}${s.deleted_at ? '*' : ''} (${s.subject_number || '无编号'})`, value: s.id }));
 
       if (selectedSubjects.value.length > 0) {
         const selected = subjectOptions.value.filter(o => selectedSubjects.value.includes(o.value));
@@ -250,10 +275,11 @@ export function useRecordManage() {
         startTime: item.start_time,
         endTime: item.end_time,
         studentId: item.student.id,
-        studentName: item.student.name,
+        studentName: item.student.deleted_at ? `${item.student.name}*` : item.student.name,
+        studentNumber: item.student.student_number,
         teacherId: item.teacher.id,
-        teacherName: item.teacher.name,
-        subjectName: item.subject.name,
+        teacherName: item.teacher.deleted_at ? `${item.teacher.name}*` : item.teacher.name,
+        subjectName: item.subject.deleted_at ? `${item.subject.name}*` : item.subject.name,
         remark: item.remark,
       }));
       serverItems.value = items;
@@ -494,6 +520,7 @@ export function useRecordManage() {
     selectedStudentText,
     selectedTeacherText,
     selectedSubjectText,
+    deletedItemLegend,
     activeFilter,
     activeOptions,
 
@@ -515,5 +542,8 @@ export function useRecordManage() {
     exportRecords,
     onImportSuccess,
     onImportFailed,
+    isStudentDeleted,
+    isTeacherDeleted,
+    isSubjectDeleted,
   };
 }

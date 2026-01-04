@@ -116,13 +116,26 @@ func (rm RecordManager) GetRecordList(ctx context.Context, req *requestx.GetReco
 
 	result := make([]responsex.RecordDTO, len(records))
 	for i, rec := range records {
+		studentDeletedAt := int64(0)
+		if !rec.Student.DeletedAt.IsZero() {
+			studentDeletedAt = rec.Student.DeletedAt.UnixMilli()
+		}
+		teacherDeletedAt := int64(0)
+		if !rec.Teacher.DeletedAt.IsZero() {
+			teacherDeletedAt = rec.Teacher.DeletedAt.UnixMilli()
+		}
+		subjectDeletedAt := int64(0)
+		if !rec.Subject.DeletedAt.IsZero() {
+			subjectDeletedAt = rec.Subject.DeletedAt.UnixMilli()
+		}
+
 		result[i] = responsex.RecordDTO{
 			ID:           rec.ID,
 			CreatedAt:    rec.CreatedAt.UnixMilli(),
 			UpdatedAt:    rec.UpdatedAt.UnixMilli(),
-			Student:      responsex.StudentDTO{ID: rec.Student.ID, Name: rec.Student.Name, StudentNumber: rec.Student.StudentNumber, Status: int(rec.Student.Status)},
-			Teacher:      responsex.TeacherDTO{ID: rec.Teacher.ID, Name: rec.Teacher.Name, TeacherNumber: rec.Teacher.TeacherNumber},
-			Subject:      responsex.SubjectDTO{ID: rec.Subject.ID, Name: rec.Subject.Name},
+			Student:      responsex.StudentDTO{ID: rec.Student.ID, Name: rec.Student.Name, StudentNumber: rec.Student.StudentNumber, Status: int(rec.Student.Status), DeletedAt: studentDeletedAt},
+			Teacher:      responsex.TeacherDTO{ID: rec.Teacher.ID, Name: rec.Teacher.Name, TeacherNumber: rec.Teacher.TeacherNumber, DeletedAt: teacherDeletedAt},
+			Subject:      responsex.SubjectDTO{ID: rec.Subject.ID, Name: rec.Subject.Name, DeletedAt: subjectDeletedAt},
 			TeachingDate: rec.TeachingDate.Format("2006-01-02"),
 			StartTime:    rec.StartTime.Format("15:04"),
 			EndTime:      rec.EndTime.Format("15:04"),

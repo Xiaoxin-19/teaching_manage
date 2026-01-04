@@ -12,6 +12,7 @@ import { GetOrderListResponse } from '../../types/response'
 interface SelectOption {
   title: string
   value: string | number
+  deleted_at?: number
 }
 
 
@@ -75,13 +76,16 @@ export function useFinanceManage() {
         Offset: 0,
         Limit: 25,
         Status_Level: 3, // 仅搜索在读/潜在
-        Status_Target: 0
+        Status_Target: 0,
+        Show_Deleted: true
       }
       const res = await GetStudentList(req)
 
       const newOptions: SelectOption[] = (res.students || []).map(s => ({
-        title: `${s.name} (${s.student_number || '无学号'})`,
-        value: s.id
+        // 标注删除状态
+        title: `${s.name}${s.deleted_at != 0 ? '*' : ''} (${s.student_number || '无学号'})`,
+        value: s.id,
+        deleted_at: s.deleted_at
       }))
 
       // 保留当前已选中的项
@@ -106,13 +110,15 @@ export function useFinanceManage() {
       const req: GetSubjectListRequest = {
         Keyword: keyword,
         Offset: 0,
-        Limit: 25
+        Limit: 25,
+        Show_Deleted: true
       }
       const res = await GetSubjectList(req)
 
       const newOptions: SelectOption[] = (res.subjects || []).map(s => ({
-        title: s.name,
-        value: s.id
+        title: `${s.name}${s.deleted_at != 0 ? '*' : ''} (${s.subject_number || '无编号'})`,
+        value: s.id,
+        deleted_at: s.deleted_at
       }))
 
       // 保留已选项
@@ -187,7 +193,7 @@ export function useFinanceManage() {
     loadData()
   }
 
-  // --- 模拟数据加载 ---
+  // --- 数据加载 ---
   const loadData = async () => {
     loading.value = true
     try {
@@ -207,12 +213,13 @@ export function useFinanceManage() {
       data.orders = data.orders || []
       orders.value = data.orders.map((o: Order) => {
 
-        let data: Order = {
+        let order: Order = {
           ...o,
           tags: categorizeOrderTags(o.remark || '', o.hours) as OrderTag[],
-          _subjectName: o.subject.name // 新增字段用于显示
+          _subjectName: o.subject.name, // 不在这里添加 *，让模板来处理
+          _studentName: o.student.name // 不在这里添加 *，让模板来处理
         }
-        return data
+        return order
       })
       totalItems.value = data.total
     } catch (e) {
@@ -272,6 +279,16 @@ export function useFinanceManage() {
 
   // --- 辅助函数 ---
 
+  // 判断学员是否已删除
+  const isStudentDeleted = (order: Order) => {
+    return order.student?.deleted_at && order.student.deleted_at !== 0
+  }
+
+  // 判断科目是否已删除
+  const isSubjectDeleted = (order: Order) => {
+    return order.subject?.deleted_at && order.subject.deleted_at !== 0
+  }
+
   const getTypeColor = (type: string) => 'grey-darken-1' // 统一灰色
   const getTypeText = (type: string) => type === 'increase' ? '充值' : '退费'
 
@@ -321,6 +338,8 @@ export function useFinanceManage() {
     activeFilters,
     loadItems,
     clearFilter,
+    isStudentDeleted,
+    isSubjectDeleted,
     getTypeColor,
     getTypeText,
     formatCurrency,

@@ -9,4 +9,5 @@ type Subject struct {
 	CreatedAt       time.Time        `json:"created_at"`
 	UpdatedAt       time.Time        `json:"updated_at"`
 	StudentSubjects []StudentSubject `json:"student_subjects"` // 选修该科目的学生列表
+	DeletedAt       time.Time        `json:"deleted_at"`
 }

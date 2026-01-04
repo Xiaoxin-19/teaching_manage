@@ -56,7 +56,9 @@ func (r *RecordGormDAO) GetRecordList(ctx context.Context, stuIDs []uint, teache
 		return db.Unscoped()
 	}).Preload("Student", func(db *gorm.DB) *gorm.DB {
 		return db.Unscoped()
-	}).Preload("Subject")
+	}).Preload("Subject", func(db *gorm.DB) *gorm.DB {
+		return db.Unscoped()
+	})
 
 	// 过滤学生ID
 	if len(stuIDs) > 0 {

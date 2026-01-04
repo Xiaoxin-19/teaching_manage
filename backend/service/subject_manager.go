@@ -25,9 +25,19 @@ func NewSubjectManager(repo repository.SubjectRepository, repoCourse repository.
 }
 
 func (sm SubjectManager) GetSubjectList(ctx context.Context, req *requestx.GetSubjectListRequest) (responsex.GetSubjectListResponse, error) {
-	subjects, total, err := sm.repo.GetSubjectList(ctx, req.KeyWord, req.Offset, req.Limit)
-	if err != nil {
-		return responsex.GetSubjectListResponse{}, err
+	var subjects []entity.Subject
+	var total int64
+	var err error
+	if req.ShowDeleted {
+		subjects, total, err = sm.repo.GetSubjectListUnscoped(ctx, req.KeyWord, req.Offset, req.Limit)
+		if err != nil {
+			return responsex.GetSubjectListResponse{}, err
+		}
+	} else {
+		subjects, total, err = sm.repo.GetSubjectList(ctx, req.KeyWord, req.Offset, req.Limit)
+		if err != nil {
+			return responsex.GetSubjectListResponse{}, err
+		}
 	}
 
 	dtoSubjects := make([]responsex.SubjectDTO, 0, len(subjects))
@@ -38,12 +48,17 @@ func (sm SubjectManager) GetSubjectList(ctx context.Context, req *requestx.GetSu
 				effectiveCourseCount++
 			}
 		}
+		deletedAt := int64(0)
+		if !s.DeletedAt.IsZero() {
+			deletedAt = s.DeletedAt.UnixMilli()
+		}
 		dtoSubjects = append(dtoSubjects, responsex.SubjectDTO{
 			ID:            s.ID,
 			SubjectNumber: s.SubjectNumber,
 			Name:          s.Name,
 			CreatedAt:     s.CreatedAt.UnixMilli(),
 			UpdatedAt:     s.UpdatedAt.UnixMilli(),
+			DeletedAt:     deletedAt,
 			StudentCount:  int64(effectiveCourseCount),
 		})
 	}
