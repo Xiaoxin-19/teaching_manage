@@ -16,15 +16,17 @@ import (
 	"time"
 
 	wails "github.com/wailsapp/wails/v2/pkg/runtime"
+	"gorm.io/gorm"
 )
 
 type TeacherManager struct {
-	Ctx  context.Context
-	repo repository.TeacherRepository
+	Ctx        context.Context
+	repo       repository.TeacherRepository
+	repoCourse repository.CourseRepository
 }
 
-func NewTeacherManager(repo repository.TeacherRepository) *TeacherManager {
-	return &TeacherManager{repo: repo}
+func NewTeacherManager(repo repository.TeacherRepository, repoCourse repository.CourseRepository) *TeacherManager {
+	return &TeacherManager{repo: repo, repoCourse: repoCourse}
 }
 
 func (tm TeacherManager) CreateTeacher(ctx context.Context, teacher *requestx.CreateTeacherRequest) (string, error) {
@@ -85,12 +87,46 @@ func (tm TeacherManager) DeleteTeacher(ctx context.Context, req *requestx.Delete
 	logger.Warn("deleting teacher",
 		logger.UInt("teacher_id", req.Id),
 	)
-	if err := tm.repo.DeleteTeacher(ctx, req.Id); err != nil {
-		if errors.Is(err, dao.ErrRecordNotFound) {
-			logger.Warn("teacher not found", logger.UInt("teacher_id", req.Id))
-			return "teacher deleted", nil
+	// 检查是否有正在进行中的课程
+
+	courses, err := tm.repoCourse.GetByTeacherID(ctx, req.Id)
+	if err != nil {
+		logger.Error("failed to get courses by teacher id", logger.ErrorType(err))
+		return "", err
+	}
+	countEffectiveCourses := 0
+	for _, c := range courses {
+		if c.Status != 3 { // not "已取消"
+			countEffectiveCourses++
 		}
-		logger.Error("failed to delete teacher", logger.ErrorType(err))
+	}
+	if countEffectiveCourses > 0 {
+		logger.Warn("teacher has effective courses, cannot delete", logger.UInt("teacher_id", req.Id), logger.Int("effective_course_count", countEffectiveCourses))
+		return "", fmt.Errorf("该教师有正在进行中的课程，无法删除")
+	}
+
+	db := dao.GetDB()
+	err = db.Transaction(func(tx *gorm.DB) error {
+		txRepo := repository.NewTeacherRepository(dao.NewTeacherDao(tx))
+		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(tx))
+
+		// 删除教师的选课记录
+		err = txCourseRepo.DeleteByTeacherID(ctx, req.Id)
+		if err != nil {
+			logger.Error("failed to delete teacher courses in transaction", logger.ErrorType(err))
+			return fmt.Errorf("failed to delete teacher courses: %w", err)
+		}
+
+		// 删除教师记录
+		err = txRepo.DeleteTeacher(ctx, req.Id)
+		if err != nil {
+			logger.Error("failed to delete teacher in transaction", logger.ErrorType(err))
+			return fmt.Errorf("failed to delete teacher: %w", err)
+		}
+		return nil
+	})
+
+	if err != nil {
 		return "", err
 	}
 	return "teacher deleted", nil
@@ -104,6 +140,26 @@ func (tm TeacherManager) UpdateTeacher(ctx context.Context, req *requestx.Update
 		logger.String("remark", req.Remark),
 	)
 
+	// 如果需要修改老师离职，则需要检测是否有正在进行中的课程
+	if req.Status == int(pkg.TeacherStatusResigned) {
+		course, err := tm.repoCourse.GetByTeacherID(ctx, req.Id)
+
+		if err != nil {
+			logger.Error("failed to get courses by teacher id", logger.ErrorType(err))
+			return "", err
+		}
+		effectiveCourseCount := 0
+		for _, c := range course {
+			if c.Status != 3 { // not "已取消"
+				effectiveCourseCount++
+			}
+		}
+		if effectiveCourseCount > 0 {
+			logger.Warn("teacher has effective courses, cannot resign", logger.UInt("teacher_id", req.Id), logger.Int("effective_course_count", effectiveCourseCount))
+			return "", fmt.Errorf("该教师有正在进行中的课程，无法设置为离职状态")
+		}
+	}
+
 	teacher := entity.Teacher{
 		ID:     req.Id,
 		Name:   req.Name,
@@ -112,6 +168,7 @@ func (tm TeacherManager) UpdateTeacher(ctx context.Context, req *requestx.Update
 		Status: req.Status,
 		Remark: req.Remark,
 	}
+
 	if err := tm.repo.UpdateTeacher(ctx, teacher); err != nil {
 		logger.Error("failed to update teacher", logger.ErrorType(err))
 		return "", err

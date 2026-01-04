@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"teaching_manage/backend/dao"
 	"teaching_manage/backend/entity"
@@ -16,15 +15,17 @@ import (
 	"time"
 
 	wails "github.com/wailsapp/wails/v2/pkg/runtime"
+	"gorm.io/gorm"
 )
 
 type StudentManager struct {
-	Ctx  context.Context
-	repo repository.StudentRepository
+	Ctx        context.Context
+	repo       repository.StudentRepository
+	repoCourse repository.CourseRepository
 }
 
-func NewStudentManager(repo repository.StudentRepository) *StudentManager {
-	return &StudentManager{repo: repo}
+func NewStudentManager(repo repository.StudentRepository, repoCourse repository.CourseRepository) *StudentManager {
+	return &StudentManager{repo: repo, repoCourse: repoCourse}
 }
 
 func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetStudentListRequest) (*responsex.GetStudentListResponse, error) {
@@ -115,10 +116,52 @@ func (sm StudentManager) DeleteStudent(ctx context.Context, req *requestx.Delete
 	logger.Info("Deleting one student",
 		logger.UInt("id", req.ID),
 	)
-	err := sm.repo.DeleteStudent(ctx, req.ID)
-	if err != nil && !errors.Is(err, dao.ErrRecordNotFound) {
-		logger.Error("failed to delete student", logger.ErrorType(err))
-		return "", fmt.Errorf("failed to delete student: %w", err)
+
+	// 检查是否有正在上课的课程
+	inProgressCourses, err := sm.repoCourse.GetByStudentID(ctx, req.ID)
+	if err != nil {
+		logger.Error("failed to check student courses before deletion", logger.ErrorType(err))
+		return "", fmt.Errorf("failed to check student courses: %w", err)
+	}
+
+	countEffective := 0
+	for _, c := range inProgressCourses {
+		if c.Status != entity.StudentSubjectStatusCompleted {
+			countEffective++
+		}
+	}
+
+	if countEffective > 0 {
+		return "", fmt.Errorf("该学生有正在进行的课程，无法删除")
+	}
+	db := dao.GetDB()
+
+	err = db.Transaction(func(tx *gorm.DB) error {
+		txStuRepo := repository.NewStudentRepository(dao.NewStudentDao(tx))
+		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(tx))
+
+		// 删除学生的选课记录
+		logger.Debug("Deleting student courses")
+		err = txCourseRepo.DeleteByStudentID(ctx, req.ID)
+		if err != nil {
+			logger.Error("failed to delete student courses in transaction", logger.ErrorType(err))
+			return fmt.Errorf("failed to delete student courses: %w", err)
+		}
+
+		logger.Debug("Deleting student record")
+		// 删除学生记录
+		err = txStuRepo.DeleteStudent(ctx, req.ID)
+		if err != nil {
+			logger.Error("failed to delete student in transaction", logger.ErrorType(err))
+			return fmt.Errorf("failed to delete student: %w", err)
+		}
+
+		// 不删除关联的课程记录和充值记录，保留历史数据
+		return nil
+	})
+
+	if err != nil {
+		return "", err
 	}
 
 	return "deleted successfully", nil

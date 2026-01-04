@@ -2,7 +2,6 @@ package model
 
 import (
 	"fmt"
-	"teaching_manage/backend/pkg/logger"
 	"time"
 
 	"gorm.io/gorm"
@@ -68,27 +67,4 @@ func (s *Student) AfterCreate(tx *gorm.DB) (err error) {
 
 	// 使用 UpdateColumn 仅更新 StudentNumber 字段，避免触发其他钩子或更新时间戳
 	return tx.Model(s).UpdateColumn("student_number", s.StudentNumber).Error
-}
-
-// AfterDelete GORM 钩子：在删除学生后，级联软删除关联的课程记录
-func (s *Student) AfterDelete(tx *gorm.DB) (err error) {
-	logger.Info("Cascading soft delete for StudentSubject records",
-		logger.UInt("student_id", s.ID), logger.String("student_name", s.Name),
-	)
-
-	// 1. 先查询出关联的 StudentSubject 记录
-	var subjects []StudentSubject
-	if err := tx.Where("student_id = ?", s.ID).Find(&subjects).Error; err != nil {
-		return err
-	}
-
-	// 2. 如果有记录，则删除它们
-	// 传递切片给 Delete，GORM 会为切片中的每个元素触发钩子，并且 ID 是存在的
-	if len(subjects) > 0 {
-		if err := tx.Delete(&subjects).Error; err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

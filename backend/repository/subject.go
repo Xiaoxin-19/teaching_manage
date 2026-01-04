@@ -64,6 +64,7 @@ func (sr SubjectRepositoryImpl) GetSubjectList(ctx context.Context, key string, 
 						Teacher: entity.Teacher{ID: ss.ID},
 						Student: entity.Student{ID: ss.StudentID},
 						Balance: ss.Balance,
+						Status:  entity.ParseStudentSubjectStatus(ss.Status),
 					})
 				}
 				return studentSubjects

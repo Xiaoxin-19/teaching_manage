@@ -120,7 +120,12 @@ func (cm CourseManager) ToggleStatus(ctx context.Context, req *requestx.ToggleCo
 
 func (cm CourseManager) DeleteCourse(ctx context.Context, req *requestx.DeleteCourseRequest) (string, error) {
 	logger.Info("Deleting course", logger.UInt("course_id", req.CourseId), logger.String("is_hard_delete", fmt.Sprintf("%v", req.IsHardDelete)))
-	err := cm.repo.DeleteCourse(ctx, req.CourseId, req.IsHardDelete, req.Remark)
+	var err error
+	if req.IsHardDelete {
+		err = cm.repo.DeleteCourse(ctx, req.CourseId)
+	} else {
+		err = cm.repo.UpdateStatus(ctx, req.CourseId, 3, req.Remark)
+	}
 	if errors.Is(err, dao.ErrRecordNotFound) {
 		logger.Error("failed to delete course: record not found", logger.ErrorType(err))
 		return "course deleted", nil

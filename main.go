@@ -32,34 +32,44 @@ func main() {
 		panic(err)
 	}
 
-	// Setup teacher manager
+	// setup DAOs
 	teacherDao := dao.NewTeacherDao(db)
+	studentDao := dao.NewStudentDao(db)
+	courseDao := dao.NewStudentCourseDao(db)
+	subjectDao := dao.NewSubjectDao(db)
+	orderDao := dao.NewRechargeOrderDao(db)
+	recordDao := dao.NewRecordDao(db)
+	// setup repositories
+
+	courseRepository := repository.NewCourseRepository(courseDao)
 	teacherRepository := repository.NewTeacherRepository(teacherDao)
-	teacherManager := service.NewTeacherManager(teacherRepository)
+	studentRepository := repository.NewStudentRepository(studentDao)
+	subjectRepository := repository.NewSubjectRepository(subjectDao)
+	recordRepository := repository.NewRecordRepository(recordDao)
+	orderRepository := repository.NewOrderRepository(orderDao)
+
+	// Setup teacher manager
+
+	teacherManager := service.NewTeacherManager(teacherRepository, courseRepository)
 
 	// Setup student manager
-	studentDao := dao.NewStudentDao(db)
-	studentRepository := repository.NewStudentRepository(studentDao)
-	studentManager := service.NewStudentManager(studentRepository)
+
+	studentManager := service.NewStudentManager(studentRepository, courseRepository)
 
 	// Set up subject manager
-	subjectDao := dao.NewSubjectDao(db)
-	subjectRepository := repository.NewSubjectRepository(subjectDao)
-	subjectManager := service.NewSubjectManager(subjectRepository)
+
+	subjectManager := service.NewSubjectManager(subjectRepository, courseRepository)
 
 	// Set up course manager
-	courseDao := dao.NewStudentCourseDao(db)
-	courseRepository := repository.NewCourseRepository(courseDao)
+
 	courseManager := service.NewCourseManager(courseRepository, studentRepository)
 
 	// Setup order manager
-	orderDao := dao.NewRechargeOrderDao(db)
-	orderRepository := repository.NewOrderRepository(orderDao)
+
 	orderManager := service.NewOrderManager(orderRepository, studentRepository)
 
 	// Setup record manager
-	recordDao := dao.NewRecordDao(db)
-	recordRepository := repository.NewRecordRepository(recordDao)
+
 	recordManager := service.NewRecordManager(recordRepository, courseRepository, subjectRepository, studentRepository)
 
 	// Setup Dashboard manager

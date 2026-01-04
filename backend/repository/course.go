@@ -9,15 +9,27 @@ import (
 
 type CourseRepository interface {
 	CreateCourse(ctx context.Context, sc entity.StudentSubject) error
+
+	// Get
 	GetCourseList(ctx context.Context,
 		students []uint, subjects []uint, teachers []uint, min *int, max *int, statuses []int, keyword string, offset int, limit int) ([]entity.StudentSubject, int64, error)
 	GetCourseByID(ctx context.Context, id uint) (*entity.StudentSubject, error)
+	GetByStudentIDAndSubjectID(ctx context.Context, studentID uint, subjectID uint) (*entity.StudentSubject, error)
+	GetByStudentID(ctx context.Context, d uint) ([]entity.StudentSubject, error)
+	GetByTeacherID(ctx context.Context, id uint) ([]entity.StudentSubject, error)
+	GetBySubjectID(ctx context.Context, subjectID uint) ([]entity.StudentSubject, error)
+	// Update
+	UpdateStatus(ctx context.Context, id uint, status int, remark string) error
 	UpdateCourseTeacher(ctx context.Context, id uint, teacherID uint, remark string) error
 	UpdateBalance(ctx context.Context, id uint, hours int) error
 	RechargeCourse(ctx context.Context, id uint, hours int, amount float64) error
 	ToggleStatus(ctx context.Context, id uint) error
-	DeleteCourse(ctx context.Context, id uint, isHardDelete bool, remark string) error
-	GetByStudentIDAndSubjectID(ctx context.Context, studentID uint, subjectID uint) (*entity.StudentSubject, error)
+
+	// Delete
+	DeleteByStudentID(ctx context.Context, stuID uint) error
+	DeleteByTeacherID(ctx context.Context, teacherID uint) error
+	DeleteBySubjectID(ctx context.Context, subjectID uint) error
+	DeleteCourse(ctx context.Context, id uint) error
 }
 
 type CourseRepositoryImpl struct {
@@ -84,14 +96,11 @@ func (cr CourseRepositoryImpl) ToggleStatus(ctx context.Context, id uint) error 
 		return nil
 	}
 
-	return cr.dao.UpdateStatus(ctx, id, newStatus)
+	return cr.dao.UpdateStatus(ctx, id, newStatus, "")
 }
 
-func (cr CourseRepositoryImpl) DeleteCourse(ctx context.Context, id uint, isHardDelete bool, remark string) error {
-	if isHardDelete {
-		return cr.dao.Delete(ctx, id)
-	}
-	return cr.dao.FinishCourse(ctx, id, remark)
+func (cr CourseRepositoryImpl) DeleteCourse(ctx context.Context, id uint) error {
+	return cr.dao.Delete(ctx, id)
 }
 
 func (cr CourseRepositoryImpl) GetCourseByID(ctx context.Context, id uint) (*entity.StudentSubject, error) {
@@ -142,4 +151,81 @@ func (cr CourseRepositoryImpl) GetByStudentIDAndSubjectID(ctx context.Context, s
 		CreatedAt: sc.CreatedAt,
 		UpdatedAt: sc.UpdatedAt,
 	}, nil
+}
+
+func (c CourseRepositoryImpl) GetByStudentID(ctx context.Context, d uint) ([]entity.StudentSubject, error) {
+	course, err := c.dao.GetByStudentID(ctx, d)
+	if err != nil {
+		return nil, err
+	}
+	var result []entity.StudentSubject
+	for _, sc := range course {
+		result = append(result, entity.StudentSubject{
+			ID:        sc.ID,
+			Student:   entity.Student{ID: sc.Student.ID, Name: sc.Student.Name, StudentNumber: sc.Student.StudentNumber, Status: int(sc.Student.Status)},
+			Balance:   sc.Balance,
+			AvgPrice:  sc.AvgPrice,
+			Remark:    sc.Remark,
+			Status:    entity.ParseStudentSubjectStatus(sc.Status),
+			CreatedAt: sc.CreatedAt,
+			UpdatedAt: sc.UpdatedAt,
+		})
+	}
+	return result, nil
+}
+
+func (c CourseRepositoryImpl) DeleteByStudentID(ctx context.Context, stuID uint) error {
+	return c.dao.DeleteByStudentID(ctx, stuID)
+}
+
+func (cr CourseRepositoryImpl) UpdateStatus(ctx context.Context, id uint, status int, remark string) error {
+	return cr.dao.UpdateStatus(ctx, id, status, remark)
+}
+
+func (cr CourseRepositoryImpl) DeleteByTeacherID(ctx context.Context, teacherID uint) error {
+	return cr.dao.DeleteByTeacherID(ctx, teacherID)
+}
+
+func (cr CourseRepositoryImpl) GetByTeacherID(ctx context.Context, id uint) ([]entity.StudentSubject, error) {
+	courses, err := cr.dao.GetByTeacherID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	var result []entity.StudentSubject
+	for _, sc := range courses {
+		result = append(result, entity.StudentSubject{
+			ID:        sc.ID,
+			Balance:   sc.Balance,
+			AvgPrice:  sc.AvgPrice,
+			Remark:    sc.Remark,
+			Status:    entity.ParseStudentSubjectStatus(sc.Status),
+			CreatedAt: sc.CreatedAt,
+			UpdatedAt: sc.UpdatedAt,
+		})
+	}
+	return result, nil
+}
+
+func (cr CourseRepositoryImpl) GetBySubjectID(ctx context.Context, subjectID uint) ([]entity.StudentSubject, error) {
+	courses, err := cr.dao.GetBySubjectID(ctx, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	var result []entity.StudentSubject
+	for _, sc := range courses {
+		result = append(result, entity.StudentSubject{
+			ID:        sc.ID,
+			Balance:   sc.Balance,
+			AvgPrice:  sc.AvgPrice,
+			Remark:    sc.Remark,
+			Status:    entity.ParseStudentSubjectStatus(sc.Status),
+			CreatedAt: sc.CreatedAt,
+			UpdatedAt: sc.UpdatedAt,
+		})
+	}
+	return result, nil
+}
+
+func (cr CourseRepositoryImpl) DeleteBySubjectID(ctx context.Context, subjectID uint) error {
+	return cr.dao.DeleteBySubjectID(ctx, subjectID)
 }
