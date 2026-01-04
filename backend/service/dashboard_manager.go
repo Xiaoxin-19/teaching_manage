@@ -449,7 +449,7 @@ func (m *DashboardManager) GetStudentGrowthData(ctx context.Context) (responsex.
 	return result, nil
 }
 
-// GetStudentGrowthTrendData 获取学员增长和流失趋势 (最近 6 个月)
+// GetStudentGrowthTrendData 获取学员增长和流失趋势 (最近 6 个月，包括本月)
 // 同时统计新增、流失和净增学员数
 // 新增定义：按 created_at 统计，不受后续状态变化影响
 // 流失定义：统计被软删除的学员 (deleted_at IS NOT NULL) 以及退学的学员 (status=3 AND withdraw_at IS NOT NULL)
@@ -457,7 +457,7 @@ func (m *DashboardManager) GetStudentGrowthTrendData(ctx context.Context) (respo
 	db := dao.GetDB()
 	var result responsex.StudentGrowthTrendResponse
 
-	// 生成最近 6 个月的月份标签
+	// 生成最近 6 个月的月份标签（包括本月）
 	now := time.Now()
 	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	limit := 6
@@ -610,17 +610,21 @@ func (m *DashboardManager) GetStudentBalanceData(ctx context.Context) (responsex
 	}, nil
 }
 
-// GetSubjectRankData 获取科目消课排行 (本月各科目消课占比)
+// GetSubjectRankData 获取科目消课排行 (最近6个月各科目消课占比)
 func (m *DashboardManager) GetSubjectRankData(ctx context.Context) (responsex.GetSubjectRankDataResponse, error) {
 	db := dao.GetDB()
 	var result responsex.GetSubjectRankDataResponse
 
-	// 本月起始日期
+	// 统计最近6个月的数据（包含本月）
 	now := time.Now()
-	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	nextMonth := startOfMonth.AddDate(0, 1, 0)
+	// 本月1号
+	currentMonthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	// 结束时间：下个月1号
+	endOfMonth := currentMonthStart.AddDate(0, 1, 0)
+	// 开始时间：往前推5个月（共6个月）
+	startOfMonth := currentMonthStart.AddDate(0, -5, 0)
 
-	// 查询本月各科目消课数 (join Record 和 Subject)
+	// 查询最近6个月各科目消课数 (join Record 和 Subject)
 	type SubjectRank struct {
 		Name  string `gorm:"column:name"`
 		Count int64  `gorm:"column:count"`
@@ -630,8 +634,8 @@ func (m *DashboardManager) GetSubjectRankData(ctx context.Context) (responsex.Ge
 	err := db.Model(&model.Record{}).
 		Select("subjects.name, COUNT(records.id) as count").
 		Joins("JOIN subjects ON records.subject_id = subjects.id").
-		Where("records.active = 1 AND records.deleted_at IS NULL AND subjects.deleted_at IS NULL AND records.teaching_date >= ? AND records.teaching_date < ?", startOfMonth, nextMonth).
-		Group("subjects.id, subjects.name").
+		Where("records.active = 1 AND records.deleted_at IS NULL AND subjects.deleted_at IS NULL AND records.teaching_date >= ? AND records.teaching_date < ?", startOfMonth, endOfMonth).
+		Group("subjects.id").
 		Order("count DESC").
 		Scan(&ranks).Error
 
