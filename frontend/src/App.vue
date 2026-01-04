@@ -118,6 +118,13 @@ provide('showConfirm', showConfirm)
 registerConfirm(showConfirm)
 </script>
 <style scoped>
+/* 禁用所有输入控件的浏览器自动填充 */
+:deep(input),
+:deep(textarea) {
+  -webkit-autocomplete: off;
+  autocomplete: off;
+}
+
 /* 隐藏滚动条 */
 div::-webkit-scrollbar {
   display: none;
