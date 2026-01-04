@@ -410,7 +410,7 @@ class DatabaseMigrator:
                     'subject_id': subject_id,
                     'balance': balance,  # 允许负数
                     'avg_price': 0.0,  # 需要根据实际业务计算
-                    'status': 1 if balance > 0 else 3,  # 1=正常, 3=结课
+                    'status': 1,  # 1=正常
                     'remark': '从 MySQL 迁移生成'
                 }
             
@@ -841,7 +841,8 @@ class DatabaseMigrator:
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         student_id, tid, subject_id, balance, balance, 0.0,
-                        1 if balance > 0 else 3, '从 MySQL 迁移生成',
+                        1,  # 1=正常
+                        '从 MySQL 迁移生成',
                         self._format_datetime_for_gorm(datetime.now()),
                         self._format_datetime_for_gorm(datetime.now()),
                         self._format_datetime_for_gorm(deleted_at)
