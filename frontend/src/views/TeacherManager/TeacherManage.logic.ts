@@ -25,6 +25,7 @@ const headers: any = [
   { title: '姓名', key: 'name', align: 'start', sortable: false },
   { title: '性别', key: 'gender', align: 'center', sortable: false },
   { title: '电话', key: 'phone', align: 'center', sortable: false },
+  { title: '状态', key: 'status', align: 'center', sortable: false },
   { title: '备注', key: 'remark', align: 'center', sortable: false },
   { title: '操作', key: 'actions', align: 'center', sortable: false, width: '120px' },
 ]
@@ -32,6 +33,7 @@ const headers: any = [
 // 教师数据列表
 const teachers = ref<Teacher[]>([])
 const search = ref('')
+const statusFilter = ref(1) // 默认显示在职 (1)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 var currentData = ref<Teacher | undefined>(undefined)
@@ -53,12 +55,27 @@ const getGenderColor = (gender: string) => {
   return 'grey-lighten-3'
 }
 
+// 状态文本转换
+const getStatusLabel = (status: number) => {
+  const map: Record<number, string> = {
+    1: '在职',
+    2: '离职'
+  }
+  return map[status] || '未知'
+}
+
+// 状态颜色区分
+const getStatusColor = (status: number) => {
+  return status === 1 ? 'success' : 'error'
+}
+
 
 // 从后端中获取教师列表
 async function fetchTeachers() {
   loading.value = true
   const reqData: GetTeacherListRequest = {
     Keyword: search.value,
+    Status: statusFilter.value,
     Offset: (page.value - 1) * itemsPerPage.value,
     Limit: itemsPerPage.value,
   }
@@ -74,6 +91,7 @@ async function fetchTeachers() {
       name: item.name,
       phone: item.phone,
       gender: item.gender,
+      status: item.status,
       remark: item.remark,
       teacher_number: item.teacher_number,
       updated_at: item.updated_at,
@@ -128,6 +146,7 @@ async function updateTeacher(data: Teacher) {
     Phone: data.phone,
     Remark: data.remark,
     Gender: data.gender,
+    Status: data.status,
   }
 
   try {
@@ -174,12 +193,10 @@ function exportTeacher2Excel() {
   })
 }
 
-function loadItems({ page: newPage, itemsPerPage: newItemsPerPage, sortBy }: { page: number; itemsPerPage: number; sortBy?: string[] | string | undefined }): void {
-  loading.value = true
+async function loadItems({ page: newPage, itemsPerPage: newItemsPerPage, sortBy }: { page: number; itemsPerPage: number; sortBy?: string[] | string | undefined }) {
   page.value = newPage
   itemsPerPage.value = newItemsPerPage
-  fetchTeachers()
-  loading.value = false
+  await fetchTeachers()
 }
 
 const handleSave = (data: Teacher) => {
@@ -215,6 +232,7 @@ export function useTeacherManage() {
   }
 
   return {
+    statusFilter,
     search,
     page,
     itemsPerPage,
@@ -234,5 +252,7 @@ export function useTeacherManage() {
     handleSave,
     getGenderColor,
     getGenderLabel,
+    getStatusLabel,
+    getStatusColor,
   }
 }

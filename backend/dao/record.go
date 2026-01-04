@@ -51,7 +51,12 @@ func (r *RecordGormDAO) GetRecordList(ctx context.Context, stuIDs []uint, teache
 
 	// 构建查询，关联学生和教师表以进行模糊搜索
 	query := r.db.WithContext(ctx).Model(&model.Record{}).Where("records.deleted_at is null")
-	query = query.Joins("Teacher").Joins("Student").Joins("Subject")
+	// 使用 Preload 并加上 Unscoped 以加载已软删除的关联数据
+	query = query.Preload("Teacher", func(db *gorm.DB) *gorm.DB {
+		return db.Unscoped()
+	}).Preload("Student", func(db *gorm.DB) *gorm.DB {
+		return db.Unscoped()
+	}).Preload("Subject")
 
 	// 过滤学生ID
 	if len(stuIDs) > 0 {

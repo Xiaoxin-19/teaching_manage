@@ -588,6 +588,20 @@ func (rm *RecordManager) validateTeachingRecords(ctx context.Context, f *exceliz
 			}
 		}
 
+		// 验证老师信息
+		if teacher.ID == 0 {
+			errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 无法获取学生 '%s' 报名科目 '%s' 的授课教师信息", i+2, stuName, subjectName))
+		}
+
+		if teacher.ID != 0 {
+			if teacher.Status != 1 {
+				errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 学生 '%s' 报名科目 '%s' 的授课教师状态异常，无法导入上课记录", i+2, stuName, subjectName))
+			}
+			if teacher.DeletedAt.IsZero() == false {
+				errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 学生 '%s' 报名科目 '%s' 的授课教师已被删除，无法导入上课记录", i+2, stuName, subjectName))
+			}
+		}
+
 		// teaching date format
 		logger.Debug("the teaching date is ", logger.String("date", teachingDate))
 		teachingDate = strings.ReplaceAll(teachingDate, "－", "-")

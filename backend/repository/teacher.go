@@ -9,7 +9,7 @@ import (
 )
 
 type TeacherRepository interface {
-	GetTeacherList(ctx context.Context, key string, offset int, limit int) ([]entity.Teacher, int64, error)
+	GetTeacherList(ctx context.Context, key string, status int, offset int, limit int) ([]entity.Teacher, int64, error)
 	CreateTeacher(ctx context.Context, teacher entity.Teacher) error
 	DeleteTeacher(ctx context.Context, id uint) error
 	UpdateTeacher(ctx context.Context, teacher entity.Teacher) error
@@ -23,8 +23,8 @@ func NewTeacherRepository(dao dao.TeacherDao) TeacherRepository {
 	return &TeacherRepositoryImpl{dao: dao}
 }
 
-func (tr TeacherRepositoryImpl) GetTeacherList(ctx context.Context, key string, offset int, limit int) ([]entity.Teacher, int64, error) {
-	teachers, total, err := tr.dao.GetTeacherList(ctx, key, offset, limit)
+func (tr TeacherRepositoryImpl) GetTeacherList(ctx context.Context, key string, status int, offset int, limit int) ([]entity.Teacher, int64, error) {
+	teachers, total, err := tr.dao.GetTeacherList(ctx, key, status, offset, limit)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -37,6 +37,7 @@ func (tr TeacherRepositoryImpl) GetTeacherList(ctx context.Context, key string, 
 			TeacherNumber: t.TeacherNumber,
 			Gender:        pkg.Gender(t.Gender),
 			Phone:         t.Phone,
+			Status:        t.Status,
 			Remark:        t.Remark,
 			CreatedAt:     t.CreatedAt,
 			UpdatedAt:     t.UpdatedAt,
@@ -50,6 +51,7 @@ func (tr TeacherRepositoryImpl) CreateTeacher(ctx context.Context, teacher entit
 		Name:   teacher.Name,
 		Phone:  teacher.Phone,
 		Gender: string(teacher.Gender),
+		Status: teacher.Status,
 		Remark: teacher.Remark,
 	})
 	return err
@@ -64,6 +66,7 @@ func (tr TeacherRepositoryImpl) UpdateTeacher(ctx context.Context, teacher entit
 	t := model.Teacher{
 		Name:   teacher.Name,
 		Phone:  teacher.Phone,
+		Status: teacher.Status,
 		Gender: string(teacher.Gender),
 		Remark: teacher.Remark,
 	}

@@ -46,6 +46,12 @@
                 autocomplete="off"></v-text-field>
             </v-col>
 
+            <!-- 状态选择 (仅编辑时显示) -->
+            <v-col cols="12" v-if="isEdit">
+              <v-select v-model="formData.status" label="状态" :items="statusOptions" item-title="text" item-value="value"
+                variant="outlined" density="compact" hide-details="auto" class="mb-3"></v-select>
+            </v-col>
+
             <!-- 第三行：备注 -->
             <v-col cols="12">
               <v-textarea v-model="formData.remark" label="备注信息" variant="outlined" density="compact" rows="3"
@@ -99,6 +105,11 @@ const emit = defineEmits(['update:modelValue', 'save'])
 const formRef = ref<any>(null)
 const isFormValid = ref<boolean | null>(null)
 
+const statusOptions = [
+  { text: '在职', value: 1 },
+  { text: '离职', value: 2 },
+]
+
 // 本地表单数据
 const formData = ref<Teacher>({
   name: '',
@@ -119,7 +130,8 @@ watch(() => props.modelValue, (val) => {
         name: '',
         phone: '',
         remark: '',
-        gender: 'male'
+        gender: 'male',
+        status: 1
       } as Teacher
     }
     // 重置表单验证状态（避免之前的错误状态影响当前弹窗）

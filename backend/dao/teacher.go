@@ -27,7 +27,7 @@ type TeacherDao interface {
 	UpdateTeacher(ctx context.Context, t *model.Teacher) error
 	DeleteTeacher(ctx context.Context, id uint) error
 	GetTeacherByID(ctx context.Context, id uint) (*model.Teacher, error)
-	GetTeacherList(ctx context.Context, key string, offset int, limit int) ([]model.Teacher, int64, error)
+	GetTeacherList(ctx context.Context, key string, status int, offset int, limit int) ([]model.Teacher, int64, error)
 }
 
 type TeacherGormDao struct {
@@ -43,6 +43,7 @@ func (s TeacherGormDao) CreateTeacher(ctx context.Context, t *model.Teacher) err
 		Name:   t.Name,
 		Gender: t.Gender,
 		Phone:  t.Phone,
+		Status: t.Status,
 		Remark: t.Remark,
 	})
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -52,10 +53,11 @@ func (s TeacherGormDao) CreateTeacher(ctx context.Context, t *model.Teacher) err
 }
 
 func (s TeacherGormDao) UpdateTeacher(ctx context.Context, t *model.Teacher) error {
-	_, err := gorm.G[model.Teacher](s.db).Where("id = ?", t.ID).Select("name", "gender", "phone", "remark").Updates(ctx, model.Teacher{
+	_, err := gorm.G[model.Teacher](s.db).Where("id = ?", t.ID).Select("name", "gender", "phone", "status", "remark").Updates(ctx, model.Teacher{
 		Name:   t.Name,
 		Gender: t.Gender,
 		Phone:  t.Phone,
+		Status: t.Status,
 		Remark: t.Remark,
 	})
 	if err != nil {
@@ -84,12 +86,15 @@ func (s TeacherGormDao) GetTeacherByID(ctx context.Context, id uint) (*model.Tea
 }
 
 // Get teacher list
-func (s TeacherGormDao) GetTeacherList(ctx context.Context, key string, offset int, limit int) ([]model.Teacher, int64, error) {
+func (s TeacherGormDao) GetTeacherList(ctx context.Context, key string, status int, offset int, limit int) ([]model.Teacher, int64, error) {
 	var teachers []model.Teacher
 	query := gorm.G[model.Teacher](s.db).Where("")
 
 	if key != "" {
 		query = query.Where("name LIKE ?", "%"+key+"%")
+	}
+	if status != 0 {
+		query = query.Where("status = ?", status)
 	}
 	total, err := query.Count(ctx, "*")
 	if err != nil {

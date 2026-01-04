@@ -13,6 +13,7 @@ type Teacher struct {
 	Name          string `gorm:"column:name;not null;comment:教师姓名;index" `
 	Gender        string `gorm:"column:gender;comment:教师性别" `
 	Phone         string `gorm:"column:phone;comment:电话号码" `
+	Status        int    `gorm:"column:status;default:1;comment:状态(1:在职, 2:离职)" `
 	Remark        string `gorm:"column:remark;comment:备注" `
 }
 

@@ -38,6 +38,7 @@ func (tm TeacherManager) CreateTeacher(ctx context.Context, teacher *requestx.Cr
 		Name:   strings.TrimSpace(teacher.Name),
 		Phone:  strings.TrimSpace(teacher.Phone),
 		Gender: pkg.Gender(teacher.Gender),
+		Status: int(pkg.TeacherStatusActive),
 		Remark: strings.TrimSpace(teacher.Remark),
 	})
 
@@ -55,7 +56,7 @@ func (tm TeacherManager) CreateTeacher(ctx context.Context, teacher *requestx.Cr
 
 func (tm TeacherManager) GetTeacherList(ctx context.Context, req *requestx.GetTeacherListRequest) (responsex.GetTeacherListResponse, error) {
 
-	teachers, total, err := tm.repo.GetTeacherList(ctx, req.KeyWord, req.Offset, req.Limit)
+	teachers, total, err := tm.repo.GetTeacherList(ctx, req.KeyWord, req.Status, req.Offset, req.Limit)
 	if err != nil {
 		return responsex.GetTeacherListResponse{}, fmt.Errorf("internal server error")
 	}
@@ -68,6 +69,7 @@ func (tm TeacherManager) GetTeacherList(ctx context.Context, req *requestx.GetTe
 			TeacherNumber: t.TeacherNumber,
 			Gender:        pkg.Gender(t.Gender).String(),
 			Phone:         t.Phone,
+			Status:        t.Status,
 			Remark:        t.Remark,
 			CreatedAt:     t.CreatedAt.UnixMilli(),
 			UpdatedAt:     t.UpdatedAt.UnixMilli(),
@@ -107,6 +109,7 @@ func (tm TeacherManager) UpdateTeacher(ctx context.Context, req *requestx.Update
 		Name:   req.Name,
 		Phone:  req.Phone,
 		Gender: pkg.Gender(req.Gender),
+		Status: req.Status,
 		Remark: req.Remark,
 	}
 	if err := tm.repo.UpdateTeacher(ctx, teacher); err != nil {
@@ -129,7 +132,7 @@ func (tm TeacherManager) ExportTeacher2Excel(ctx context.Context) (string, error
 		return "cancel", nil
 	}
 
-	teachers, _, err := tm.repo.GetTeacherList(ctx, "", 0, 1000000)
+	teachers, _, err := tm.repo.GetTeacherList(ctx, "", 0, 0, 1000000)
 	if err != nil {
 		return "", err
 	}
@@ -142,7 +145,7 @@ func (tm TeacherManager) ExportTeacher2Excel(ctx context.Context) (string, error
 
 // exportTeachersToExcel converts dao.Teacher to generic rows and calls pkg.ExportToExcel.
 func (tm TeacherManager) exportTeachersToExcel(path string, teachers []entity.Teacher) error {
-	headers := []string{"编号", "姓名", "性别", "电话", "备注", "创建时间", "更新时间"}
+	headers := []string{"编号", "姓名", "性别", "电话", "状态", "备注", "创建时间", "更新时间"}
 	rows := make([][]string, 0, len(teachers))
 	for _, t := range teachers {
 		rows = append(rows, []string{
@@ -150,6 +153,7 @@ func (tm TeacherManager) exportTeachersToExcel(path string, teachers []entity.Te
 			t.Name,
 			pkg.Gender(t.Gender).ZhString(),
 			t.Phone,
+			pkg.TeacherStatus(t.Status).String(),
 			t.Remark,
 			t.CreatedAt.Format(time.RFC3339),
 			t.UpdatedAt.Format(time.RFC3339),

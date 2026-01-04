@@ -276,16 +276,20 @@ class DatabaseMigrator:
             
             count = 0
             for teacher in teachers:
+                # 默认状态为 1 (在职)
+                status = 1 
+                
                 sqlite_cursor.execute('''
                     INSERT INTO teachers 
-                    (id, teacher_number, name, gender, phone, remark, created_at, updated_at, deleted_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (id, teacher_number, name, gender, phone, status, remark, created_at, updated_at, deleted_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     teacher['id'],
                     f"T{teacher['id']:08d}",  # 格式: T + 8位数字 (T00000001)
                     teacher['name'],
                     self._map_gender(teacher.get('gender', '')),
                     teacher.get('phone_code'),
+                    status,
                     '',
                     self._format_datetime_for_gorm(teacher.get('create_time')),
                     self._format_datetime_for_gorm(teacher.get('update_time')),

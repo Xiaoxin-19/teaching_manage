@@ -162,7 +162,7 @@ export function useCourseManage() {
   const searchTeachers = async (keyword: string) => {
     isTeacherLoading.value = true
     try {
-      const res: GetTeacherListResponse = await GetTeacherList({ Offset: 0, Limit: 25, Keyword: keyword })
+      const res: GetTeacherListResponse = await GetTeacherList({ Offset: 0, Limit: 25, Keyword: keyword, Status: 1 })
       let teachersList = res.teachers || []
       const newOptions = teachersList.map(t => ({ title: `${t.name} (${t.teacher_number})`, value: t.id, name: t.name }))
 

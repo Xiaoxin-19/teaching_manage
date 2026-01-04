@@ -32,6 +32,7 @@ export interface Teacher {
   name: string;
   phone: string;
   gender: string;
+  status: number;
   remark: string;
   updated_at: string;
   created_at: string;

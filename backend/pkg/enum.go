@@ -40,3 +40,21 @@ func ParseGender(s string) (Gender, error) {
 	}
 	return g, nil
 }
+
+type TeacherStatus int
+
+const (
+	TeacherStatusActive   TeacherStatus = 1
+	TeacherStatusResigned TeacherStatus = 2
+)
+
+func (s TeacherStatus) String() string {
+	switch s {
+	case TeacherStatusActive:
+		return "在职"
+	case TeacherStatusResigned:
+		return "离职"
+	default:
+		return "未知"
+	}
+}

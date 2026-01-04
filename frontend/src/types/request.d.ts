@@ -42,6 +42,7 @@ export interface UpdateTeacherRequest {
   Name: string;
   Phone: string
   Gender: string;
+  Status: number;
   Remark: string;
 }
 
@@ -49,6 +50,7 @@ export interface GetTeacherListRequest {
   Offset: number;
   Limit: number;
   Keyword: string;
+  Status: number;
 }
 
 export interface DeleteTeacherRequest {

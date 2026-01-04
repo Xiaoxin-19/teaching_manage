@@ -12,11 +12,13 @@ type UpdateTeacherRequest struct {
 	Name   string `json:"name" validate:"required"`
 	Phone  string `json:"phone"`
 	Gender string `json:"gender" validate:"required,oneof=male female"`
+	Status int    `json:"status"`
 	Remark string `json:"remark"`
 }
 
 type GetTeacherListRequest struct {
 	KeyWord string `json:"keyword"`
+	Status  int    `json:"status"` // 0: All, 1: Active, 2: Resigned
 	Offset  int    `json:"offset" validate:"gte=0"`
 	Limit   int    `json:"limit" validate:"oneof=10 25 50 100 -1"`
 }

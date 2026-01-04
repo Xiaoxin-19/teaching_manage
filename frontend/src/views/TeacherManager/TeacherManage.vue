@@ -3,11 +3,19 @@
     <div class="d-flex flex-column h-100 ">
       <!-- 页面头部 -->
       <div class="d-flex justify-space-between align-center mb-4">
-        <!-- 左侧：搜索框 -->
-        <!-- 移除 bg-white -->
-        <v-text-field v-model="search" density="compact" variant="outlined" label="搜索教师姓名"
-          prepend-inner-icon="mdi-magnify" hide-details single-line class="rounded"
-          style="max-width: 300px;"></v-text-field>
+        <!-- 左侧：搜索框和筛选 -->
+        <div class="d-flex align-center" style="gap: 16px; flex: 1; max-width: 700px;">
+          <v-text-field v-model="search" density="compact" variant="outlined" label="搜索教师姓名"
+            prepend-inner-icon="mdi-magnify" hide-details single-line class="rounded"
+            style="min-width: 200px; max-width: 300px;"></v-text-field>
+
+          <v-btn-toggle v-model="statusFilter" mandatory density="compact" color="primary" variant="outlined"
+            class="rounded flex-shrink-0" @update:model-value="fetchTeachers">
+            <v-btn :value="1">在职</v-btn>
+            <v-btn :value="2">离职</v-btn>
+            <v-btn :value="0">全部</v-btn>
+          </v-btn-toggle>
+        </div>
 
         <!-- 右侧：按钮组 -->
         <div class="d-flex">
@@ -44,6 +52,13 @@
           <!-- 电话列 -->
           <template v-slot:item.phone="{ item }">
             <span class="text-body-2">{{ item.phone == "" ? "-" : item.phone }}</span>
+          </template>
+
+          <!-- 状态列 -->
+          <template v-slot:item.status="{ item }">
+            <v-chip :color="getStatusColor(item.status)" variant="flat" size="small" label>
+              {{ getStatusLabel(item.status) }}
+            </v-chip>
           </template>
 
           <!-- 备注列 -->
@@ -96,6 +111,7 @@ import { LogDebug } from '../../../wailsjs/runtime/runtime';
 
 const {
   search,
+  statusFilter,
   dialogVisible,
   isEdit,
   currentData,
@@ -114,6 +130,8 @@ const {
   fetchTeachers,
   getGenderColor,
   getGenderLabel,
+  getStatusLabel,
+  getStatusColor,
 } = useTeacherManage()
 
 onMounted(() => {
