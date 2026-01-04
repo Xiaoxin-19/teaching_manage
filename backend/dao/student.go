@@ -44,6 +44,7 @@ func (s StudentGormDao) UpdateStudent(ctx context.Context, stu *model.Student) e
 		"phone",
 		"remark",
 		"status",
+		"withdraw_at",
 	).Updates(ctx, *stu)
 	if err != nil {
 		return err

@@ -49,6 +49,7 @@ func (sr StudentRepositoryImpl) ListStudentsWithStatus(ctx context.Context, key 
 			Phone:         stu.Phone,
 			Status:        int(stu.Status),
 			Remark:        stu.Remark,
+			WithdrawAt:    stu.WithdrawAt,
 		})
 	}
 	return result, total, nil
@@ -71,6 +72,7 @@ func (sr StudentRepositoryImpl) GetStudentByName(ctx context.Context, name strin
 			Phone:         stu.Phone,
 			Status:        int(stu.Status),
 			Remark:        stu.Remark,
+			WithdrawAt:    stu.WithdrawAt,
 		})
 	}
 	return result, nil
@@ -92,6 +94,7 @@ func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*e
 		Phone:         student.Phone,
 		Status:        int(student.Status),
 		Remark:        student.Remark,
+		WithdrawAt:    student.WithdrawAt,
 	}, nil
 }
 
@@ -120,12 +123,13 @@ func (sr StudentRepositoryImpl) GetStudentByID(ctx context.Context, id uint) (*e
 
 func (sr StudentRepositoryImpl) UpdateStudent(ctx context.Context, stu *entity.Student) error {
 	return sr.dao.UpdateStudent(ctx, &model.Student{
-		Model:  gorm.Model{ID: stu.ID},
-		Name:   stu.Name,
-		Gender: stu.Gender,
-		Phone:  stu.Phone,
-		Remark: stu.Remark,
-		Status: model.StudentStatus(stu.Status),
+		Model:      gorm.Model{ID: stu.ID},
+		Name:       stu.Name,
+		Gender:     stu.Gender,
+		Phone:      stu.Phone,
+		Remark:     stu.Remark,
+		Status:     model.StudentStatus(stu.Status),
+		WithdrawAt: stu.WithdrawAt,
 	})
 }
 

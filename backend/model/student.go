@@ -51,6 +51,7 @@ type Student struct {
 	Phone         string        `json:"phone" gorm:"index;size:20;comment:学生电话号码"`
 	Remark        string        `json:"remark" gorm:"type:text;comment:备注"`
 	Status        StudentStatus `json:"status" gorm:"size:20;default:1;comment:学生状态，如在读、毕业、休学等"`
+	WithdrawAt    time.Time     `json:"withdraw_at" gorm:"comment:退学时间"`
 }
 
 func (Student) TableName() string {

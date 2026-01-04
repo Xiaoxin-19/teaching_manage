@@ -85,16 +85,24 @@ func (sm StudentManager) UpdateStudent(ctx context.Context, req *requestx.Update
 		logger.String("phone", req.Phone),
 		logger.String("gender", req.Gender),
 		logger.String("remark", req.Remark),
+		logger.Int("status", req.Status),
 	)
 
-	err := sm.repo.UpdateStudent(ctx, &entity.Student{
+	student := &entity.Student{
 		ID:     req.ID,
 		Name:   req.Name,
 		Gender: req.Gender,
 		Phone:  req.Phone,
 		Remark: req.Remark,
 		Status: req.Status,
-	})
+	}
+
+	// 如果状态改为退学(3)，自动设置退学时间
+	if req.Status == 3 {
+		student.WithdrawAt = time.Now()
+	}
+
+	err := sm.repo.UpdateStudent(ctx, student)
 
 	if err != nil {
 		logger.Error("failed to update student", logger.ErrorType(err))

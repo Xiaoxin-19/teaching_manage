@@ -452,8 +452,7 @@ func (m *DashboardManager) GetStudentGrowthData(ctx context.Context) (responsex.
 // GetStudentGrowthTrendData 获取学员增长和流失趋势 (最近 6 个月)
 // 同时统计新增、流失和净增学员数
 // 新增定义：按 created_at 统计，不受后续状态变化影响
-// 流失定义：仅统计被软删除的学员 (deleted_at IS NOT NULL)
-// 注意：退学状态(status=3)不计入流失，因为 updated_at 不能准确反映退学时间
+// 流失定义：统计被软删除的学员 (deleted_at IS NOT NULL) 以及退学的学员 (status=3 AND withdraw_at IS NOT NULL)
 func (m *DashboardManager) GetStudentGrowthTrendData(ctx context.Context) (responsex.StudentGrowthTrendResponse, error) {
 	db := dao.GetDB()
 	var result responsex.StudentGrowthTrendResponse
@@ -494,45 +493,56 @@ func (m *DashboardManager) GetStudentGrowthTrendData(ctx context.Context) (respo
 		growthMap[s.Month] = s.Total
 	}
 
-	// ========== 2. 查询流失学员 (仅统计软删除的学员) ==========
-	// 使用 Unscoped 查询包括软删除的学员，按删除日期统计
-	// 安全检查：限制在指定时间范围内，避免意外暴露过多历史数据
-	// - deleted_at IS NOT NULL：仅查询已删除记录
-	// - deleted_at >= startDate：确保在统计周期起点之后
-	// - deleted_at <= now：确保不查询未来日期，限制访问范围
+	// ========== 2. 查询流失学员 (软删除或退学) ==========
+	// 包含两部分：
+	// - 被软删除的学员：deleted_at IS NOT NULL
+	// - 退学的学员：status=3 AND withdraw_at IS NOT NULL
+	// 按删除时间或退学时间统计
 	endDate := time.Now()
-	var lossStats []MonthlyStat
+
+	// 查询被软删除的学员
+	var deletedStats []MonthlyStat
 	err = db.Unscoped().
 		Model(&model.Student{}).
 		Select("strftime('%Y-%m', deleted_at) as month, COUNT(id) as total").
 		Where("deleted_at IS NOT NULL AND deleted_at >= ? AND deleted_at <= ?", startDate, endDate.Format("2006-01-02 15:04:05")).
 		Group("month").
 		Order("month").
-		Scan(&lossStats).Error
+		Scan(&deletedStats).Error
 
 	if err != nil {
-		logger.Error("Failed to get student loss data (Unscoped sensitive query)", logger.ErrorType(err))
+		logger.Error("Failed to get student deletion data", logger.ErrorType(err))
 		return result, err
 	}
 
-	// 日志记录：敏感操作审计
-	logger.Info("Executed Unscoped student deletion query",
-		logger.String("timeRange", fmt.Sprintf("%s to %s", startDate, endDate.Format("2006-01-02 15:04:05"))),
-		logger.Int("recordCount", len(lossStats)))
+	// 查询退学的学员
+	var withdrawnStats []MonthlyStat
+	err = db.Model(&model.Student{}).
+		Select("strftime('%Y-%m', withdraw_at) as month, COUNT(id) as total").
+		Where("status = 3 AND withdraw_at IS NOT NULL AND withdraw_at >= ? AND withdraw_at <= ?", startDate, endDate.Format("2006-01-02 15:04:05")).
+		Group("month").
+		Order("month").
+		Scan(&withdrawnStats).Error
+
 	if err != nil {
-		logger.Error("Failed to get student loss data (Unscoped sensitive query)", logger.ErrorType(err))
+		logger.Error("Failed to get student withdrawal data", logger.ErrorType(err))
 		return result, err
 	}
 
-	// 日志记录：敏感操作审计
-	logger.Info("Executed Unscoped student deletion query",
-		logger.String("timeRange", fmt.Sprintf("%s to %s", startDate, endDate.Format("2006-01-02 15:04:05"))),
-		logger.Int("recordCount", len(lossStats)))
-
+	// 合并删除和退学统计
 	lossMap := make(map[string]int64)
-	for _, s := range lossStats {
-		lossMap[s.Month] = s.Total
+	for _, s := range deletedStats {
+		lossMap[s.Month] += s.Total
 	}
+	for _, s := range withdrawnStats {
+		lossMap[s.Month] += s.Total
+	}
+
+	// 日志记录：敏感操作审计
+	logger.Info("Executed student loss data query",
+		logger.String("timeRange", fmt.Sprintf("%s to %s", startDate, endDate.Format("2006-01-02 15:04:05"))),
+		logger.Int("deletedRecordCount", len(deletedStats)),
+		logger.Int("withdrawnRecordCount", len(withdrawnStats)))
 
 	// ========== 3. 填充数据并计算净增 ==========
 	for _, month := range result.XAxis {
