@@ -7,8 +7,8 @@
           学员活跃度分布 (近30天)
         </h3>
         <div class="text-caption text-medium-emphasis mt-1">
-          基于月课次统计：<span class="text-warning font-weight-bold">1-3次为缺勤风险</span>，<span
-            class="text-info font-weight-bold">4-8次为达标</span>
+          基于平均月课次/科统计：<span class="text-warning font-weight-bold">&lt;1/科为缺勤风险</span>，<span
+            class="text-info font-weight-bold">1-3/科为达标</span>
         </div>
       </div>
     </div>
@@ -20,16 +20,15 @@
 import { ref, onMounted } from 'vue';
 import * as echarts from 'echarts';
 import { useChart } from '../../composables/useChart';
-import { Dispatch } from '../../../wailsjs/go/main/App';
-import { ResponseWrapper } from '../../types/appModels';
-import { GetStudentEngagementDataResponse } from '../../types/response';
+import { GetStudentEngagementData } from '../../api/dashboard';
+import type { GetStudentEngagementDataResponse } from '../../types/response';
 
 const chartRef = ref<HTMLElement | null>(null);
 const engagementData = ref([
-  { value: 0, name: '沉睡 (0次)', desc: '需激活' },
-  { value: 0, name: '消极 (1-3次)', desc: '缺勤风险' },
-  { value: 0, name: '达标 (4-8次)', desc: '每周1-2练' },
-  { value: 0, name: '高频 (>8次)', desc: '集训/多科' }
+  { value: 0, name: '沉睡 (0/科)', desc: '需激活' },
+  { value: 0, name: '消极 (<1/科)', desc: '缺勤风险' },
+  { value: 0, name: '达标 (1-3/科)', desc: '每周1-2练' },
+  { value: 0, name: '高频 (>3/科)', desc: '集训/多科' }
 ]);
 
 const getOption = (isDark: boolean) => {
@@ -125,28 +124,17 @@ const { refresh } = useChart(chartRef, getOption);
 
 const loadData = async () => {
   try {
-    const res = await Dispatch("dashboard_manager:get_student_engagement", "");
-    const response = JSON.parse(res) as ResponseWrapper<GetStudentEngagementDataResponse>;
-
-    if (response.code === 200 && response.data && response.data.stats) {
-      // 映射后端数据到前端结构
-      // 后端返回的 stats 数组顺序应该是: 沉睡, 消极, 达标, 高频
-      // 我们需要保留前端的 desc 字段
-      const backendStats = response.data.stats;
-
-      // 创建映射表以便按名称匹配
-      const statsMap = new Map(backendStats.map(s => [s.name, s.value]));
-
-      // 更新数据，保留 desc
-      engagementData.value = engagementData.value.map(item => ({
+    const data = await GetStudentEngagementData();
+    if (data && data.stats) {
+      const statsMap = new Map(data.stats.map((s) => [s.name, s.value]));
+      engagementData.value = engagementData.value.map((item) => ({
         ...item,
         value: statsMap.get(item.name) || 0
       }));
-
       refresh();
     }
   } catch (e) {
-    console.error("Failed to load engagement data", e);
+    console.error('Failed to load engagement data', e);
   }
 };
 

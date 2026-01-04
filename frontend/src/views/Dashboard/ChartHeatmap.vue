@@ -16,8 +16,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useChart } from '../../composables/useChart';
-import { Dispatch } from '../../../wailsjs/go/main/App';
-import { ResponseWrapper } from '../../types/appModels';
+import { GetHeatmapData } from '../../api/dashboard';
 
 const chartRef = ref<HTMLElement | null>(null);
 const heatmapData = ref<[number, number, number][]>([]);
@@ -102,12 +101,10 @@ const { refresh } = useChart(chartRef, getOption);
 
 const loadData = async () => {
   try {
-    const res = await Dispatch("dashboard_manager:get_heatmap", "");
-    const response = JSON.parse(res) as ResponseWrapper<number[][]>;
+    const data = await GetHeatmapData();
 
-    if (response.code === 200 && response.data) {
-
-      heatmapData.value = response.data.map((item: number[]) => {
+    if (data && data.length > 0) {
+      heatmapData.value = data.map((item: number[]) => {
         const dayOfWeek = item[0]; // 0(Sun) - 6(Sat)
         const hour = item[1];      // 8 - 21
         const value = item[2];

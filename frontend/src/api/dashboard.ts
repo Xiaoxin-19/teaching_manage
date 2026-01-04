@@ -1,6 +1,6 @@
 import { Dispatch } from "../../wailsjs/go/main/App";
 import { ResponseWrapper } from "../types/appModels";
-import { GetDashboardSummaryResponse, GetFinanceChartDataResponse, GetSubjectRankDataResponse } from "../types/response";
+import { GetDashboardSummaryResponse, GetFinanceChartDataResponse, GetSubjectRankDataResponse, GetStudentEngagementDataResponse, StudentGrowthTrendResponse, GetStudentBalanceDataResponse } from "../types/response";
 import type { GetFinanceChartRequest } from "../types/request";
 
 /**
@@ -44,7 +44,25 @@ export async function GetFinanceChartData(rangeType: GetFinanceChartRequest['typ
     throw error;
   }
 }
+/**
+ * 获取学员活跃度分布数据
+ * @returns 学员活跃度分布数据 (基于过去30天课次，按科目数归一化)
+ */
+export async function GetStudentEngagementData(): Promise<GetStudentEngagementDataResponse> {
+  try {
+    const resultStr = await Dispatch('dashboard_manager/get_student_engagement', '');
+    const resp = JSON.parse(resultStr) as ResponseWrapper<GetStudentEngagementDataResponse>;
 
+    if (resp.code !== 200) {
+      throw new Error(resp.message || '获取学员活跃度数据失败');
+    }
+
+    return resp.data;
+  } catch (error: any) {
+    console.error('API Error [GetStudentEngagementData]:', error);
+    throw error;
+  }
+}
 /**
  * 获取科目消课排行数据
  * @returns 科目排行数据 (本月各科目消课占比)
@@ -61,6 +79,65 @@ export async function GetSubjectRankData(): Promise<GetSubjectRankDataResponse> 
     return resp.data;
   } catch (error: any) {
     console.error('API Error [GetSubjectRankData]:', error);
+    throw error;
+  }
+}
+/**
+ * 获取热力图数据
+ * @returns 热力图数据 (高峰时段热力分布，最近6个月)
+ */
+export async function GetHeatmapData(): Promise<number[][]> {
+  try {
+    const resultStr = await Dispatch('dashboard_manager/get_heatmap', '');
+    const resp = JSON.parse(resultStr) as ResponseWrapper<number[][]>;
+
+    if (resp.code !== 200) {
+      throw new Error(resp.message || '获取热力图数据失败');
+    }
+
+    return resp.data || [];
+  } catch (error: any) {
+    console.error('API Error [GetHeatmapData]:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取学员增长和流失趋势数据
+ * @returns 学员增长和流失趋势 (最近6个月，包括新增、流失、净增)
+ */
+export async function GetStudentGrowthTrendData(): Promise<StudentGrowthTrendResponse> {
+  try {
+    const resultStr = await Dispatch('dashboard_manager/get_student_growth_trend', '');
+    const resp = JSON.parse(resultStr) as ResponseWrapper<StudentGrowthTrendResponse>;
+
+    if (resp.code !== 200) {
+      throw new Error(resp.message || '获取学员增长趋势数据失败');
+    }
+
+    return resp.data;
+  } catch (error: any) {
+    console.error('API Error [GetStudentGrowthTrendData]:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取学员账户健康度分布数据
+ * @returns 学员账户健康度分布 (基于剩余课时：欠费、预警、充足)
+ */
+export async function GetStudentBalanceData(): Promise<GetStudentBalanceDataResponse> {
+  try {
+    const resultStr = await Dispatch('dashboard_manager/get_student_balance', '');
+    const resp = JSON.parse(resultStr) as ResponseWrapper<GetStudentBalanceDataResponse>;
+
+    if (resp.code !== 200) {
+      throw new Error(resp.message || '获取学员账户健康度数据失败');
+    }
+
+    return resp.data;
+  } catch (error: any) {
+    console.error('API Error [GetStudentBalanceData]:', error);
     throw error;
   }
 }

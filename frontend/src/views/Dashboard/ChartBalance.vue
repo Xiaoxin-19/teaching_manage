@@ -18,9 +18,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useChart } from '../../composables/useChart';
-import { Dispatch } from '../../../wailsjs/go/main/App';
-import { ResponseWrapper } from '../../types/appModels';
-import { GetStudentBalanceDataResponse, BalanceStat } from '../../types/response';
+import { GetStudentBalanceData } from '../../api/dashboard';
+import type { BalanceStat } from '../../types/response';
 
 defineEmits(['navigate']);
 const chartRef = ref<HTMLElement | null>(null);
@@ -67,14 +66,13 @@ const { refresh } = useChart(chartRef, getOption);
 
 const loadData = async () => {
   try {
-    const res = await Dispatch("dashboard_manager:get_student_balance", "");
-    const response = JSON.parse(res) as ResponseWrapper<GetStudentBalanceDataResponse>;
-    if (response.code === 200 && response.data && response.data.stats) {
-      chartData.value = response.data.stats;
+    const data = await GetStudentBalanceData();
+    if (data && data.stats) {
+      chartData.value = data.stats;
       refresh();
     }
   } catch (e) {
-    console.error("Failed to load balance data", e);
+    console.error('Failed to load balance data', e);
   }
 };
 

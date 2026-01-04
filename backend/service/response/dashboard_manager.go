@@ -61,3 +61,11 @@ type SubjectRank struct {
 type GetSubjectRankDataResponse struct {
 	Data []SubjectRank `json:"data"`
 }
+
+// StudentGrowthTrendResponse 学员增长和流失趋势
+type StudentGrowthTrendResponse struct {
+	XAxis  []string `json:"x_axis"` // 月份标签 (YYYY-MM)
+	Growth []int64  `json:"growth"` // 新增学员数
+	Loss   []int64  `json:"loss"`   // 流失学员数 (删除)
+	Net    []int64  `json:"net"`    // 净增 (growth - loss)
+}

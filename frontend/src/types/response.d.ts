@@ -113,6 +113,12 @@ export interface GetStudentBalanceDataResponse {
   stats: BalanceStat[]
 }
 
+export interface StudentGrowthTrendResponse {
+  x_axis: string[]  // 月份标签 (YYYY-MM)
+  growth: number[]  // 新增学员数
+  loss: number[]    // 流失学员数 (删除)
+  net: number[]     // 净增 (growth - loss)
+}
 
 export interface GetSubjectListResponse {
   subjects: Subject[];

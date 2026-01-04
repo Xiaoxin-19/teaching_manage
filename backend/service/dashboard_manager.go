@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"teaching_manage/backend/dao"
 	"teaching_manage/backend/model"
 	"teaching_manage/backend/pkg/dispatcher"
@@ -263,229 +264,342 @@ func (m *DashboardManager) GetFinanceChartData(ctx context.Context, rangeType *r
 	return result, nil
 }
 
-// // GetHeatmapData 获取热力图数据 (适配 ChartHeatmap.vue 组件)
-// func (m *DashboardManager) GetHeatmapData(ctx context.Context) ([][]int, error) {
-// 	db := dao.GetDB()
+// GetHeatmapData 获取热力图数据 (适配 ChartHeatmap.vue 组件)
+func (m *DashboardManager) GetHeatmapData(ctx context.Context) ([][]int, error) {
+	db := dao.GetDB()
 
-// 	// 结构体接收数据库聚合结果
-// 	type HeatStat struct {
-// 		DayOfWeek int    // SQLite strftime('%w') 返回 0-6 (0是周日)
-// 		Hour      string // 格式如 "08", "14"
-// 		Count     int
-// 	}
-// 	var stats []HeatStat
+	// 结构体接收数据库聚合结果
+	type HeatStat struct {
+		DayOfWeek int    // SQLite strftime('%w') 返回 0-6 (0是周日)
+		Hour      string // 格式如 "08", "14"
+		Count     int
+	}
+	var stats []HeatStat
 
-// 	// 分析最近 6 个月的数据
-// 	startDate := time.Now().AddDate(0, -6, 0)
+	// 分析最近 6 个月的数据
+	startDate := time.Now().AddDate(0, -6, 0)
 
-// 	// SQLite 查询: 聚合 星期几 和 小时
-// 	// 注意: start_time 在数据库中可能是 "08:00:00" 或 "08:00"，substr(start_time, 1, 2) 取前两位
-// 	err := db.Model(&model.Record{}).
-// 		Select("CAST(strftime('%w', teaching_date) AS INTEGER) as day_of_week, "+
-// 			"substr(start_time, 1, 2) as hour, "+
-// 			"COUNT(id) as count").
-// 		Where("active = 1 AND deleted_at IS NULL AND teaching_date >= ?", startDate).
-// 		Group("day_of_week, hour").
-// 		Scan(&stats).Error
+	// SQLite 查询: 聚合 星期几 和 小时
+	// 注意: start_time 在数据库中可能是 "08:00:00" 或 "08:00"，substr(start_time, 1, 2) 取前两位
+	err := db.Model(&model.Record{}).
+		Select("CAST(strftime('%w', teaching_date) AS INTEGER) as day_of_week, "+
+			"substr(start_time, 1, 2) as hour, "+
+			"COUNT(id) as count").
+		Where("active = 1 AND deleted_at IS NULL AND teaching_date >= ?", startDate).
+		Group("day_of_week, hour").
+		Scan(&stats).Error
 
-// 	if err != nil {
-// 		logger.Error("Failed to get heatmap data", logger.ErrorType(err))
-// 		return nil, err
-// 	}
+	if err != nil {
+		logger.Error("Failed to get heatmap data", logger.ErrorType(err))
+		return nil, err
+	}
 
-// 	var chartData [][]int
+	var chartData [][]int
 
-// 	for _, s := range stats {
-// 		hourInt, err := strconv.Atoi(s.Hour)
-// 		if err != nil {
-// 			continue
-// 		}
+	for _, s := range stats {
+		hourInt, err := strconv.Atoi(s.Hour)
+		if err != nil {
+			continue
+		}
 
-// 		// 过滤营业时间以外的数据 (08:00 - 21:00)
-// 		if hourInt < 8 || hourInt > 21 {
-// 			continue
-// 		}
+		// 过滤营业时间以外的数据 (08:00 - 21:00)
+		if hourInt < 8 || hourInt > 21 {
+			continue
+		}
 
-// 		// 直接返回原始数据 [DayOfWeek, Hour, Count]，由前端负责视图映射
-// 		// DayOfWeek: 0(Sun) - 6(Sat)
-// 		// Hour: 8 - 21
-// 		chartData = append(chartData, []int{s.DayOfWeek, hourInt, s.Count})
-// 	}
+		// 直接返回原始数据 [DayOfWeek, Hour, Count]，由前端负责视图映射
+		// DayOfWeek: 0(Sun) - 6(Sat)
+		// Hour: 8 - 21
+		chartData = append(chartData, []int{s.DayOfWeek, hourInt, s.Count})
+	}
 
-// 	return chartData, nil
-// }
+	return chartData, nil
+}
 
-// // GetStudentEngagementData 获取学员活跃度分布 (基于过去30天课次)
-// // Dormant: 0, Lazy: 1-3, Regular: 4-8, High: >8
-// func (m *DashboardManager) GetStudentEngagementData(ctx context.Context) (responsex.GetStudentEngagementDataResponse, error) {
-// 	db := dao.GetDB()
+// GetStudentEngagementData 获取学员活跃度分布 (基于过去30天课次，按科目数归一化)
+// 标准：基于"平均每科课次" (总课次 / 科目数)
+// Dormant: 0次/科, Lazy: <1次/科, Regular: 1-3次/科, High: >3次/科
+func (m *DashboardManager) GetStudentEngagementData(ctx context.Context) (responsex.GetStudentEngagementDataResponse, error) {
+	db := dao.GetDB()
 
-// 	type EngagementStat struct {
-// 		FrequencyLevel string
-// 		StudentCount   int
-// 	}
-// 	var stats []EngagementStat
+	type StudentEngagement struct {
+		StudentID      int64
+		SubjectCount   int64
+		LessonCount    int64
+		AvgLessonRate  float64 // 平均每科课次 (lessonCount / subjectCount)
+		FrequencyLevel string
+	}
+	var engagements []StudentEngagement
 
-// 	// 使用 Go 计算时间，避免数据库方言差异和时区问题
-// 	startDate := time.Now().AddDate(0, 0, -30).Format("2006-01-02")
+	startDate := time.Now().AddDate(0, 0, -30).Format("2006-01-02")
 
-// 	// 优化查询：使用 LEFT JOIN 替代子查询，提高性能
-// 	query := `
-// 		SELECT
-// 			CASE
-// 				WHEN lesson_count = 0 THEN 'Dormant'
-// 				WHEN lesson_count >= 1 AND lesson_count <= 3 THEN 'Lazy'
-// 				WHEN lesson_count >= 4 AND lesson_count <= 8 THEN 'Regular'
-// 				ELSE 'High'
-// 			END as frequency_level,
-// 			COUNT(*) as student_count
-// 		FROM (
-// 			SELECT
-// 				s.id,
-// 				COUNT(r.id) as lesson_count
-// 			FROM students s
-// 			LEFT JOIN records r ON s.id = r.student_id
-// 				AND r.active = 1
-// 				AND r.deleted_at IS NULL
-// 				AND r.teaching_date >= ?
-// 			WHERE s.deleted_at IS NULL
-// 			GROUP BY s.id
-// 		)
-// 		GROUP BY frequency_level
-// 	`
+	// 查询：关联学生的科目数和30天内的课次数，计算平均每科课次
+	query := `
+		SELECT
+			s.id as student_id,
+			COUNT(DISTINCT ss.id) as subject_count,
+			COUNT(r.id) as lesson_count,
+			CASE
+				WHEN COUNT(DISTINCT ss.id) = 0 THEN 0
+				ELSE CAST(COUNT(r.id) AS FLOAT) / COUNT(DISTINCT ss.id)
+			END as avg_lesson_rate
+		FROM students s
+		LEFT JOIN student_subjects ss ON s.id = ss.student_id AND ss.status IN (1, 2) AND ss.deleted_at IS NULL
+		LEFT JOIN records r ON s.id = r.student_id
+			AND r.active = 1
+			AND r.deleted_at IS NULL
+			AND r.teaching_date >= ?
+		WHERE s.deleted_at IS NULL AND s.status = 1
+		GROUP BY s.id
+	`
 
-// 	if err := db.Raw(query, startDate).Scan(&stats).Error; err != nil {
-// 		logger.Error("Failed to get student engagement data", logger.ErrorType(err))
-// 		return responsex.GetStudentEngagementDataResponse{}, err
-// 	}
+	if err := db.Raw(query, startDate).Scan(&engagements).Error; err != nil {
+		logger.Error("Failed to get student engagement data", logger.ErrorType(err))
+		return responsex.GetStudentEngagementDataResponse{}, err
+	}
 
-// 	// 转换为前端需要的格式，确保所有类型都有值（即使是0）
-// 	resultMap := map[string]int{
-// 		"Dormant": 0,
-// 		"Lazy":    0,
-// 		"Regular": 0,
-// 		"High":    0,
-// 	}
-// 	for _, s := range stats {
-// 		resultMap[s.FrequencyLevel] = s.StudentCount
-// 	}
+	// 分布标准（按平均每科课次）
+	// 沉睡: 0次/科 (无课次)
+	// 消极: 0.01-0.99次/科 (平均每科不足1次)
+	// 达标: 1-3次/科 (平均每科1-3次，相当于周上课)
+	// 高频: >3次/科 (平均每科3次以上，每周多次)
+	resultMap := map[string]int{
+		"Dormant": 0,
+		"Lazy":    0,
+		"Regular": 0,
+		"High":    0,
+	}
 
-// 	// 映射到前端展示名称
-// 	// 顺序：沉睡 -> 消极 -> 达标 -> 高频
-// 	return responsex.GetStudentEngagementDataResponse{
-// 		Stats: []responsex.EngagementStat{
-// 			{Name: "沉睡 (0次)", Value: resultMap["Dormant"]},
-// 			{Name: "消极 (1-3次)", Value: resultMap["Lazy"]},
-// 			{Name: "达标 (4-8次)", Value: resultMap["Regular"]},
-// 			{Name: "高频 (>8次)", Value: resultMap["High"]},
-// 		},
-// 	}, nil
-// }
+	for _, eng := range engagements {
+		var level string
+		if eng.LessonCount == 0 {
+			level = "Dormant"
+		} else if eng.AvgLessonRate < 1.0 {
+			level = "Lazy"
+		} else if eng.AvgLessonRate <= 3.0 {
+			level = "Regular"
+		} else {
+			level = "High"
+		}
+		resultMap[level]++
+	}
 
-// // GetStudentGrowthData 获取学员增长趋势数据 (最近 6 个月)
-// func (m *DashboardManager) GetStudentGrowthData(ctx context.Context) (responsex.ChartDataDTO, error) {
-// 	db := dao.GetDB()
-// 	var result responsex.ChartDataDTO
+	// 映射到前端展示名称 (说明基于平均每科课次)
+	// 顺序：沉睡 -> 消极 -> 达标 -> 高频
+	return responsex.GetStudentEngagementDataResponse{
+		Stats: []responsex.EngagementStat{
+			{Name: "沉睡 (0/科)", Value: resultMap["Dormant"]},
+			{Name: "消极 (<1/科)", Value: resultMap["Lazy"]},
+			{Name: "达标 (1-3/科)", Value: resultMap["Regular"]},
+			{Name: "高频 (>3/科)", Value: resultMap["High"]},
+		},
+	}, nil
+}
 
-// 	// 生成最近 6 个月的月份标签
-// 	months := []string{}
-// 	now := time.Now()
-// 	// 规范化到月初，避免月末(如31号)计算月份偏移时出现跳跃或重复
-// 	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-// 	limit := 6
+// GetStudentGrowthData 获取学员增长趋势数据 (最近 6 个月)
+func (m *DashboardManager) GetStudentGrowthData(ctx context.Context) (responsex.ChartDataDTO, error) {
+	db := dao.GetDB()
+	var result responsex.ChartDataDTO
 
-// 	for i := limit - 1; i >= 0; i-- {
-// 		t := startOfMonth.AddDate(0, -i, 0)
-// 		months = append(months, t.Format("2006-01"))
-// 	}
-// 	result.XAxis = months
+	// 生成最近 6 个月的月份标签
+	months := []string{}
+	now := time.Now()
+	// 规范化到月初，避免月末(如31号)计算月份偏移时出现跳跃或重复
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	limit := 6
 
-// 	// 计算起始日期
-// 	startDate := startOfMonth.AddDate(0, -limit+1, 0).Format("2006-01") + "-01"
+	for i := limit - 1; i >= 0; i-- {
+		t := startOfMonth.AddDate(0, -i, 0)
+		months = append(months, t.Format("2006-01"))
+	}
+	result.XAxis = months
 
-// 	type MonthlyStat struct {
-// 		Month string
-// 		Total int64
-// 	}
-// 	var stats []MonthlyStat
+	// 计算起始日期
+	startDate := startOfMonth.AddDate(0, -limit+1, 0).Format("2006-01") + "-01"
 
-// 	// 查询数据库: 按月统计 created_at
-// 	err := db.Model(&model.Student{}).
-// 		Select("strftime('%Y-%m', created_at) as month, COUNT(id) as total").
-// 		Where("deleted_at IS NULL AND created_at >= ?", startDate).
-// 		Group("month").
-// 		Order("month").
-// 		Scan(&stats).Error
+	type MonthlyStat struct {
+		Month string
+		Total int64
+	}
+	var stats []MonthlyStat
 
-// 	if err != nil {
-// 		logger.Error("Failed to get student growth data", logger.ErrorType(err))
-// 		return result, err
-// 	}
+	// 查询数据库: 按月统计 created_at
+	err := db.Model(&model.Student{}).
+		Select("strftime('%Y-%m', created_at) as month, COUNT(id) as total").
+		Where("deleted_at IS NULL AND created_at >= ?", startDate).
+		Group("month").
+		Order("month").
+		Scan(&stats).Error
 
-// 	// 填充数据 (Map to Slice)
-// 	dataMap := make(map[string]int64)
-// 	for _, s := range stats {
-// 		dataMap[s.Month] = s.Total
-// 	}
+	if err != nil {
+		logger.Error("Failed to get student growth data", logger.ErrorType(err))
+		return result, err
+	}
 
-// 	for _, m := range months {
-// 		result.Series = append(result.Series, dataMap[m])
-// 	}
+	// 填充数据 (Map to Slice)
+	dataMap := make(map[string]int64)
+	for _, s := range stats {
+		dataMap[s.Month] = s.Total
+	}
 
-// 	return result, nil
-// }
+	for _, m := range months {
+		result.Series = append(result.Series, dataMap[m])
+	}
 
-// // GetStudentBalanceData 获取学员账户健康度分布 (基于剩余课时)
-// // Arrears: <0, Warning: 0-5, Sufficient: >=5
-// func (m *DashboardManager) GetStudentBalanceData(ctx context.Context) (responsex.GetStudentBalanceDataResponse, error) {
-// 	db := dao.GetDB()
+	return result, nil
+}
 
-// 	type BalanceStat struct {
-// 		BalanceLevel string
-// 		StudentCount int
-// 	}
-// 	var stats []BalanceStat
+// GetStudentGrowthTrendData 获取学员增长和流失趋势 (最近 6 个月)
+// 同时统计新增、流失和净增学员数
+// 流失定义：被删除的学员 (deleted_at IS NOT NULL) 或 状态为退学的学员 (status = 3)
+func (m *DashboardManager) GetStudentGrowthTrendData(ctx context.Context) (responsex.StudentGrowthTrendResponse, error) {
+	db := dao.GetDB()
+	var result responsex.StudentGrowthTrendResponse
 
-// 	// 使用 CASE WHEN 对StudentSubject的balance进行分桶统计
-// 	// 统计有不同balance等级的学生数（去重）
-// 	query := `
-// 		SELECT
-// 			CASE
-// 				WHEN balance < 0 THEN 'Arrears'
-// 				WHEN balance >= 0 AND balance < 5 THEN 'Warning'
-// 				ELSE 'Sufficient'
-// 			END as balance_level,
-// 			COUNT(DISTINCT student_id) as student_count
-// 		FROM student_subjects
-// 		WHERE status IN (1, 2) AND deleted_at IS NULL
-// 		GROUP BY balance_level
-// 	`
+	// 生成最近 6 个月的月份标签
+	now := time.Now()
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	limit := 6
 
-// 	if err := db.Raw(query).Scan(&stats).Error; err != nil {
-// 		logger.Error("Failed to get student balance data", logger.ErrorType(err))
-// 		return responsex.GetStudentBalanceDataResponse{}, err
-// 	}
+	for i := limit - 1; i >= 0; i-- {
+		t := startOfMonth.AddDate(0, -i, 0)
+		result.XAxis = append(result.XAxis, t.Format("2006-01"))
+	}
 
-// 	// 初始化 Map 确保所有状态都有值 (即使数据库查出来是 0)
-// 	resultMap := map[string]int{
-// 		"Arrears":    0,
-// 		"Warning":    0,
-// 		"Sufficient": 0,
-// 	}
-// 	for _, s := range stats {
-// 		resultMap[s.BalanceLevel] = s.StudentCount
-// 	}
+	startDate := startOfMonth.AddDate(0, -limit+1, 0).Format("2006-01") + "-01"
 
-// 	// 转换为前端 ECharts Pie 图所需格式
-// 	// 顺序建议：充足 -> 预警 -> 欠费
-// 	return responsex.GetStudentBalanceDataResponse{
-// 		Stats: []responsex.BalanceStat{
-// 			{Name: "充足 (>=5课时)", Value: resultMap["Sufficient"]},
-// 			{Name: "预警 (<5课时)", Value: resultMap["Warning"]},
-// 			{Name: "欠费 (<0课时)", Value: resultMap["Arrears"]},
-// 		},
-// 	}, nil
-// }
+	// ========== 1. 查询新增学员 (created_at) ==========
+	type MonthlyStat struct {
+		Month string
+		Total int64
+	}
+
+	var growthStats []MonthlyStat
+	err := db.Model(&model.Student{}).
+		Select("strftime('%Y-%m', created_at) as month, COUNT(id) as total").
+		Where("deleted_at IS NULL AND status != 3 AND created_at >= ?", startDate).
+		Group("month").
+		Order("month").
+		Scan(&growthStats).Error
+
+	if err != nil {
+		logger.Error("Failed to get student growth data", logger.ErrorType(err))
+		return result, err
+	}
+
+	growthMap := make(map[string]int64)
+	for _, s := range growthStats {
+		growthMap[s.Month] = s.Total
+	}
+
+	// ========== 2. 查询流失学员 (包括被删除的和状态为退学的) ==========
+	// 方式：计算删除日期或转为退学状态的日期
+	// 对于被删除的学员：按 deleted_at 日期统计
+	// 对于退学的学员：按 updated_at 日期统计（假设状态改为退学时 updated_at 会更新）
+
+	var deletedStats []MonthlyStat
+	// 使用 Unscoped 查询包括软删除的学员，按删除日期统计
+	err = db.Unscoped(). // 绕过软删除过滤
+				Model(&model.Student{}).
+				Select("strftime('%Y-%m', deleted_at) as month, COUNT(id) as total").
+				Where("deleted_at IS NOT NULL AND deleted_at >= ?", startDate).
+				Group("month").
+				Order("month").
+				Scan(&deletedStats).Error
+
+	if err != nil {
+		logger.Error("Failed to get student deletion data", logger.ErrorType(err))
+		return result, err
+	}
+
+	// 查询转为退学状态的学员（status = 3）
+	var withdrawnStats []MonthlyStat
+	err = db.Model(&model.Student{}).
+		Select("strftime('%Y-%m', updated_at) as month, COUNT(id) as total").
+		Where("status = 3 AND updated_at >= ?", startDate).
+		Group("month").
+		Order("month").
+		Scan(&withdrawnStats).Error
+
+	if err != nil {
+		logger.Error("Failed to get student withdrawal data", logger.ErrorType(err))
+		return result, err
+	}
+
+	// 合并流失数据 (deleted + withdrawn)
+	lossMap := make(map[string]int64)
+	for _, s := range deletedStats {
+		lossMap[s.Month] += s.Total
+	}
+	for _, s := range withdrawnStats {
+		lossMap[s.Month] += s.Total
+	}
+
+	// ========== 3. 填充数据并计算净增 ==========
+	for _, month := range result.XAxis {
+		growth := growthMap[month]
+		loss := lossMap[month]
+		net := growth - loss
+
+		result.Growth = append(result.Growth, growth)
+		result.Loss = append(result.Loss, loss)
+		result.Net = append(result.Net, net)
+	}
+
+	return result, nil
+}
+
+// GetStudentBalanceData 获取学员账户健康度分布 (基于剩余课时)
+// Arrears: <0, Warning: 0-5, Sufficient: >=5
+func (m *DashboardManager) GetStudentBalanceData(ctx context.Context) (responsex.GetStudentBalanceDataResponse, error) {
+	db := dao.GetDB()
+
+	type BalanceStat struct {
+		BalanceLevel string
+		StudentCount int
+	}
+	var stats []BalanceStat
+
+	// 使用 CASE WHEN 对StudentSubject的balance进行分桶统计
+	// 统计有不同balance等级的学生数（去重）
+	query := `
+		SELECT
+			CASE
+				WHEN balance < 0 THEN 'Arrears'
+				WHEN balance >= 0 AND balance < 5 THEN 'Warning'
+				ELSE 'Sufficient'
+			END as balance_level,
+			COUNT(DISTINCT student_id) as student_count
+		FROM student_subjects
+		WHERE status IN (1, 2) AND deleted_at IS NULL
+		GROUP BY balance_level
+	`
+
+	if err := db.Raw(query).Scan(&stats).Error; err != nil {
+		logger.Error("Failed to get student balance data", logger.ErrorType(err))
+		return responsex.GetStudentBalanceDataResponse{}, err
+	}
+
+	// 初始化 Map 确保所有状态都有值 (即使数据库查出来是 0)
+	resultMap := map[string]int{
+		"Arrears":    0,
+		"Warning":    0,
+		"Sufficient": 0,
+	}
+	for _, s := range stats {
+		resultMap[s.BalanceLevel] = s.StudentCount
+	}
+
+	// 转换为前端 ECharts Pie 图所需格式
+	// 顺序建议：充足 -> 预警 -> 欠费
+	return responsex.GetStudentBalanceDataResponse{
+		Stats: []responsex.BalanceStat{
+			{Name: "充足 (>=5课时)", Value: resultMap["Sufficient"]},
+			{Name: "预警 (<5课时)", Value: resultMap["Warning"]},
+			{Name: "欠费 (<0课时)", Value: resultMap["Arrears"]},
+		},
+	}, nil
+}
 
 // GetSubjectRankData 获取科目消课排行 (本月各科目消课占比)
 func (m *DashboardManager) GetSubjectRankData(ctx context.Context) (responsex.GetSubjectRankDataResponse, error) {
@@ -532,8 +646,8 @@ func (m *DashboardManager) RegisterRoute(d *dispatcher.Dispatcher) {
 	dispatcher.RegisterNoReq(d, "dashboard_manager/get_summary", m.GetSummaryData)
 	dispatcher.RegisterTyped(d, "dashboard_manager/get_finance_chart", m.GetFinanceChartData)
 	dispatcher.RegisterNoReq(d, "dashboard_manager/get_subject_rank", m.GetSubjectRankData)
-	// dispatcher.RegisterNoReq(d, "dashboard_manager/get_heatmap", m.GetHeatmapData)
-	// dispatcher.RegisterNoReq(d, "dashboard_manager/get_student_engagement", m.GetStudentEngagementData)
-	// dispatcher.RegisterNoReq(d, "dashboard_manager/get_student_growth", m.GetStudentGrowthData)
-	// dispatcher.RegisterNoReq(d, "dashboard_manager/get_student_balance", m.GetStudentBalanceData)
+	dispatcher.RegisterNoReq(d, "dashboard_manager/get_heatmap", m.GetHeatmapData)
+	dispatcher.RegisterNoReq(d, "dashboard_manager/get_student_engagement", m.GetStudentEngagementData)
+	dispatcher.RegisterNoReq(d, "dashboard_manager/get_student_growth_trend", m.GetStudentGrowthTrendData)
+	dispatcher.RegisterNoReq(d, "dashboard_manager/get_student_balance", m.GetStudentBalanceData)
 }

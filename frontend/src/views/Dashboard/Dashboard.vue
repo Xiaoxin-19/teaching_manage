@@ -24,7 +24,7 @@
             <ChartFinance ref="chartFinanceRef" />
           </v-col>
           <v-col cols="12" md="6">
-            <ChartHeatmap ref="chartHeatmapRef" />
+            <ChartSubject ref="chartSubjectRef" />
           </v-col>
         </v-row>
 
@@ -39,7 +39,7 @@
 
         <v-row dense>
           <v-col cols="12" md="6">
-            <ChartSubject ref="chartSubjectRef" />
+            <ChartHeatmap ref="chartHeatmapRef" />
           </v-col>
           <v-col cols="12" md="6">
             <ChartBalance ref="chartBalanceRef" @navigate="navigateTo" />
