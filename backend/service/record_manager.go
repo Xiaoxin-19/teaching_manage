@@ -71,27 +71,28 @@ func (rm RecordManager) CreateRecord(ctx context.Context, req *requestx.CreateRe
 	}
 
 	// 验证学生状态和课程状态
-	if course == nil || course.Student.Status != 1 {
+	if course.Student.Status != 1 {
 		logger.Error("student status invalid", logger.UInt("student_id", req.StudentID), logger.Int("student_status", course.Student.Status))
 		return "", fmt.Errorf("创建记录失败，学生状态异常")
 	}
 
-	if course == nil || course.Status != 1 {
+	if course.Status != 1 {
 		logger.Error("course status invalid", logger.UInt("course_id", course.ID), logger.Int("course_status", int(course.Status)))
 		return "", fmt.Errorf("创建记录失败，课程状态异常")
 	}
 
 	record := &entity.Record{
-		Student:      entity.Student{ID: req.StudentID},
-		Teacher:      entity.Teacher{ID: course.Teacher.ID},
-		Subject:      entity.Subject{ID: req.SubjectID},
-		TeachingDate: teachingDate,
+		Student:       entity.Student{ID: req.StudentID},
+		Teacher:       entity.Teacher{ID: course.Teacher.ID},
+		Subject:       entity.Subject{ID: req.SubjectID},
+		PriceSnapshot: course.AvgPrice,
+		TeachingDate:  teachingDate,
 		// StartTime / EndTime 使用 time.Time 类型仅承载“时分”信息，日期由 TeachingDate 字段单独存储；
 		// 这里通过 time.Parse("15:04", ...) 得到的日期部分在业务上不使用，是刻意的设计选择。
-		StartTime:    startTime,
-		EndTime:      endTime,
-		Remark:       req.Remark,
-		Active:       false, // 新创建的记录默认为未激活状态
+		StartTime: startTime,
+		EndTime:   endTime,
+		Remark:    req.Remark,
+		Active:    false, // 新创建的记录默认为未激活状态
 	}
 
 	err = rm.repo.CreateRecord(ctx, record)
@@ -193,19 +194,10 @@ func (rm *RecordManager) ActivateAllPendingRecords(ctx context.Context) (string,
 			logger.Error("failed to get pending records", logger.ErrorType(err))
 			return err
 		}
-		recordIDs := make([]uint, 0, len(pendingRecords))
-		for _, record := range pendingRecords {
-			if !record.Active {
-				recordIDs = append(recordIDs, record.ID)
-			}
-		}
-
-		logger.Info("Found pending records", logger.Int("count", len(recordIDs)),
-			logger.String("record_ids", fmt.Sprintf("%v", recordIDs)))
 
 		for _, record := range pendingRecords {
 			if !record.Active {
-				recordIDs = append(recordIDs, record.ID)
+				logger.Info("Activating record", logger.UInt("record_id", record.ID))
 				err = activateRecord(ctx, record.ID, tx)
 				if err != nil {
 					logger.Error("failed to activate record", logger.UInt("record_id", record.ID), logger.ErrorType(err))

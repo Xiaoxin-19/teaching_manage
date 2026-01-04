@@ -18,10 +18,11 @@ type StudentSubject struct {
 	TeacherID uint    `gorm:"not null;comment:该科目的授课老师" `
 	Teacher   Teacher `gorm:"foreignKey:TeacherID" `
 
-	Balance  int    `gorm:"default:0;comment:剩余课时" `
-	TotalBuy int    `gorm:"default:0;comment:累计购买课时" `
-	Remark   string `gorm:"type:text;comment:备注" `
-	Status   int    `gorm:"default:1;comment:状态，1-正常，2-停学 3-结课" `
+	Balance  int     `gorm:"default:0;comment:剩余课时" `
+	TotalBuy int     `gorm:"default:0;comment:累计购买课时" `
+	AvgPrice float64 `gorm:"type:decimal(10,2);default:0;comment:平均课时单价" `
+	Remark   string  `gorm:"type:text;comment:备注" `
+	Status   int     `gorm:"default:1;comment:状态，1-正常，2-停学 3-结课" `
 }
 
 func (StudentSubject) TableName() string {
@@ -36,7 +37,8 @@ func (ss *StudentSubject) AfterDelete(tx *gorm.DB) (err error) {
 		return err
 	}
 
-	
+	// 同时删除所有的上课记录
+
 	logger.Info("Successfully cascaded delete of RechargeOrder records", logger.UInt("student_subject_id", ss.ID))
 	return nil
 }

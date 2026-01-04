@@ -192,7 +192,14 @@ func (cm CourseManager) RechargeCourse(ctx context.Context, req *requestx.Rechar
 		txRechargeDao := dao.NewRechargeOrderDao(tx)
 		txRechargeRepo := repository.NewOrderRepository(txRechargeDao)
 
-		if err := txCourseRepo.RechargeCourse(ctx, req.CourseId, req.Hours); err != nil {
+		// 处理金额符号：充值时为正数，退费时为负数
+		adjustedAmount := req.Amount
+		if req.Hours < 0 {
+			// 退费时，amount 变为负数，表示从总价值中扣除
+			adjustedAmount = -req.Amount
+		}
+
+		if err := txCourseRepo.RechargeCourse(ctx, req.CourseId, req.Hours, adjustedAmount); err != nil {
 			return err
 		}
 

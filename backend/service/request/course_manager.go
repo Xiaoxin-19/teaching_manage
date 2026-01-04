@@ -26,7 +26,7 @@ type DeleteCourseRequest struct {
 type RechargeCourseRequest struct {
 	CourseId uint    `json:"course_id" validate:"required"`
 	Hours    int     `json:"hours" validate:"required,ne=0"` // 正数为充值，负数为扣除，不允许为 0
-	Amount   float64 `json:"amount"`                         // 实付/退费金额
+	Amount   float64 `json:"amount"`                         // 充值/退费金额（始终为正数，由服务层处理符号）
 	Remark   string  `json:"remark"`
 }
 

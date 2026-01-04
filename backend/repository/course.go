@@ -14,7 +14,7 @@ type CourseRepository interface {
 	GetCourseByID(ctx context.Context, id uint) (*entity.StudentSubject, error)
 	UpdateCourseTeacher(ctx context.Context, id uint, teacherID uint, remark string) error
 	UpdateBalance(ctx context.Context, id uint, hours int) error
-	RechargeCourse(ctx context.Context, id uint, hours int) error
+	RechargeCourse(ctx context.Context, id uint, hours int, amount float64) error
 	ToggleStatus(ctx context.Context, id uint) error
 	DeleteCourse(ctx context.Context, id uint, isHardDelete bool, remark string) error
 	GetByStudentIDAndSubjectID(ctx context.Context, studentID uint, subjectID uint) (*entity.StudentSubject, error)
@@ -57,6 +57,7 @@ func (cr CourseRepositoryImpl) GetCourseList(ctx context.Context,
 			Subject:   entity.Subject{ID: sc.SubjectID, Name: sc.Subject.Name},
 			Teacher:   entity.Teacher{ID: sc.TeacherID, Name: sc.Teacher.Name, TeacherNumber: sc.Teacher.TeacherNumber},
 			Balance:   sc.Balance,
+			AvgPrice:  sc.AvgPrice,
 			Remark:    sc.Remark,
 			Status:    entity.ParseStudentSubjectStatus(sc.Status),
 			CreatedAt: sc.CreatedAt,
@@ -105,6 +106,7 @@ func (cr CourseRepositoryImpl) GetCourseByID(ctx context.Context, id uint) (*ent
 		Teacher:   entity.Teacher{ID: sc.Teacher.ID, Name: sc.Teacher.Name, TeacherNumber: sc.Teacher.TeacherNumber},
 		Status:    entity.StudentSubjectStatus(sc.Status),
 		Balance:   sc.Balance,
+		AvgPrice:  sc.AvgPrice,
 		Remark:    sc.Remark,
 		CreatedAt: sc.CreatedAt,
 		UpdatedAt: sc.UpdatedAt,
@@ -119,8 +121,8 @@ func (cr CourseRepositoryImpl) UpdateBalance(ctx context.Context, id uint, hours
 	return cr.dao.UpdateBalance(ctx, id, hours)
 }
 
-func (cr CourseRepositoryImpl) RechargeCourse(ctx context.Context, id uint, hours int) error {
-	return cr.dao.Recharge(ctx, id, hours)
+func (cr CourseRepositoryImpl) RechargeCourse(ctx context.Context, id uint, hours int, amount float64) error {
+	return cr.dao.Recharge(ctx, id, hours, amount)
 }
 
 func (cr CourseRepositoryImpl) GetByStudentIDAndSubjectID(ctx context.Context, studentID uint, subjectID uint) (*entity.StudentSubject, error) {
@@ -135,6 +137,7 @@ func (cr CourseRepositoryImpl) GetByStudentIDAndSubjectID(ctx context.Context, s
 		Teacher:   entity.Teacher{ID: sc.Teacher.ID, Name: sc.Teacher.Name, TeacherNumber: sc.Teacher.TeacherNumber},
 		Status:    entity.StudentSubjectStatus(sc.Status),
 		Balance:   sc.Balance,
+		AvgPrice:  sc.AvgPrice,
 		Remark:    sc.Remark,
 		CreatedAt: sc.CreatedAt,
 		UpdatedAt: sc.UpdatedAt,

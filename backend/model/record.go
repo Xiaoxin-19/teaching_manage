@@ -17,6 +17,9 @@ type Record struct {
 	Teacher Teacher `gorm:"foreignKey:TeacherID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
 	Subject Subject `gorm:"foreignKey:SubjectID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
 
+	// 当前课时单价快照，避免后续价格变动影响历史记录
+	PriceSnapshot float64 `gorm:"column:price_snapshot;not null;comment:'课时单价快照'"`
+
 	// TeachingDateMs 用 Unix 毫秒 (UTC) 表示上课时刻，便于精确排序（int64）
 	TeachingDate   time.Time `gorm:"column:teaching_date;type:date;not null;comment:'上课日期';uniqueIndex:idx_stu_teach_date_time"`
 	TeachingDateMs int64     `gorm:"column:teaching_date_ms;index;comment:'上课时间 Unix 毫秒(UTC) 整数表示'"`

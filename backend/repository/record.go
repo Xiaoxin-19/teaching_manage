@@ -28,13 +28,14 @@ func NewRecordRepository(dao dao.RecordDAO) RecordRepository {
 
 func (r *RecordRepositoryImpl) CreateRecord(ctx context.Context, record *entity.Record) error {
 	recordModel := model.Record{
-		StudentID:    record.Student.ID,
-		TeacherID:    record.Teacher.ID,
-		SubjectID:    record.Subject.ID,
-		TeachingDate: record.TeachingDate,
-		StartTime:    record.StartTime.Format("15:04"),
-		EndTime:      record.EndTime.Format("15:04"),
-		Remark:       record.Remark,
+		StudentID:     record.Student.ID,
+		TeacherID:     record.Teacher.ID,
+		SubjectID:     record.Subject.ID,
+		PriceSnapshot: record.PriceSnapshot,
+		TeachingDate:  record.TeachingDate,
+		StartTime:     record.StartTime.Format("15:04"),
+		EndTime:       record.EndTime.Format("15:04"),
+		Remark:        record.Remark,
 	}
 	return r.recordDao.CreateRecord(ctx, recordModel)
 }
@@ -56,17 +57,18 @@ func (r *RecordRepositoryImpl) GetRecordList(ctx context.Context, stuIDs []uint,
 			return nil, 0, 0, err
 		}
 		result = append(result, entity.Record{
-			ID:           rec.ID,
-			CreatedAt:    rec.CreatedAt,
-			UpdatedAt:    rec.UpdatedAt,
-			Student:      entity.Student{ID: rec.StudentID, Name: rec.Student.Name, StudentNumber: rec.Student.StudentNumber, Status: int(rec.Student.Status)},
-			Teacher:      entity.Teacher{ID: rec.TeacherID, Name: rec.Teacher.Name, TeacherNumber: rec.Teacher.TeacherNumber},
-			Subject:      entity.Subject{ID: rec.SubjectID, Name: rec.Subject.Name},
-			TeachingDate: rec.TeachingDate,
-			StartTime:    startTime,
-			EndTime:      endTime,
-			Active:       rec.Active,
-			Remark:       rec.Remark,
+			ID:            rec.ID,
+			CreatedAt:     rec.CreatedAt,
+			UpdatedAt:     rec.UpdatedAt,
+			Student:       entity.Student{ID: rec.StudentID, Name: rec.Student.Name, StudentNumber: rec.Student.StudentNumber, Status: int(rec.Student.Status)},
+			Teacher:       entity.Teacher{ID: rec.TeacherID, Name: rec.Teacher.Name, TeacherNumber: rec.Teacher.TeacherNumber},
+			Subject:       entity.Subject{ID: rec.SubjectID, Name: rec.Subject.Name},
+			PriceSnapshot: rec.PriceSnapshot,
+			TeachingDate:  rec.TeachingDate,
+			StartTime:     startTime,
+			EndTime:       endTime,
+			Active:        rec.Active,
+			Remark:        rec.Remark,
 		})
 	}
 	return result, total, pendingTotal, nil
@@ -88,17 +90,18 @@ func (r *RecordRepositoryImpl) GetRecordByID(ctx context.Context, d uint) (entit
 	}
 
 	return entity.Record{
-		ID:           dbRecord.ID,
-		CreatedAt:    dbRecord.CreatedAt,
-		UpdatedAt:    dbRecord.UpdatedAt,
-		Student:      entity.Student{ID: dbRecord.StudentID, Name: dbRecord.Student.Name, StudentNumber: dbRecord.Student.StudentNumber, Status: int(dbRecord.Student.Status)},
-		Teacher:      entity.Teacher{ID: dbRecord.TeacherID, Name: dbRecord.Teacher.Name, TeacherNumber: dbRecord.Teacher.TeacherNumber},
-		Subject:      entity.Subject{ID: dbRecord.SubjectID, Name: dbRecord.Subject.Name},
-		TeachingDate: dbRecord.TeachingDate,
-		StartTime:    startTime,
-		EndTime:      endTime,
-		Active:       dbRecord.Active,
-		Remark:       dbRecord.Remark,
+		ID:            dbRecord.ID,
+		CreatedAt:     dbRecord.CreatedAt,
+		UpdatedAt:     dbRecord.UpdatedAt,
+		Student:       entity.Student{ID: dbRecord.StudentID, Name: dbRecord.Student.Name, StudentNumber: dbRecord.Student.StudentNumber, Status: int(dbRecord.Student.Status)},
+		Teacher:       entity.Teacher{ID: dbRecord.TeacherID, Name: dbRecord.Teacher.Name, TeacherNumber: dbRecord.Teacher.TeacherNumber},
+		Subject:       entity.Subject{ID: dbRecord.SubjectID, Name: dbRecord.Subject.Name},
+		PriceSnapshot: dbRecord.PriceSnapshot,
+		TeachingDate:  dbRecord.TeachingDate,
+		StartTime:     startTime,
+		EndTime:       endTime,
+		Active:        dbRecord.Active,
+		Remark:        dbRecord.Remark,
 	}, nil
 }
 
@@ -127,17 +130,18 @@ func (r *RecordRepositoryImpl) GetAllPendingRecordList(ctx context.Context) ([]e
 			return nil, err
 		}
 		result = append(result, entity.Record{
-			ID:           rec.ID,
-			CreatedAt:    rec.CreatedAt,
-			UpdatedAt:    rec.UpdatedAt,
-			Student:      entity.Student{ID: rec.StudentID, Name: rec.Student.Name, StudentNumber: rec.Student.StudentNumber, Status: int(rec.Student.Status)},
-			Teacher:      entity.Teacher{ID: rec.TeacherID, Name: rec.Teacher.Name, TeacherNumber: rec.Teacher.TeacherNumber},
-			Subject:      entity.Subject{ID: rec.SubjectID, Name: rec.Subject.Name},
-			TeachingDate: rec.TeachingDate,
-			StartTime:    startTime,
-			EndTime:      endTime,
-			Active:       rec.Active,
-			Remark:       rec.Remark,
+			ID:            rec.ID,
+			CreatedAt:     rec.CreatedAt,
+			UpdatedAt:     rec.UpdatedAt,
+			Student:       entity.Student{ID: rec.StudentID, Name: rec.Student.Name, StudentNumber: rec.Student.StudentNumber, Status: int(rec.Student.Status)},
+			Teacher:       entity.Teacher{ID: rec.TeacherID, Name: rec.Teacher.Name, TeacherNumber: rec.Teacher.TeacherNumber},
+			Subject:       entity.Subject{ID: rec.SubjectID, Name: rec.Subject.Name},
+			PriceSnapshot: rec.PriceSnapshot,
+			TeachingDate:  rec.TeachingDate,
+			StartTime:     startTime,
+			EndTime:       endTime,
+			Active:        rec.Active,
+			Remark:        rec.Remark,
 		})
 	}
 	return result, nil

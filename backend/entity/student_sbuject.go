@@ -8,8 +8,9 @@ type StudentSubject struct {
 	Teacher   Teacher
 	Subject   Subject
 	Balance   int                  `json:"balance"` // 剩余课时数
-	Remark    string               `json:"remark"`  // 备注
-	Status    StudentSubjectStatus `json:"status"`  // 课程状态
+	AvgPrice  float64              `json:"avg_price"`
+	Remark    string               `json:"remark"` // 备注
+	Status    StudentSubjectStatus `json:"status"` // 课程状态
 	CreatedAt time.Time            `json:"created_at"`
 	UpdatedAt time.Time            `json:"updated_at"`
 }

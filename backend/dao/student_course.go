@@ -15,7 +15,7 @@ type StudentCourseDao interface {
 	GetStudentCourse(ctx context.Context, studentID, subjectID uint) (*model.StudentSubject, error)
 	GetStudentCourseWithDeleted(ctx context.Context, studentID, subjectID uint) (*model.StudentSubject, error)
 	UpdateBalance(ctx context.Context, id uint, delta int) error
-	Recharge(ctx context.Context, id uint, hours int) error
+	Recharge(ctx context.Context, id uint, hours int, amount float64) error
 	RestoreStudentCourse(ctx context.Context, id uint) error
 	GetStudentCourseList(ctx context.Context, students []uint, subjects []uint, teachers []uint, min *int, max *int, statuses []int, keyword string, offset int, limit int) ([]model.StudentSubject, int64, error)
 	UpdateStatus(ctx context.Context, id uint, status int) error
@@ -124,13 +124,26 @@ func (d *StudentCourseGormDao) UpdateBalance(ctx context.Context, id uint, delta
 		Update("balance", gorm.Expr("balance + ?", delta)).Error
 }
 
-func (d *StudentCourseGormDao) Recharge(ctx context.Context, id uint, hours int) error {
+func (d *StudentCourseGormDao) Recharge(ctx context.Context, id uint, hours int, amount float64) error {
 	updates := map[string]interface{}{
 		"balance": gorm.Expr("balance + ?", hours),
 	}
 	if hours > 0 {
 		updates["total_buy"] = gorm.Expr("total_buy + ?", hours)
 	}
+
+	// Update AvgPrice: (OldBalance * OldAvgPrice + Amount) / (OldBalance + Hours)
+	// 该方法仅用于【充值】和【退费】，日常消课通过 UpdateBalance 实现：
+	//   - 充值：hours > 0, amount > 0（正数）
+	//           新avg_price = (balance * avg_price + amount) / (balance + hours)
+	//   - 退费：hours < 0, amount < 0（负数，调用者应在服务层处理符号转换）
+	//           新avg_price = (balance * avg_price + amount) / (balance + hours)
+	//           例：30节@50元/节，退费10节，退款500元 → amount=-500
+	//               = (30*50 - 500) / (30-10) = 1000/20 = 50元/节 ✓
+	// 当余额耗尽(balance + hours = 0)时，保留原有的 avg_price 供后续充值计算使用
+	// Note: In SQLite, division by zero returns NULL.
+	updates["avg_price"] = gorm.Expr("COALESCE((balance * avg_price + ?) / NULLIF(balance + ?, 0), avg_price)", amount, hours)
+
 	return d.db.WithContext(ctx).Model(&model.StudentSubject{}).
 		Where("id = ?", id).
 		Updates(updates).Error
