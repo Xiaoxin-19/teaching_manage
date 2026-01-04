@@ -10,7 +10,7 @@
       </v-btn>
     </div>
     <div class="d-flex">
-      <div ref="chartRef" style="flex: 1; height: 340px;"></div>
+      <div ref="chartRef" style="flex: 1; height: var(--dashboard-chart-height, 380px);"></div>
     </div>
   </v-card>
 </template>

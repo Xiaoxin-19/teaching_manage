@@ -86,6 +86,7 @@ export interface GetSubjectRankDataResponse {
 }
 
 export interface EngagementStat {
+  code: string  // 枚举键：Dormant, Lazy, Regular, High
   name: string
   value: number
 }

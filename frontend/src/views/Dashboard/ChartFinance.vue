@@ -190,7 +190,7 @@ onMounted(() => {
 <style scoped>
 .chart-box {
   width: 100%;
-  height: 350px;
+  height: var(--dashboard-chart-height, 380px);
 }
 
 .gap-2 {

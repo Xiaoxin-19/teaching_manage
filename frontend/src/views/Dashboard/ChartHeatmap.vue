@@ -139,7 +139,6 @@ defineExpose({
 <style scoped>
 .chart-box {
   width: 100%;
-  height: 400px;
-  /* 热力图需要更高一点 */
+  height: var(--dashboard-chart-height, 380px);
 }
 </style>

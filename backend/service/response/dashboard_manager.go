@@ -34,6 +34,7 @@ type TeacherRankDTO struct {
 }
 
 type EngagementStat struct {
+	Code  string `json:"code"` // 枚举键：Dormant, Lazy, Regular, High
 	Name  string `json:"name"`
 	Value int    `json:"value"`
 }

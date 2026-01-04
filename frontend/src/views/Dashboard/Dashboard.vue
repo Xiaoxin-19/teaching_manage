@@ -113,3 +113,9 @@ const handleRefresh = async () => {
   await dashboardPromise;
 };
 </script>
+
+<style scoped>
+:root {
+  --dashboard-chart-height: 380px;
+}
+</style>

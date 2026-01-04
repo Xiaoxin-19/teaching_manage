@@ -186,6 +186,6 @@ defineExpose({
 <style scoped>
 .chart-box {
   width: 100%;
-  height: 380px;
+  height: var(--dashboard-chart-height, 380px);
 }
 </style>

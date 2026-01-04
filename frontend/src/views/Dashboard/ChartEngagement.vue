@@ -21,14 +21,22 @@ import { ref, onMounted } from 'vue';
 import * as echarts from 'echarts';
 import { useChart } from '../../composables/useChart';
 import { GetStudentEngagementData } from '../../api/dashboard';
-import type { GetStudentEngagementDataResponse } from '../../types/response';
+import type { EngagementStat } from '../../types/response';
+
+// 前端本地定义的活跃度分类
+const ENGAGEMENT_CATEGORIES = {
+  Dormant: { name: '沉睡 (0/科)', desc: '需激活' },
+  Lazy: { name: '消极 (<1/科)', desc: '缺勤风险' },
+  Regular: { name: '达标 (1-3/科)', desc: '每周1-2练' },
+  High: { name: '高频 (>3/科)', desc: '集训/多科' }
+};
 
 const chartRef = ref<HTMLElement | null>(null);
 const engagementData = ref([
-  { value: 0, name: '沉睡 (0/科)', desc: '需激活' },
-  { value: 0, name: '消极 (<1/科)', desc: '缺勤风险' },
-  { value: 0, name: '达标 (1-3/科)', desc: '每周1-2练' },
-  { value: 0, name: '高频 (>3/科)', desc: '集训/多科' }
+  { code: 'Dormant', value: 0, name: '沉睡 (0/科)', desc: '需激活' },
+  { code: 'Lazy', value: 0, name: '消极 (<1/科)', desc: '缺勤风险' },
+  { code: 'Regular', value: 0, name: '达标 (1-3/科)', desc: '每周1-2练' },
+  { code: 'High', value: 0, name: '高频 (>3/科)', desc: '集训/多科' }
 ]);
 
 const getOption = (isDark: boolean) => {
@@ -126,10 +134,12 @@ const loadData = async () => {
   try {
     const data = await GetStudentEngagementData();
     if (data && data.stats) {
-      const statsMap = new Map(data.stats.map((s) => [s.name, s.value]));
+      // 使用 code 进行映射，而不是依赖名称字符串
+      // 这样即使后端改变显示名称，映射也不会破裂
+      const statsMap = new Map(data.stats.map((s) => [s.code, s.value]));
       engagementData.value = engagementData.value.map((item) => ({
         ...item,
-        value: statsMap.get(item.name) || 0
+        value: statsMap.get(item.code) || 0
       }));
       refresh();
     }
@@ -150,6 +160,6 @@ defineExpose({
 <style scoped>
 .chart-box {
   width: 100%;
-  height: 380px;
+  height: var(--dashboard-chart-height, 380px);
 }
 </style>

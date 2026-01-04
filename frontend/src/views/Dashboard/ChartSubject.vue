@@ -98,6 +98,6 @@ defineExpose({ loadData });
 <style scoped>
 .chart-box {
   width: 100%;
-  height: 320px;
+  height: var(--dashboard-chart-height, 380px);
 }
 </style>
