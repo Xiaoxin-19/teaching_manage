@@ -3,10 +3,7 @@
     <div class="d-flex flex-column h-100">
 
       <!-- 1. 顶部工具栏 -->
-      <div class="d-flex justify-space-between align-center mb-4">
-        <div>
-          <h2 class="text-h5 font-weight-bold text-high-emphasis">教务中心</h2>
-        </div>
+      <div class="d-flex justify-end align-end mb-4">
         <div class="d-flex align-center">
           <v-btn color="primary" prepend-icon="mdi-book-plus" elevation="2" @click="openEnroll">新课报名</v-btn>
         </div>

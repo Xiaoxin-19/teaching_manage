@@ -4,11 +4,6 @@
 
       <!-- 1. 头部区域 -->
       <div class="d-flex justify-space-between align-center mb-6">
-        <div>
-          <h2 class="text-h5 font-weight-bold text-high-emphasis">科目管理</h2>
-          <!-- 已移除解释文字 -->
-        </div>
-
         <!-- 右侧操作区 -->
         <div class="d-flex align-center gap-4 ml-auto" style="gap: 16px">
           <!-- 搜索 -->

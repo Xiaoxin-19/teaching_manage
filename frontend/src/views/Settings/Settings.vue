@@ -50,7 +50,7 @@
           <v-row>
             <!-- 左侧：数据备份 -->
             <v-col cols="12" md="6">
-              <v-sheet class="rounded-lg bg-grey-lighten-5 pa-5 h-100 d-flex flex-column border">
+              <v-sheet class="rounded-lg  pa-5 h-100 d-flex flex-column border">
                 <div class="d-flex align-center mb-4">
                   <v-icon icon="mdi-backup-restore" color="primary" class="mr-2"></v-icon>
                   <span class="text-subtitle-2 font-weight-bold">创建备份</span>
@@ -89,7 +89,7 @@
             <!-- 右侧：数据恢复 -->
             <v-col cols="12" md="6">
               <v-sheet class="rounded-lg border pa-0 h-100 d-flex flex-column overflow-hidden">
-                <v-tabs v-model="restoreTab" density="compact" color="primary" grow bg-color="grey-lighten-5">
+                <v-tabs border v-model="restoreTab" density="compact" color="primary" grow>
                   <v-tab value="cloud" :disabled="!isConfigured" class="text-caption">
                     <v-icon start size="small">mdi-cloud-download</v-icon> 云端恢复
                   </v-tab>

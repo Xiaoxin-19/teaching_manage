@@ -1,5 +1,5 @@
 <template>
-  <v-overlay v-model="visible" class="global-overlay" :persistent="true" scroll-strategy="block"
+  <v-overlay v-model="visible" class="global-overlay" :persistent="true" scroll-strategy="block" contained
     :scrim="'rgba(0, 0, 0, 0.45)'">
     <div class="overlay-card">
       <v-progress-circular indeterminate color="primary" size="42" width="4" class="mb-3" />

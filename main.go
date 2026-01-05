@@ -95,7 +95,7 @@ func main() {
 	dispatcher := dispatcher.New()
 
 	// Create an instance of the app structure
-	app := NewApp(dispatcher)
+	app := NewApp(dispatcher, *settingService, *backupManager)
 
 	// Create application with options
 	err = wails.Run(&options.App{
@@ -136,9 +136,11 @@ func main() {
 		Bind: []interface{}{
 			app,
 		},
-		Debug: options.Debug{
-			OpenInspectorOnStartup: true,
+		OnShutdown: func(ctx context.Context) {
+			app.OnShutdown()
 		},
+		Frameless:                true,
+		EnableDefaultContextMenu: false,
 	})
 
 	if err != nil {

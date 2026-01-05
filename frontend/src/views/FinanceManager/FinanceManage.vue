@@ -1,5 +1,5 @@
 <template>
-  <v-sheet class="fill-height pa-6 bg-background">
+  <v-sheet class="fill-height pa-6">
     <div class="d-flex flex-column h-100">
 
       <!-- 1. 操作栏 (右对齐，去除标题，仅保留导出) -->
@@ -359,11 +359,5 @@ div::-webkit-scrollbar {
 .expanded-row-bg {
   background-color: #f5f5f5;
   /* Light mode */
-}
-
-/* Vuetify 暗黑模式自动适配类名 */
-:global(.v-theme--dark) .expanded-row-bg {
-  background-color: #1E1E1E;
-  /* Dark mode */
 }
 </style>

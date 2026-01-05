@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { useTheme } from 'vuetify/lib/composables/theme';
 
+const theme = useTheme()
 // 定义 Props：接收父组件的状态
 const props = defineProps<{
   modelValue: boolean // 控制 drawer 显示/隐藏 (v-model)
   rail: boolean       // 控制迷你模式
-  theme: string       // 当前主题
 }>()
 
 // 定义 Emits：向父组件发送事件
@@ -32,29 +32,6 @@ const menuItems = [
 <template>
   <v-navigation-drawer :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)" :rail="rail"
     width="210" permanent elevation="2" class="bg-surface" @click="emit('update:rail', false)">
-    <!-- 1. 应用 Logo / 标题区 -->
-    <v-list class="py-1">
-      <v-list-item class="" nav lines="two">
-        <template v-slot:prepend>
-          <v-avatar color="primary" variant="flat" size="40">
-            <v-icon color="white">mdi-school</v-icon>
-          </v-avatar>
-        </template>
-
-
-        <v-list-item-title class=" py-2 font-weight-bold text-h6">
-          教务助手
-        </v-list-item-title>
-
-        <!-- 收起状态下的展开按钮 -->
-        <template v-slot:append>
-          <v-btn v-if="!rail" icon="mdi-chevron-left" variant="text" size="small"
-            @click.stop="emit('update:rail', true)"></v-btn>
-        </template>
-      </v-list-item>
-    </v-list>
-
-    <v-divider></v-divider>
 
     <!-- 2. 菜单列表区（使用 :to + link 由 vue-router 管理激活状态） -->
     <v-list nav density="compact" class="mt-2">
@@ -87,13 +64,6 @@ const menuItems = [
             {{ rail ? '展开' : '收起侧边栏' }}
           </v-list-item-title>
         </v-list-item>
-
-        <v-divider class="mb-2"></v-divider>
-
-        <v-btn block variant="text" :icon="rail" @click="emit('toggleTheme')" class="mb-2">
-          <v-icon>{{ theme === 'light' ? 'mdi-weather-night' : 'mdi-weather-sunny' }}</v-icon>
-          <span v-if="!rail" class="ml-2">{{ theme === 'light' ? '暗黑模式' : '亮色模式' }}</span>
-        </v-btn>
       </div>
     </template>
   </v-navigation-drawer>

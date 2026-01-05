@@ -49,14 +49,14 @@ export function useRecordManage() {
 
   // 表头定义 (key 使用下划线风格以兼容 DOM 模板)
   const headers: any = [
-    { title: '学生', key: 'student_name', width: '130px', sortable: false },
-    { title: '科目', key: 'subject_name', width: '120px', sortable: false },
-    { title: '授课老师', key: 'teacher_name', width: '130px', sortable: false },
-    { title: '上课日期', key: 'date', width: '140px', sortable: false },
-    { title: '时间段', key: 'time', width: '130px', sortable: false },
-    { title: '状态', key: 'status', width: '100px', sortable: false, align: 'center' },
-    { title: '操作', key: 'actions', align: 'end', width: '120px', sortable: false },
-    { title: '详情', key: 'data-table-expand', align: 'end', width: '60px' },
+    { title: '学生', key: 'student_name', sortable: false },
+    { title: '科目', key: 'subject_name', sortable: false },
+    { title: '授课老师', key: 'teacher_name', sortable: false },
+    { title: '上课日期', key: 'date', sortable: false },
+    { title: '时间段', key: 'time', sortable: false },
+    { title: '状态', key: 'status', sortable: false, align: 'center' },
+    { title: '操作', key: 'actions', align: 'end', sortable: false },
+    { title: '详情', key: 'data-table-expand', align: 'end', sortable: false },
   ];
 
   const dateOptions = ['全部时间', '本周', '上周', '本月', '上月', '自定义'];
