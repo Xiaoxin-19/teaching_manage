@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"teaching_manage/backend/dao"
+	"teaching_manage/backend/pkg/crypto"
 	"teaching_manage/backend/pkg/dispatcher"
 	"teaching_manage/backend/pkg/logger"
 	"teaching_manage/backend/repository"
@@ -39,6 +40,7 @@ func main() {
 	subjectDao := dao.NewSubjectDao(db)
 	orderDao := dao.NewRechargeOrderDao(db)
 	recordDao := dao.NewRecordDao(db)
+	settingDao := dao.NewSettingDAO(db)
 	// setup repositories
 
 	courseRepository := repository.NewCourseRepository(courseDao)
@@ -75,6 +77,20 @@ func main() {
 	// Setup Dashboard manager
 	dashboardManager := service.NewDashboardManager()
 
+	// Setup Setting service
+	// 初始化密码加密器
+	// 在生产环境中，密钥应该从配置文件或环境变量中读取
+	encryptionKey := []byte("0123456789abcdef0123456789abcdef") // 32字节的AES-256密钥
+	if err := crypto.InitGlobalEncryptor(encryptionKey); err != nil {
+		logger.Error("初始化全局加密器失败", logger.ErrorType(err))
+		panic(err)
+	}
+
+	settingService := service.NewSettingService(settingDao)
+
+	// Setup Backup manager
+	backupManager := service.NewBackupManager(settingService)
+
 	// Setup dispatcher
 	dispatcher := dispatcher.New()
 
@@ -105,6 +121,7 @@ func main() {
 			orderManager.Ctx = ctx
 			recordManager.Ctx = ctx
 			dashboardManager.Ctx = ctx
+			backupManager.Ctx = ctx
 
 			// Register routes
 			studentManager.RegisterRoute(dispatcher)
@@ -114,6 +131,7 @@ func main() {
 			orderManager.RegisterRoute(dispatcher)
 			recordManager.RegisterRoute(dispatcher)
 			dashboardManager.RegisterRoute(dispatcher)
+			backupManager.RegisterRoute(dispatcher)
 		},
 		Bind: []interface{}{
 			app,

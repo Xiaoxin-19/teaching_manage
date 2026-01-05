@@ -59,6 +59,19 @@ export interface SelectFileResponse {
   filepath: string
 }
 
+export interface WebDavConfigResponse {
+  url: string
+  username: string
+  password: string
+}
+
+export interface WebDavBackupItem {
+  name: string
+  size: number
+  mod_time: number
+  path: string
+}
+
 export interface GetDashboardSummaryResponse {
   "total_students": number
   "new_students_this_month": number
@@ -138,4 +151,10 @@ export interface GetCourseListResponse {
 export interface GetOrderListResponse {
   orders: Order[];
   total: number;
+}
+
+export interface GetWebDavConfigResponse {
+  url: string;
+  username: string;
+  password: string;
 }

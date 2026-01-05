@@ -8,7 +8,7 @@ const routes = [
   { path: '/courses', name: 'courses', component: () => import('../views/CourseManager/CourseManage.vue') },
   { path: '/records', name: 'records', component: () => import('../views/RecordManager/RecordManage.vue') },
   { path: '/finance', name: 'finance', component: () => import('../views/FinanceManager/FinanceManage.vue') },
-  { path: '/settings', name: 'settings', component: () => import('../views/StudentManager/StudentManage.vue') },
+  { path: '/settings', name: 'settings', component: () => import('../views/Settings/Settings.vue') },
 ]
 
 export const router = createRouter({

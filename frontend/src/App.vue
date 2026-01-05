@@ -31,6 +31,9 @@
 
     <!-- 2. 全局确认对话框 (Confirm Dialog) -->
     <GlobalConfirmDialog ref="globalConfirmRef" />
+
+    <!-- 3. 全屏遮罩 -->
+    <GlobalOverlay ref="globalOverlayRef" />
   </v-app>
 </template>
 
@@ -41,6 +44,8 @@ import GlobalSnackBar from './components/GlobalSnackBar.vue'
 import { registerToast } from './composables/useToast'
 import GlobalConfirmDialog, { ConfirmOptions } from './components/GlobalConfirmDialog.vue'
 import { registerConfirm } from './composables/useConfirm'
+import GlobalOverlay from './components/GlobalOverlay.vue'
+import { registerGlobalOverlay } from './composables/useGlobalOverlay'
 
 // --- 全局状态 ---
 const theme = ref('light')
@@ -116,6 +121,35 @@ const showConfirm = (
 // 配合 src/composables/useConfirm.ts 使用
 provide('showConfirm', showConfirm)
 registerConfirm(showConfirm)
+
+
+// ----------------------------------------------------------------
+// 3. 全局遮罩 (全屏禁用操作)
+// ----------------------------------------------------------------
+const globalOverlayRef = ref<InstanceType<typeof GlobalOverlay> | null>(null)
+
+const overlayController = {
+  show: (msg?: string) => {
+    if (globalOverlayRef.value) {
+      globalOverlayRef.value.show(msg)
+    } else {
+      console.warn('GlobalOverlay 组件未挂载！')
+    }
+  },
+  hide: () => {
+    if (globalOverlayRef.value) {
+      globalOverlayRef.value.hide()
+    }
+  },
+  setMessage: (msg: string) => {
+    if (globalOverlayRef.value && globalOverlayRef.value.setMessage) {
+      globalOverlayRef.value.setMessage(msg)
+    }
+  }
+}
+
+provide('globalOverlay', overlayController)
+registerGlobalOverlay(overlayController)
 </script>
 <style scoped>
 /* 禁用所有输入控件的浏览器自动填充 */

@@ -49,6 +49,7 @@ func InitDB(path string) error {
 		&model.Subject{},
 		&model.StudentSubject{},
 		&model.RechargeOrder{},
+		&model.Setting{},
 	); err != nil {
 		return err
 	}

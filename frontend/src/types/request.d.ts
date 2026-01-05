@@ -179,3 +179,22 @@ export interface ImportFromExcelRequest {
 export interface GetFinanceChartRequest {
   type: '1m' | '6m' | '12m' | 'all';  // 时间范围: 近一月、近半年、近一年、全部
 }
+
+export interface OpenFileDialogResponse {
+  title: string
+  default_path: string
+  filters: Filter[]
+  is_path?: boolean
+}
+
+
+export interface Filter {
+  display_name: string;
+  pattern: string;
+}
+export interface SetWebDavConfigRequest {
+  url: string;
+  username: string;
+  password: string;
+}
+
