@@ -3,9 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path"
+	"sort"
+	"strconv"
 	"strings"
+	"teaching_manage/backend/dao"
 	"teaching_manage/backend/entity"
 	"teaching_manage/backend/pkg/dispatcher"
 	"teaching_manage/backend/pkg/logger"
@@ -17,6 +21,8 @@ import (
 	"github.com/studio-b12/gowebdav"
 	wails "github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+const MaxBackupRetentionCount = 7
 
 type BackupManager struct {
 	settingSvc *SettingService
@@ -57,7 +63,8 @@ func (bm *BackupManager) GetBackupLocalPath(ctx context.Context) (string, error)
 	return path, nil
 }
 
-// resolveWebDavPassword 允许占位符或空值沿用已保存的密码
+// resolveWebDavPassword
+// 传入空值或占位符时，返回已保存的密码，否则返回传入的密码
 func (bm *BackupManager) resolveWebDavPassword(pwd string) (string, error) {
 	if pwd != "" && pwd != DEFAULT_PASS_REPLACE {
 		return pwd, nil
@@ -171,10 +178,15 @@ func (bm *BackupManager) GetWebDavConfig(ctx context.Context) (responsex.WebDavC
 		return responsex.WebDavConfigResponse{}, fmt.Errorf("获取 WebDav 配置失败: %w", err)
 	}
 
+	lastBackupInt, err := strconv.ParseInt(cfg.LastCloudBackup, 10, 64)
+	if err != nil {
+		lastBackupInt = 0
+	}
 	return responsex.WebDavConfigResponse{
-		WebDavURL:      cfg.WebDavURL,
-		WebDavUserName: cfg.WebDavUserName,
-		WebDavPassword: DEFAULT_PASS_REPLACE,
+		WebDavURL:       cfg.WebDavURL,
+		WebDavUserName:  cfg.WebDavUserName,
+		WebDavPassword:  DEFAULT_PASS_REPLACE,
+		LastCloudBackup: lastBackupInt,
 	}, nil
 }
 
@@ -239,12 +251,421 @@ func (bm *BackupManager) ensureWebDavBaseDir(client *gowebdav.Client, baseDir st
 	return entries, nil
 }
 
+// generateBackupFileName 生成备份文件名
+func (bm *BackupManager) generateBackupFileName(currentDBPath string) string {
+	timestamp := time.Now().Format("20060102_150405")
+	dbFileName := path.Base(currentDBPath)
+	return fmt.Sprintf("%s_backup_%s", strings.TrimSuffix(dbFileName, path.Ext(dbFileName)), timestamp+path.Ext(dbFileName))
+}
+
+// dbReloadWrapper 封装需要关闭和重新打开数据库连接的操作
+// 适用于 backup 和 restore 等需要独占访问数据库文件的操作
+func dbReloadWrapper(fn func() (string, error)) (string, error) {
+	// 关闭数据库连接
+	if err := dao.CloseDB(); err != nil {
+		logger.Error("close database connection failed", logger.ErrorType(err))
+		return "", fmt.Errorf("close database connection failed: %w", err)
+	}
+
+	logger.Debug("close database connection success")
+	time.Sleep(500 * time.Millisecond) // 确保连接关闭完成
+	// 恢复数据库连接（无论操作成功与否）
+	defer func() {
+		// 使用重试机制重新打开数据库连接，避免固定长时间 sleep
+		const (
+			reopenTimeout  = 5 * time.Second
+			reopenInterval = 500 * time.Millisecond
+		)
+
+		start := time.Now()
+		for {
+			// 在超时时间内，记录错误并短暂等待后重试
+			if err := dao.ReopenDB(); err != nil {
+				if time.Since(start) >= reopenTimeout {
+					logger.Error("re open database failed after retries in defer", logger.ErrorType(err))
+					break
+				}
+
+				logger.Error("re open database failed in defer, will retry", logger.ErrorType(err))
+				time.Sleep(reopenInterval)
+				continue
+			}
+
+			logger.Debug("re connect to database susccess")
+			break
+		}
+	}()
+
+	// 执行操作
+	result, err := fn()
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
+}
+
 func (bm *BackupManager) RestoreBackup(ctx context.Context, req *requestx.RestoreBackupRequest) (string, error) {
-	return "restore success", nil
+	return dbReloadWrapper(func() (string, error) {
+		switch req.Type {
+		case "local":
+			return bm.restoreBackupLocal(ctx, req.BackupPath)
+		case "webdav":
+			return bm.restoreBackupWebDav(ctx, req.BackupPath)
+		}
+		return "restore success", nil
+	})
+}
+
+func (bm *BackupManager) restoreBackupLocal(_ context.Context, path string) (string, error) {
+	// 覆盖数据库文件, 先备份现有数据库以防万一
+	currentDBPath, err := bm.settingSvc.GetCurrentDBPath()
+	if err != nil {
+		logger.Error("get current database path failed", logger.ErrorType(err))
+		return "", err
+	}
+	backupPath := currentDBPath + ".bak"
+	if err := os.Rename(currentDBPath, backupPath); err != nil {
+		logger.Error("backup current database by rename file failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	backupSuccess := false
+	defer func() {
+		if r := recover(); r != nil {
+			// 恢复备份文件
+			if err := os.Rename(backupPath, currentDBPath); err != nil {
+				logger.Error("restore database from backup file failed in defer", logger.ErrorType(err))
+			}
+		} else if !backupSuccess {
+			// 恢复备份文件
+			if err := os.Rename(backupPath, currentDBPath); err != nil {
+				logger.Error("restore database from backup file failed in defer", logger.ErrorType(err))
+			}
+		}
+	}()
+
+	// 复制备份文件到数据库路径
+	input, err := os.Open(path)
+	if err != nil {
+		logger.Error("open backup file failed", logger.ErrorType(err))
+		return "", err
+	}
+	defer input.Close()
+
+	output, err := os.Create(currentDBPath)
+	if err != nil {
+		logger.Error("create database file failed", logger.ErrorType(err))
+		return "", err
+	}
+	defer output.Close()
+
+	if _, err := io.Copy(output, input); err != nil {
+		logger.Error("copy backup file to database file failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	// 确保文件写入完成
+	if err := output.Sync(); err != nil {
+		logger.Error("sync database file failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	// 删除临时备份文件
+	if err := os.Remove(backupPath); err != nil {
+		logger.Warn("remove temporary backup database file failed", logger.ErrorType(err))
+	}
+
+	backupSuccess = true
+	return "已恢复本地备份", nil
+}
+
+func (bm *BackupManager) restoreBackupWebDav(_ context.Context, backupPath string) (string, error) {
+	// 获取 WebDav 配置
+	cfg, err := bm.settingSvc.GetWebDavConfig()
+	if err != nil {
+		logger.Error("get webdav config failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	client := bm.newWebDavClient(cfg.WebDavURL, cfg.WebDavUserName, cfg.WebDavPassword)
+	if err := client.Connect(); err != nil {
+		logger.Error("connect to WebDav failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	// 覆盖数据库文件, 先备份现有数据库以防万一
+	currentDBPath, err := bm.settingSvc.GetCurrentDBPath()
+	if err != nil {
+		logger.Error("get current database path failed", logger.ErrorType(err))
+		return "", err
+	}
+	backupPathLocal := currentDBPath + ".bak"
+	if err := os.Rename(currentDBPath, backupPathLocal); err != nil {
+		logger.Error("backup current database by rename file failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	restoreSuccess := false
+	defer func() {
+		if !restoreSuccess {
+			// 恢复失败时回滚到备份文件
+			if err := os.Rename(backupPathLocal, currentDBPath); err != nil {
+				logger.Error("restore database from backup file failed in defer", logger.ErrorType(err))
+			}
+		}
+	}()
+
+	// 从 WebDav 下载备份文件到数据库路径
+	input, err := client.ReadStream(backupPath)
+	if err != nil {
+		logger.Error("open backup file from webdav failed", logger.ErrorType(err))
+		return "", err
+	}
+	defer input.Close()
+
+	output, err := os.Create(currentDBPath)
+	if err != nil {
+		logger.Error("create database file failed", logger.ErrorType(err))
+		return "", err
+	}
+	defer output.Close()
+
+	if _, err := io.Copy(output, input); err != nil {
+		logger.Error("copy backup file to database file failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	// 确保文件写入完成
+	if err := output.Sync(); err != nil {
+		logger.Error("sync database file failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	// 删除临时备份文件
+	if err := os.Remove(backupPathLocal); err != nil {
+		logger.Warn("remove temporary backup file failed", logger.ErrorType(err))
+	}
+
+	restoreSuccess = true
+	return "备份已经恢复", nil
 }
 
 func (bm *BackupManager) CreateBackup(ctx context.Context, req *requestx.CreateBackupRequest) (string, error) {
-	return "backup success", nil
+	result, err := dbReloadWrapper(func() (string, error) {
+		switch req.Type {
+		case "local":
+			return bm.CreateBackupLocal(ctx)
+		case "webdav":
+			// 仅执行备份逻辑，数据库重连后再写入最后备份时间，避免 DB 已关闭导致空指针
+			if _, err := bm.CreateBackupWebDav(ctx); err != nil {
+				return "", err
+			}
+			return "备份成功", nil
+		}
+		return "备份成功", nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// 确保数据库已在 dbReloadWrapper 的 defer 中重连完毕后，再记录最后备份时间
+	if req.Type == "webdav" {
+		if err := bm.settingSvc.UpdateLastWebDavBackupTime(time.Now()); err != nil {
+			logger.Warn("update last webdav backup time failed", logger.ErrorType(err))
+		}
+	}
+
+	return result, nil
+}
+
+func (bm *BackupManager) CreateBackupLocal(ctx context.Context) (string, error) {
+	// 获取本地备份路径
+	localPath, err := bm.settingSvc.GetBackupLocalPath()
+	if err != nil {
+		logger.Error("get backup local path failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	// 获取当前数据库路径
+	currentDBPath, err := bm.settingSvc.GetCurrentDBPath()
+	if err != nil {
+		logger.Error("get current database path failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	// 构造备份文件名
+	backupFileName := bm.generateBackupFileName(currentDBPath)
+	backupFilePath := path.Join(localPath, backupFileName)
+
+	backupSuccess := false
+	defer func() {
+		if !backupSuccess {
+			// 备份失败时删除不完整的文件
+			if err := os.Remove(backupFilePath); err != nil && !os.IsNotExist(err) {
+				logger.Warn("remove incomplete backup file failed", logger.ErrorType(err))
+			}
+		}
+	}()
+
+	// 复制数据库文件到备份路径
+	input, err := os.Open(currentDBPath)
+	if err != nil {
+		logger.Error("open database file failed", logger.ErrorType(err))
+		return "", err
+	}
+	defer input.Close()
+
+	output, err := os.Create(backupFilePath)
+	if err != nil {
+		logger.Error("create backup file failed", logger.ErrorType(err))
+		return "", err
+	}
+	defer output.Close()
+
+	if _, err := io.Copy(output, input); err != nil {
+		logger.Error("copy database file to backup file failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	// 确保文件写入完成
+	if err := output.Sync(); err != nil {
+		logger.Error("sync backup file failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	backupSuccess = true
+
+	// 清理旧备份，保留最近7份
+	bm.cleanOldLocalBackups(localPath)
+
+	return fmt.Sprintf("本地备份已创建: %s", backupFilePath), nil
+}
+
+// 创建 WebDav 备份， 保留最近7份备份文件，删除多余的旧备份
+func (bm *BackupManager) CreateBackupWebDav(ctx context.Context) (string, error) {
+	logger.Info("start create webdav backup")
+	// 获取 WebDav 配置
+	cfg, err := bm.settingSvc.GetWebDavConfig()
+	if err != nil {
+		logger.Error("get webdav config failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	logger.Debug("connecting to WebDav server")
+	client := bm.newWebDavClient(cfg.WebDavURL, cfg.WebDavUserName, cfg.WebDavPassword)
+	if err := client.Connect(); err != nil {
+		logger.Error("connect to WebDav failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	logger.Debug("connected to WebDav server")
+	// 获取当前数据库路径
+	currentDBPath, err := bm.settingSvc.GetCurrentDBPath()
+	if err != nil {
+		logger.Error("get current database path failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	// 构造备份文件名
+	backupFileName := bm.generateBackupFileName(currentDBPath)
+	backupFilePath := path.Join(cfg.WebDavBaseDir, backupFileName)
+
+	logger.Debug("start upload backup file to WebDav", logger.String("backup_file_path", backupFilePath))
+	// 上传数据库文件到 WebDav 备份路径
+	input, err := os.Open(currentDBPath)
+	if err != nil {
+		logger.Error("open database file failed", logger.ErrorType(err))
+		return "", err
+	}
+	defer input.Close()
+
+	logger.Debug("uploading backup file to WebDav", logger.String("backup_file_path", backupFilePath))
+	if err := client.WriteStream(backupFilePath, input, 0); err != nil {
+		logger.Error("upload backup file to WebDav failed", logger.ErrorType(err))
+		return "", err
+	}
+
+	logger.Debug("uploaded backup file to WebDav", logger.String("backup_file_path", backupFilePath))
+
+	// 上传成功
+	logger.Info("WebDav backup created successfully", logger.String("backup_file_path", backupFilePath))
+	// 清理旧备份，保留最近7份
+	bm.cleanOldWebDavBackups(client, cfg.WebDavBaseDir)
+	logger.Debug("cleaned old WebDav backups")
+	return fmt.Sprintf("WebDav 备份已创建: %s", backupFilePath), nil
+}
+
+// cleanOldLocalBackups 清理本地旧备份，保留最近7份
+func (bm *BackupManager) cleanOldLocalBackups(localPath string) {
+	entries, err := os.ReadDir(localPath)
+	if err != nil {
+		logger.Warn("read local backup directory failed", logger.ErrorType(err))
+		return
+	}
+
+	var backupFiles []os.FileInfo
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		lower := strings.ToLower(name)
+		if !(strings.HasSuffix(lower, ".db") || strings.HasSuffix(lower, ".sqlite")) {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		backupFiles = append(backupFiles, info)
+	}
+
+	if len(backupFiles) > MaxBackupRetentionCount {
+		sort.Slice(backupFiles, func(i, j int) bool {
+			return backupFiles[i].ModTime().Before(backupFiles[j].ModTime())
+		})
+		for i := 0; i < len(backupFiles)-MaxBackupRetentionCount; i++ {
+			oldBackupPath := path.Join(localPath, backupFiles[i].Name())
+			if err := os.Remove(oldBackupPath); err != nil {
+				logger.Warn("remove old local backup file failed", logger.String("file", oldBackupPath), logger.ErrorType(err))
+			}
+		}
+	}
+}
+
+// cleanOldWebDavBackups 清理 WebDav 旧备份，保留最近7份
+func (bm *BackupManager) cleanOldWebDavBackups(client *gowebdav.Client, baseDir string) {
+	entries, err := bm.ensureWebDavBaseDir(client, baseDir)
+	if err != nil {
+		logger.Warn("ensure webdav base dir failed", logger.ErrorType(err))
+		return
+	}
+
+	var backupFiles []os.FileInfo
+	for _, fi := range entries {
+		if fi.IsDir() {
+			continue
+		}
+		name := fi.Name()
+		lower := strings.ToLower(name)
+		if !(strings.HasSuffix(lower, ".db") || strings.HasSuffix(lower, ".sqlite")) {
+			continue
+		}
+		backupFiles = append(backupFiles, fi)
+	}
+
+	if len(backupFiles) > MaxBackupRetentionCount {
+		sort.Slice(backupFiles, func(i, j int) bool {
+			return backupFiles[i].ModTime().Before(backupFiles[j].ModTime())
+		})
+		for i := 0; i < len(backupFiles)-MaxBackupRetentionCount; i++ {
+			oldBackupPath := path.Join(baseDir, backupFiles[i].Name())
+			if err := client.Remove(oldBackupPath); err != nil {
+				logger.Warn("remove old webdav backup file failed", logger.String("file", oldBackupPath), logger.ErrorType(err))
+			}
+		}
+	}
 }
 
 func (bm *BackupManager) RegisterRoute(d *dispatcher.Dispatcher) {

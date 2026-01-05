@@ -83,6 +83,7 @@ func InitDB(path string) error {
 	); err != nil {
 		return err
 	}
+	
 	providerMu.Lock()
 	currentDBPath = path
 	globalDB = db
@@ -173,7 +174,6 @@ func CloseDB() error {
 		return err
 	}
 	globalDB = nil
-	currentDBPath = ""
 	provider.Set(nil)
 	return nil
 }

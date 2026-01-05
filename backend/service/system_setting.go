@@ -1,10 +1,12 @@
 package service
 
 import (
+	"fmt"
 	"sync"
 	"teaching_manage/backend/dao"
 	"teaching_manage/backend/entity"
 	"teaching_manage/backend/pkg/crypto"
+	"time"
 )
 
 // SettingService 负责管理系统配置
@@ -14,6 +16,23 @@ type SettingService struct {
 	// 简单的内存缓存，避免频繁查库
 	cache      *dao.SystemSetting
 	cacheMutex sync.RWMutex
+}
+
+func (s *SettingService) UpdateLastWebDavBackupTime(now time.Time) error {
+	// 1. 构造更新对象
+	setting := &dao.SystemSetting{
+		LastCloudBackup: fmt.Sprintf("%d", now.UnixMilli()),
+	}
+	// 2. 调用 DAO 更新指定字段
+	err := s.settingDAO.UpdateSystemSetting(setting,
+		&setting.LastCloudBackup,
+	)
+	if err != nil {
+		return err
+	}
+	// 3. 失效缓存
+	s.invalidateCache()
+	return nil
 }
 
 func (s *SettingService) GetBackupLocalPath() (string, error) {
@@ -141,4 +160,12 @@ func (s *SettingService) invalidateCache() {
 	s.cacheMutex.Lock()
 	defer s.cacheMutex.Unlock()
 	s.cache = nil
+}
+
+func (s *SettingService) GetCurrentDBPath() (string, error) {
+	setting, err := s.getSettingWithCache()
+	if err != nil {
+		return "", err
+	}
+	return setting.CurrentDBPath, nil
 }

@@ -113,3 +113,46 @@ export async function ListWebDavBackups(): Promise<WebDavBackupItem[]> {
     throw error
   }
 }
+
+export interface CreateBackupRequest {
+  type: 'local' | 'webdav'
+}
+
+/**
+ * 创建备份（本地或 WebDav）
+ */
+export async function CreateBackup(req: CreateBackupRequest): Promise<string> {
+  try {
+    const resultStr = await Dispatch('backup_manager/create_backup', JSON.stringify(req))
+    const result = JSON.parse(resultStr) as ResponseWrapper<string>
+    if (result.code !== 200) {
+      throw new Error(result.message || '创建备份失败')
+    }
+    return result.data as string
+  } catch (error: any) {
+    console.error("API Error [CreateBackup]:", error);
+    throw error
+  }
+}
+
+export interface RestoreBackupRequest {
+  type: 'local' | 'webdav'
+  backup_path: string
+}
+
+/**
+ * 恢复备份（从本地或 WebDav）
+ */
+export async function RestoreBackup(req: RestoreBackupRequest): Promise<string> {
+  try {
+    const resultStr = await Dispatch('backup_manager/restore_backup', JSON.stringify(req))
+    const result = JSON.parse(resultStr) as ResponseWrapper<string>
+    if (result.code !== 200) {
+      throw new Error(result.message || '恢复备份失败')
+    }
+    return result.data as string
+  } catch (error: any) {
+    console.error("API Error [RestoreBackup]:", error);
+    throw error
+  }
+}

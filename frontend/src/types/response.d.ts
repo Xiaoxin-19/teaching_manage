@@ -63,6 +63,7 @@ export interface WebDavConfigResponse {
   url: string
   username: string
   password: string
+  last_cloud_backup: number
 }
 
 export interface WebDavBackupItem {

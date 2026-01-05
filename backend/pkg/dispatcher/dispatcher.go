@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"teaching_manage/backend/pkg/logger"
 	valdiatex "teaching_manage/backend/pkg/valdiate"
 	"teaching_manage/backend/pkg/wraper"
 )
@@ -111,6 +112,7 @@ func RegisterNoReq[Res any](d *Dispatcher, name string, fn func(context.Context)
 
 // Dispatch finds a handler by name and executes it with the provided JSON payload.
 func (d *Dispatcher) Dispatch(ctx context.Context, name string, payload json.RawMessage) (string, error) {
+	logger.Debug("dispatching handler", logger.String("name", name), logger.String("payload", string(payload)))
 	// read handler and middleware slice under lock, then release before execution
 	d.mu.RLock()
 	h, ok := d.handlers[name]
@@ -120,6 +122,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, name string, payload json.Raw
 		return wraper.NewBadResponse(fmt.Sprintf("handler [%s] not found ", name), "").ToJSON(), ErrHandlerNotFound
 	}
 
+	defer logger.Debug("handler completed", logger.String("name", name))
 	// call the handler (fn) now that Pre hooks have completed
 	return h.Serve(ctx, payload)
 }

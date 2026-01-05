@@ -58,7 +58,7 @@
 
                 <div class="flex-grow-1 d-flex flex-column justify-center align-center py-4">
                   <div class="text-h4 font-weight-bold mb-1">{{ lastBackupDate || '--' }}</div>
-                  <div class="text-caption text-medium-emphasis mb-6">上次备份时间</div>
+                  <div class="text-caption text-medium-emphasis mb-6">上次云端备份时间</div>
                 </div>
 
                 <!-- 操作按钮组 -->
@@ -108,9 +108,22 @@
                     </div>
                     <div v-else class="d-flex flex-column h-100">
                       <div class="text-caption text-medium-emphasis mb-2">选择云端备份点:</div>
-                      <v-select v-model="selectedBackup" :items="cloudBackups" variant="outlined" density="compact"
-                        placeholder="点击加载列表" prepend-inner-icon="mdi-history" hide-details :loading="loadingBackups"
-                        @click="fetchCloudBackups" class="mb-4"></v-select>
+                      <v-select v-model="selectedBackup" :items="cloudBackups" item-title="name" item-value="path"
+                        return-object variant="outlined" density="compact" placeholder="点击加载列表"
+                        prepend-inner-icon="mdi-history" hide-details :loading="loadingBackups"
+                        @click="fetchCloudBackups" class="mb-4">
+                        <template v-slot:item="{ props, item }">
+                          <v-list-item v-bind="props">
+                            <template v-slot:subtitle>
+                              {{ formatSize(item.raw.size) }} · {{ new Date(item.raw.mod_time *
+                                1000).toLocaleString('zh-CN') }}
+                            </template>
+                          </v-list-item>
+                        </template>
+                        <template v-slot:selection="{ item }">
+                          {{ item.raw.name }} ({{ formatSize(item.raw.size) }})
+                        </template>
+                      </v-select>
 
                       <v-spacer></v-spacer>
                       <!-- 绑定 btn-breathe 类 -->
@@ -253,7 +266,7 @@ const {
   openConfig, testConnection, saveConfig,
   handleMainBackupAction, exportLocalOnly,
   fetchCloudBackups, selectLocalFile, confirmRestore, executeRestore,
-  openLocalBackupDirSetting, saveLocalBackupDir, selectBackupDir
+  openLocalBackupDirSetting, saveLocalBackupDir, selectBackupDir, formatSize
 } = useSettings()
 </script>
 

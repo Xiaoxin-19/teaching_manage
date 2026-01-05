@@ -2,7 +2,7 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useToast } from '../../composables/useToast'
 import { useGlobalOverlay } from '../../composables/useGlobalOverlay'
 import { OnFileDrop, OnFileDropOff } from '../../../wailsjs/runtime/runtime'
-import { SetBackupLocalPath, GetBackupLocalPath, SetBackupLocalPathRequest, OpenFileDialog, SetWebDavConfig, GetWebDavConfig, TestWebDavConnection, ListWebDavBackups } from '../../api/backup'
+import { SetBackupLocalPath, GetBackupLocalPath, SetBackupLocalPathRequest, OpenFileDialog, SetWebDavConfig, GetWebDavConfig, TestWebDavConnection, ListWebDavBackups, CreateBackup, RestoreBackup } from '../../api/backup'
 import { OpenFileDialogResponse, SetWebDavConfigRequest } from '../../types/request'
 import { WebDavBackupItem, WebDavConfigResponse } from '../../types/response'
 
@@ -10,6 +10,21 @@ export function useSettings() {
   // 使用项目中封装的 toast 钩子
   const { success, info, error } = useToast()
   const overlay = useGlobalOverlay()
+
+  // 简单防抖，用于避免短时间内重复触发备份/恢复
+  const debounce = <T extends (...args: any[]) => any>(fn: T, delay = 800) => {
+    let timer: number | null = null
+
+    return (...args: Parameters<T>) => {
+      if (timer) {
+        clearTimeout(timer)
+      }
+      timer = window.setTimeout(() => {
+        timer = null
+        fn(...args)
+      }, delay)
+    }
+  }
 
   // --- UI 状态 ---
   const configDialog = ref(false)
@@ -28,8 +43,9 @@ export function useSettings() {
   const restoreTab = ref('local')
   const restoring = ref(false)
   const loadingBackups = ref(false)
-  const cloudBackups = ref<string[]>([])
-  const selectedBackup = ref<string | null>(null)
+  // 云端备份列表
+  const cloudBackups = ref<WebDavBackupItem[]>([])
+  const selectedBackup = ref<WebDavBackupItem | null>(null)
   const localFile = ref<string>('')
   const localFilePath = ref<string>('')
 
@@ -158,56 +174,65 @@ export function useSettings() {
     }
   }
 
-  // 云端备份逻辑 (模拟)
-  const startCloudBackup = () => {
+  // 云端备份逻辑
+  const startCloudBackup = async () => {
     overlay.show('正在备份到云端，请稍候...')
     backingUp.value = true
     backupProgress.value = 0
-    backupStatusText.value = '正在加密并上传至云端...'
+    backupStatusText.value = '正在上传至云端...'
+    console.log('开始云端备份')
 
-    const interval = setInterval(() => {
-      if (backupProgress.value >= 100) {
-        clearInterval(interval)
-        backingUp.value = false;
-        overlay.hide()
-        // 获取当前时间字符串，兼容处理
-        const now = new Date();
-        lastBackupDate.value = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${now.getMinutes()}`;
-        success('备份成功！已上传至云端')
-      } else {
-        backupProgress.value += Math.floor(Math.random() * 10)
-        if (backupProgress.value > 100) backupProgress.value = 100
+    try {
+      const result = await CreateBackup({ type: 'webdav' })
+      backupProgress.value = 100
+      console.log('云端备份完成')
+      const now = new Date()
+      lastBackupDate.value = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${now.getMinutes()}`
+      success(result || '备份成功！已上传至云端')
+      // 刷新云端备份列表（失败时仅记录日志，不影响备份成功提示）
+      try {
+        await fetchCloudBackups()
+      } catch (e) {
+        console.error('刷新云端备份列表失败:', e)
       }
-    }, 300)
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      error('云端备份失败: ' + errMsg)
+      console.error('云端备份失败:', err)
+    } finally {
+      backingUp.value = false
+      overlay.hide()
+    }
   }
 
-  // 仅本地导出逻辑 (模拟)
-  const exportLocalOnly = () => {
+  // 仅本地导出逻辑
+  const exportLocalOnly = async () => {
     overlay.show('正在导出本地备份，请稍候...')
     backingUp.value = true
     backupProgress.value = 0
     backupStatusText.value = '正在打包数据...'
 
-    setTimeout(() => {
-      backupProgress.value = 50
-    }, 300)
-
-    setTimeout(() => {
+    try {
+      const result = await CreateBackup({ type: 'local' })
       backupProgress.value = 100
+      const now = new Date()
+      success(result || '本地备份已创建')
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      error('本地备份失败: ' + errMsg)
+      console.error('本地备份失败:', err)
+    } finally {
       backingUp.value = false
       overlay.hide()
-      const now = new Date();
-      lastBackupDate.value = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${now.getMinutes()}`;
-      info('已导出到 Downloads 文件夹')
-    }, 800)
+    }
   }
 
   // 统一的备份入口
   const handleMainBackupAction = () => {
     if (isConfigured.value) {
-      startCloudBackup()
+      startCloudBackupDebounced()
     } else {
-      exportLocalOnly()
+      exportLocalOnlyDebounced()
     }
   }
 
@@ -228,8 +253,7 @@ export function useSettings() {
     loadingBackups.value = true
     try {
       const items: WebDavBackupItem[] = await ListWebDavBackups()
-      let list = items || []
-      cloudBackups.value = list.map(item => `${item.name} (${formatSize(item.size)})`)
+      cloudBackups.value = items || []
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       error('获取云端备份失败: ' + errMsg)
@@ -292,17 +316,65 @@ export function useSettings() {
     restoreDialog.value = true
   }
 
-  const executeRestore = () => {
+  const executeRestore = async () => {
+    // 验证选择
+    if (restoreTab.value === 'local' && !localFilePath.value) {
+      error('请先选择本地备份文件')
+      return
+    }
+    if (restoreTab.value === 'cloud' && !selectedBackup.value) {
+      error('请先选择云端备份')
+      return
+    }
+
     overlay.show('正在恢复数据，请稍候...')
     restoring.value = true
-    // 模拟恢复过程
-    setTimeout(() => {
-      restoring.value = false
+
+    try {
+      let backupPath = ''
+      let backupType: 'local' | 'webdav' = 'local'
+
+      if (restoreTab.value === 'local') {
+        if (!localFilePath.value) {
+          throw new Error('未选择本地备份文件，请重新选择')
+        }
+        backupPath = localFilePath.value
+        backupType = 'local'
+      } else {
+        // 使用云端备份的完整路径
+        if (!selectedBackup.value?.path) {
+          throw new Error('未选择有效的云端备份文件，请重新选择')
+        }
+        backupPath = selectedBackup.value.path
+        backupType = 'webdav'
+      }
+
+      const result = await RestoreBackup({
+        type: backupType,
+        backup_path: backupPath
+      })
+
       restoreDialog.value = false
+      success(result || '数据恢复成功！系统将重新加载')
+
+      // 等待一下让用户看到成功消息，然后重新加载整个页面到根路由
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 1500)
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      error('数据恢复失败: ' + errMsg)
+      console.error('恢复数据失败:', err)
+    } finally {
+      restoring.value = false
       overlay.hide()
-      success('数据恢复成功！系统将重新加载')
-    }, 2000)
+    }
   }
+
+  // 防抖包装后的操作函数
+  const startCloudBackupDebounced = debounce(startCloudBackup)
+  const exportLocalOnlyDebounced = debounce(exportLocalOnly)
+  const executeRestoreDebounced = debounce(executeRestore)
 
   // 注册文件拖拽监听
   onMounted(async () => {
@@ -326,6 +398,10 @@ export function useSettings() {
         config.password = saved.password
         isConfigured.value = true
       }
+      if (saved.last_cloud_backup != 0) {
+        lastBackupDate.value = new Date(saved.last_cloud_backup * 1000).toLocaleString()
+      }
+
     } catch (err) {
       console.error('初始化 WebDav 配置失败:', err)
     }
@@ -399,12 +475,14 @@ export function useSettings() {
     saveConfig,
     handleMainBackupAction,
     exportLocalOnly,
+    exportLocalOnlyDebounced,
     fetchCloudBackups,
     selectLocalFile,
     confirmRestore,
-    executeRestore,
+    executeRestore: executeRestoreDebounced,
     openLocalBackupDirSetting,
     saveLocalBackupDir,
-    selectBackupDir
+    selectBackupDir,
+    formatSize
   }
 }
