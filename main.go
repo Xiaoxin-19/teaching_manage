@@ -26,21 +26,21 @@ func main() {
 	zaplog := wirex.InitLogger()
 	logger.SetGlobalLogger(zaplog)
 
-	// Setup database
-	db, err := wirex.NewGormDB()
+	// Setup database getter
+	dbGetter, err := wirex.NewDBGetter()
 	if err != nil {
 		logger.Error("failed to connect database", logger.ErrorType(err))
 		panic(err)
 	}
 
-	// setup DAOs
-	teacherDao := dao.NewTeacherDao(db)
-	studentDao := dao.NewStudentDao(db)
-	courseDao := dao.NewStudentCourseDao(db)
-	subjectDao := dao.NewSubjectDao(db)
-	orderDao := dao.NewRechargeOrderDao(db)
-	recordDao := dao.NewRecordDao(db)
-	settingDao := dao.NewSettingDAO(db)
+	// setup DAOs - 传入 dbGetter 函数，确保 DAO 始终获取最新的 DB 实例
+	teacherDao := dao.NewTeacherDao(dbGetter)
+	studentDao := dao.NewStudentDao(dbGetter)
+	courseDao := dao.NewStudentCourseDao(dbGetter)
+	subjectDao := dao.NewSubjectDao(dbGetter)
+	orderDao := dao.NewRechargeOrderDao(dbGetter)
+	recordDao := dao.NewRecordDao(dbGetter)
+	settingDao := dao.NewSettingDAO(dbGetter)
 	// setup repositories
 
 	courseRepository := repository.NewCourseRepository(courseDao)

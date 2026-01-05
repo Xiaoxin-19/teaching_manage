@@ -121,8 +121,8 @@ func (tm TeacherManager) DeleteTeacher(ctx context.Context, req *requestx.Delete
 
 	db := dao.GetDB()
 	err = db.Transaction(func(tx *gorm.DB) error {
-		txRepo := repository.NewTeacherRepository(dao.NewTeacherDao(tx))
-		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(tx))
+		txRepo := repository.NewTeacherRepository(dao.NewTeacherDao(dao.GetDBTarget(tx)))
+		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(dao.GetDBTarget(tx)))
 
 		// 删除教师的选课记录
 		err = txCourseRepo.DeleteByTeacherID(ctx, req.Id)

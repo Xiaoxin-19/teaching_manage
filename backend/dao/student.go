@@ -20,15 +20,16 @@ type StudentDao interface {
 }
 
 type StudentGormDao struct {
-	db *gorm.DB
+	getDB func() *gorm.DB
 }
 
-func NewStudentDao(db *gorm.DB) StudentDao {
-	return &StudentGormDao{db: db}
+func NewStudentDao(getDB func() *gorm.DB) StudentDao {
+	return &StudentGormDao{getDB: getDB}
 }
 
 func (s StudentGormDao) CreateStudent(ctx context.Context, stu *model.Student) error {
-	err := gorm.G[model.Student](s.db).Create(ctx, stu)
+	db := s.getDB()
+	err := gorm.G[model.Student](db).Create(ctx, stu)
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		return ErrDuplicatedKey
 	}
@@ -36,7 +37,8 @@ func (s StudentGormDao) CreateStudent(ctx context.Context, stu *model.Student) e
 }
 
 func (s StudentGormDao) UpdateStudent(ctx context.Context, stu *model.Student) error {
-	_, err := gorm.G[model.Student](s.db).Where("id = ?", stu.ID).Select(
+	db := s.getDB()
+	_, err := gorm.G[model.Student](db).Where("id = ?", stu.ID).Select(
 		"name",
 		"gender",
 		"phone",
@@ -54,7 +56,8 @@ func (s StudentGormDao) DeleteStudent(ctx context.Context, id uint) error {
 	// 使用 ID 初始化 struct，确保 AfterDelete 钩子能获取到 ID
 	stu := model.Student{Model: gorm.Model{ID: id}}
 
-	result := s.db.WithContext(ctx).Delete(&stu)
+	db := s.getDB()
+	result := db.WithContext(ctx).Delete(&stu)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return ErrRecordNotFound
@@ -65,7 +68,8 @@ func (s StudentGormDao) DeleteStudent(ctx context.Context, id uint) error {
 }
 
 func (s StudentGormDao) GetStudentByID(ctx context.Context, id uint) (*model.Student, error) {
-	stu, err := gorm.G[model.Student](s.db).Where("id = ?", id).First(ctx)
+	db := s.getDB()
+	stu, err := gorm.G[model.Student](db).Where("id = ?", id).First(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +85,8 @@ func (s StudentGormDao) GetStudentListWithStatus(ctx context.Context, key string
 	var total int64
 
 	// student status filtering
-	query := gorm.G[model.Student](s.db).Where("status <= ?", statusLevel)
+	db := s.getDB()
+	query := gorm.G[model.Student](db).Where("status <= ?", statusLevel)
 	if statusTarget != 0 {
 		query = query.Where("status = ?", statusTarget)
 	}
@@ -107,7 +112,8 @@ func (s StudentGormDao) GetStudentListWithStatus(ctx context.Context, key string
 
 func (s StudentGormDao) GetStudentListWithStatusUnscoped(ctx context.Context, key string, offset int, limit int,
 	statusLevel model.StudentStatus, statusTarget model.StudentStatus) ([]model.Student, int64, error) {
-	query := s.db.Unscoped().WithContext(ctx).Model(&model.Student{})
+	db := s.getDB()
+	query := db.Unscoped().WithContext(ctx).Model(&model.Student{})
 	// student status filtering
 	query = query.Where("status <= ?", statusLevel)
 	if statusTarget != 0 {
@@ -135,7 +141,8 @@ func (s StudentGormDao) GetStudentListWithStatusUnscoped(ctx context.Context, ke
 
 func (s StudentGormDao) GetStudentByName(ctx context.Context, name string) ([]model.Student, error) {
 
-	students, err := gorm.G[model.Student](s.db).Where("name = ?", name).Find(ctx)
+	db := s.getDB()
+	students, err := gorm.G[model.Student](db).Where("name = ?", name).Find(ctx)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrRecordNotFound
 	}

@@ -14,22 +14,24 @@ type RechargeOrderDao interface {
 }
 
 type RechargeOrderGormDao struct {
-	db *gorm.DB
+	getDB func() *gorm.DB
 }
 
-func NewRechargeOrderDao(db *gorm.DB) RechargeOrderDao {
-	return &RechargeOrderGormDao{db: db}
+func NewRechargeOrderDao(getDB func() *gorm.DB) RechargeOrderDao {
+	return &RechargeOrderGormDao{getDB: getDB}
 }
 
 func (d *RechargeOrderGormDao) CreateRechargeRecord(ctx context.Context, record *model.RechargeOrder) error {
-	return d.db.WithContext(ctx).Create(record).Error
+	db := d.getDB()
+	return db.WithContext(ctx).Create(record).Error
 }
 
 func (d *RechargeOrderGormDao) GetRechargeRecords(ctx context.Context, studentID uint, offset, limit int) ([]model.RechargeOrder, int64, error) {
 	var records []model.RechargeOrder
 	var total int64
 
-	query := d.db.WithContext(ctx).Model(&model.RechargeOrder{})
+	db := d.getDB()
+	query := db.WithContext(ctx).Model(&model.RechargeOrder{})
 	if studentID > 0 {
 		// 需要关联查询，因为 recharge_record 只有 student_course_id
 		query = query.Joins("JOIN student_courses ON student_courses.id = recharge_records.student_course_id").
@@ -51,7 +53,8 @@ func (d *RechargeOrderGormDao) GetRechargeRecords(ctx context.Context, studentID
 }
 
 func (d *RechargeOrderGormDao) GetRechargeOrderList(ctx context.Context, studentID uint, subjectIDs []uint, orderType []string, dateStart string, dateEnd string, offset int, limit int) ([]model.RechargeOrder, int64, error) {
-	query := d.db.WithContext(ctx).Unscoped().Model(&model.RechargeOrder{}).Joins("StudentCourse").
+	db := d.getDB()
+	query := db.WithContext(ctx).Unscoped().Model(&model.RechargeOrder{}).Joins("StudentCourse").
 		Preload("StudentCourse.Student", func(db *gorm.DB) *gorm.DB {
 			return db.Unscoped()
 		}).

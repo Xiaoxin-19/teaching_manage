@@ -18,15 +18,16 @@ type TeacherDao interface {
 }
 
 type TeacherGormDao struct {
-	db *gorm.DB
+	dbGetter func() *gorm.DB
 }
 
-func NewTeacherDao(db *gorm.DB) TeacherDao {
-	return &TeacherGormDao{db: db}
+func NewTeacherDao(getDB func() *gorm.DB) TeacherDao {
+	return &TeacherGormDao{dbGetter: getDB}
 }
 
 func (s TeacherGormDao) CreateTeacher(ctx context.Context, t *model.Teacher) error {
-	err := gorm.G[model.Teacher](s.db).Create(ctx, &model.Teacher{
+	db := s.dbGetter()
+	err := gorm.G[model.Teacher](db).Create(ctx, &model.Teacher{
 		Name:   t.Name,
 		Gender: t.Gender,
 		Phone:  t.Phone,
@@ -40,7 +41,8 @@ func (s TeacherGormDao) CreateTeacher(ctx context.Context, t *model.Teacher) err
 }
 
 func (s TeacherGormDao) UpdateTeacher(ctx context.Context, t *model.Teacher) error {
-	_, err := gorm.G[model.Teacher](s.db).Where("id = ?", t.ID).Select("name", "gender", "phone", "status", "remark").Updates(ctx, model.Teacher{
+	db := s.dbGetter()
+	_, err := gorm.G[model.Teacher](db).Where("id = ?", t.ID).Select("name", "gender", "phone", "status", "remark").Updates(ctx, model.Teacher{
 		Name:   t.Name,
 		Gender: t.Gender,
 		Phone:  t.Phone,
@@ -54,7 +56,8 @@ func (s TeacherGormDao) UpdateTeacher(ctx context.Context, t *model.Teacher) err
 }
 
 func (s TeacherGormDao) DeleteTeacher(ctx context.Context, id uint) error {
-	_, err := gorm.G[model.Teacher](s.db).Where("id = ?", id).Delete(ctx)
+	db := s.dbGetter()
+	_, err := gorm.G[model.Teacher](db).Where("id = ?", id).Delete(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrRecordNotFound
@@ -65,7 +68,8 @@ func (s TeacherGormDao) DeleteTeacher(ctx context.Context, id uint) error {
 }
 
 func (s TeacherGormDao) GetTeacherByID(ctx context.Context, id uint) (*model.Teacher, error) {
-	t, err := gorm.G[model.Teacher](s.db).Where("id = ?", id).First(ctx)
+	db := s.dbGetter()
+	t, err := gorm.G[model.Teacher](db).Where("id = ?", id).First(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +79,8 @@ func (s TeacherGormDao) GetTeacherByID(ctx context.Context, id uint) (*model.Tea
 // Get teacher list
 func (s TeacherGormDao) GetTeacherList(ctx context.Context, key string, status int, offset int, limit int) ([]model.Teacher, int64, error) {
 	var teachers []model.Teacher
-	query := gorm.G[model.Teacher](s.db).Where("")
+	db := s.dbGetter()
+	query := gorm.G[model.Teacher](db).Where("")
 
 	if key != "" {
 		query = query.Where("(name LIKE ? OR phone LIKE ? OR teacher_number LIKE ?)", "%"+key+"%", "%"+key+"%", "%"+key+"%")
@@ -100,7 +105,8 @@ func (s TeacherGormDao) GetTeacherList(ctx context.Context, key string, status i
 // Get teacher list including soft-deleted records
 func (s TeacherGormDao) GetTeacherListUnscoped(ctx context.Context, key string, status int, offset int, limit int) ([]model.Teacher, int64, error) {
 	var teachers []model.Teacher
-	query := s.db.Unscoped().WithContext(ctx).Model(&model.Teacher{})
+	db := s.dbGetter()
+	query := db.Unscoped().WithContext(ctx).Model(&model.Teacher{})
 	if key != "" {
 		likeKey := "%" + key + "%"
 		query = query.Where("(name LIKE ? OR phone LIKE ? OR teacher_number LIKE ?)", likeKey, likeKey, likeKey)

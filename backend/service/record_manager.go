@@ -164,8 +164,8 @@ func (rm *RecordManager) ActivateRecord(ctx context.Context, req *requestx.Activ
 }
 
 func activateRecord(ctx context.Context, recordID uint, db *gorm.DB) error {
-	courseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(db))
-	txRecordRepo := repository.NewRecordRepository(dao.NewRecordDao(db))
+	courseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(dao.GetDBTarget(db)))
+	txRecordRepo := repository.NewRecordRepository(dao.NewRecordDao(dao.GetDBTarget(db)))
 
 	// find record
 	record, err := txRecordRepo.GetRecordByID(ctx, recordID)
@@ -200,7 +200,7 @@ func (rm *RecordManager) ActivateAllPendingRecords(ctx context.Context) (string,
 	logger.Info("Activating all pending records")
 	db := dao.GetDB()
 	err := db.Transaction(func(tx *gorm.DB) error {
-		txRecordRepo := repository.NewRecordRepository(dao.NewRecordDao(tx))
+		txRecordRepo := repository.NewRecordRepository(dao.NewRecordDao(dao.GetDBTarget(tx)))
 		// find all pending records
 		pendingRecords, err := txRecordRepo.GetAllPendingRecordList(ctx)
 		if err != nil {
@@ -233,8 +233,8 @@ func (rm *RecordManager) DeleteRecordByID(ctx context.Context, req *requestx.Del
 	logger.Info("Deleting record", logger.UInt("record_id", req.ID))
 	db := dao.GetDB()
 	err := db.Transaction(func(tx *gorm.DB) error {
-		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(tx))
-		txRecRepo := repository.NewRecordRepository(dao.NewRecordDao(tx))
+		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(dao.GetDBTarget(tx)))
+		txRecRepo := repository.NewRecordRepository(dao.NewRecordDao(dao.GetDBTarget(tx)))
 
 		// if record is active ,need to return hours to student
 		// find record
@@ -422,7 +422,7 @@ func (rm *RecordManager) ImportFromExcel(ctx context.Context, req *requestx.Impo
 
 	db := dao.GetDB()
 	err = db.Transaction(func(tx *gorm.DB) error {
-		txRecordRepo := repository.NewRecordRepository(dao.NewRecordDao(tx))
+		txRecordRepo := repository.NewRecordRepository(dao.NewRecordDao(dao.GetDBTarget(tx)))
 
 		for i, record := range records {
 			// Complete the record information

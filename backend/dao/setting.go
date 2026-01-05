@@ -33,12 +33,12 @@ type SettingDAO interface {
 }
 
 type SettingGORMDAO struct {
-	db *gorm.DB
+	getDB func() *gorm.DB
 }
 
-func NewSettingDAO(db *gorm.DB) SettingDAO {
+func NewSettingDAO(getDB func() *gorm.DB) SettingDAO {
 	return &SettingGORMDAO{
-		db: db,
+		getDB: getDB,
 	}
 }
 
@@ -53,7 +53,8 @@ func (dao *SettingGORMDAO) GetSystemSetting(setting *SystemSetting, targets ...i
 
 	// 2. 准备查询
 	var dbSettings []model.Setting
-	query := dao.db.Model(&model.Setting{})
+	db := dao.getDB()
+	query := db.Model(&model.Setting{})
 
 	// 如果指定了特定字段，则添加过滤条件
 	if len(targetKeys) > 0 {
@@ -165,7 +166,8 @@ func (dao *SettingGORMDAO) UpdateSystemSetting(setting *SystemSetting, targets .
 	}
 
 	// 4. 批量 Upsert (插入或更新)
-	err := dao.db.Transaction(func(tx *gorm.DB) error {
+	db := dao.getDB()
+	err := db.Transaction(func(tx *gorm.DB) error {
 		return tx.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "key"}},              // 冲突检测列
 			DoUpdates: clause.AssignmentColumns([]string{"value"}), // 冲突时更新列

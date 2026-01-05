@@ -152,8 +152,8 @@ func (sm StudentManager) DeleteStudent(ctx context.Context, req *requestx.Delete
 	db := dao.GetDB()
 
 	err = db.Transaction(func(tx *gorm.DB) error {
-		txStuRepo := repository.NewStudentRepository(dao.NewStudentDao(tx))
-		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(tx))
+		txStuRepo := repository.NewStudentRepository(dao.NewStudentDao(dao.GetDBTarget(tx)))
+		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(dao.GetDBTarget(tx)))
 
 		// 删除学生的选课记录
 		logger.Debug("Deleting student courses")

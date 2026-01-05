@@ -33,15 +33,16 @@ type StudentCourseDao interface {
 }
 
 type StudentCourseGormDao struct {
-	db *gorm.DB
+	getDB func() *gorm.DB
 }
 
-func NewStudentCourseDao(db *gorm.DB) StudentCourseDao {
-	return &StudentCourseGormDao{db: db}
+func NewStudentCourseDao(getDB func() *gorm.DB) StudentCourseDao {
+	return &StudentCourseGormDao{getDB: getDB}
 }
 
 func (d *StudentCourseGormDao) CreateStudentCourse(ctx context.Context, sc *model.StudentSubject) error {
-	err := gorm.G[model.StudentSubject](d.db).Create(ctx, sc)
+	db := d.getDB()
+	err := gorm.G[model.StudentSubject](db).Create(ctx, sc)
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		return ErrDuplicatedKey
 	}
@@ -51,7 +52,8 @@ func (d *StudentCourseGormDao) CreateStudentCourse(ctx context.Context, sc *mode
 func (d *StudentCourseGormDao) GetStudentCourseList(ctx context.Context,
 	students []uint, subjects []uint, teachers []uint, min *int, max *int, statuses []int, keyword string, offset int, limit int) ([]model.StudentSubject, int64, error) {
 	var scs []model.StudentSubject
-	query := gorm.G[model.StudentSubject](d.db).Preload("Teacher", nil).Preload("Subject", nil)
+	db := d.getDB()
+	query := gorm.G[model.StudentSubject](db).Preload("Teacher", nil).Preload("Subject", nil)
 
 	// Join Student table to allow filtering on its status
 	query = query.Joins(clause.JoinTarget{Association: "Student"}, func(db gorm.JoinBuilder, joinTable, curTable clause.Table) error {
@@ -104,7 +106,8 @@ func (d *StudentCourseGormDao) GetStudentCourseList(ctx context.Context,
 
 func (d *StudentCourseGormDao) GetStudentCourse(ctx context.Context, studentID, subjectID uint) (*model.StudentSubject, error) {
 	var sc model.StudentSubject
-	err := d.db.WithContext(ctx).
+	db := d.getDB()
+	err := db.WithContext(ctx).
 		Where("student_id = ? AND subject_id = ?", studentID, subjectID).
 		First(&sc).Error
 	if err != nil {
@@ -115,7 +118,8 @@ func (d *StudentCourseGormDao) GetStudentCourse(ctx context.Context, studentID, 
 
 func (d *StudentCourseGormDao) GetStudentCourseWithDeleted(ctx context.Context, studentID, subjectID uint) (*model.StudentSubject, error) {
 	var sc model.StudentSubject
-	err := d.db.Unscoped().WithContext(ctx).
+	db := d.getDB()
+	err := db.Unscoped().WithContext(ctx).
 		Where("student_id = ? AND subject_id = ?", studentID, subjectID).
 		First(&sc).Error
 	if err != nil {
@@ -125,12 +129,14 @@ func (d *StudentCourseGormDao) GetStudentCourseWithDeleted(ctx context.Context, 
 }
 
 func (d *StudentCourseGormDao) UpdateBalance(ctx context.Context, id uint, delta int) error {
-	return d.db.WithContext(ctx).Model(&model.StudentSubject{}).
+	db := d.getDB()
+	return db.WithContext(ctx).Model(&model.StudentSubject{}).
 		Where("id = ?", id).
 		Update("balance", gorm.Expr("balance + ?", delta)).Error
 }
 
 func (d *StudentCourseGormDao) Recharge(ctx context.Context, id uint, hours int, amount float64) error {
+	db := d.getDB()
 	updates := map[string]interface{}{
 		"balance": gorm.Expr("balance + ?", hours),
 	}
@@ -150,19 +156,21 @@ func (d *StudentCourseGormDao) Recharge(ctx context.Context, id uint, hours int,
 	// Note: In SQLite, division by zero returns NULL.
 	updates["avg_price"] = gorm.Expr("COALESCE((balance * avg_price + ?) / NULLIF(balance + ?, 0), avg_price)", amount, hours)
 
-	return d.db.WithContext(ctx).Model(&model.StudentSubject{}).
+	return db.WithContext(ctx).Model(&model.StudentSubject{}).
 		Where("id = ?", id).
 		Updates(updates).Error
 }
 
 func (d *StudentCourseGormDao) RestoreStudentCourse(ctx context.Context, id uint) error {
-	return d.db.Unscoped().WithContext(ctx).Model(&model.StudentSubject{}).
+	db := d.getDB()
+	return db.Unscoped().WithContext(ctx).Model(&model.StudentSubject{}).
 		Where("id = ?", id).
 		Update("deleted_at", nil).Error
 }
 
 func (d *StudentCourseGormDao) UpdateStatus(ctx context.Context, id uint, status int, remark string) error {
-	return d.db.WithContext(ctx).Model(&model.StudentSubject{}).
+	db := d.getDB()
+	return db.WithContext(ctx).Model(&model.StudentSubject{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"status": status,
@@ -172,7 +180,8 @@ func (d *StudentCourseGormDao) UpdateStatus(ctx context.Context, id uint, status
 
 func (d *StudentCourseGormDao) GetByID(ctx context.Context, id uint) (*model.StudentSubject, error) {
 	var sc model.StudentSubject
-	err := d.db.WithContext(ctx).Preload("Student").Preload("Subject").Preload("Teacher").First(&sc, id).Error
+	db := d.getDB()
+	err := db.WithContext(ctx).Preload("Student").Preload("Subject").Preload("Teacher").First(&sc, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +189,8 @@ func (d *StudentCourseGormDao) GetByID(ctx context.Context, id uint) (*model.Stu
 }
 
 func (d *StudentCourseGormDao) UpdateStudentCourseInfo(ctx context.Context, id uint, teacherID uint, remark string) error {
-	return d.db.WithContext(ctx).Model(&model.StudentSubject{}).
+	db := d.getDB()
+	return db.WithContext(ctx).Model(&model.StudentSubject{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"teacher_id": teacherID,
@@ -190,12 +200,14 @@ func (d *StudentCourseGormDao) UpdateStudentCourseInfo(ctx context.Context, id u
 
 func (d *StudentCourseGormDao) Delete(ctx context.Context, id uint) error {
 	ss := model.StudentSubject{Model: gorm.Model{ID: id}}
-	return d.db.WithContext(ctx).Delete(&ss).Error
+	db := d.getDB()
+	return db.WithContext(ctx).Delete(&ss).Error
 }
 
 func (s StudentCourseGormDao) GetByStudentIDAndSubjectID(ctx context.Context, studentID uint, subjectID uint) (*model.StudentSubject, error) {
 	var sc model.StudentSubject
-	err := s.db.WithContext(ctx).
+	db := s.getDB()
+	err := db.WithContext(ctx).
 		Where("student_id = ? AND subject_id = ?", studentID, subjectID).
 		Preload("Student").Preload("Teacher").Preload("Subject").
 		First(&sc).Error
@@ -212,7 +224,8 @@ func (s StudentCourseGormDao) GetByStudentIDAndSubjectID(ctx context.Context, st
 
 func (s StudentCourseGormDao) GetByStudentID(ctx context.Context, d uint) ([]model.StudentSubject, error) {
 	var sc []model.StudentSubject
-	err := s.db.WithContext(ctx).
+	db := s.getDB()
+	err := db.WithContext(ctx).
 		Where("student_id = ?", d).
 		Preload("Student").
 		Find(&sc).Error
@@ -227,18 +240,18 @@ func (s StudentCourseGormDao) GetByStudentID(ctx context.Context, d uint) ([]mod
 
 func (d *StudentCourseGormDao) DeleteByStudentID(ctx context.Context, stuID uint) error {
 	ss := model.StudentSubject{}
-	return d.db.WithContext(ctx).Where("student_id = ?", stuID).Delete(&ss).Error
+	return d.getDB().WithContext(ctx).Where("student_id = ?", stuID).Delete(&ss).Error
 }
 
 func (d *StudentCourseGormDao) DeleteByTeacherID(ctx context.Context, teacherID uint) error {
 	ss := model.StudentSubject{}
-	err := d.db.WithContext(ctx).Where("teacher_id = ?", teacherID).Delete(&ss).Error
+	err := d.getDB().WithContext(ctx).Where("teacher_id = ?", teacherID).Delete(&ss).Error
 	return err
 }
 
 func (d *StudentCourseGormDao) GetByTeacherID(ctx context.Context, id uint) ([]model.StudentSubject, error) {
 	var sc []model.StudentSubject
-	err := d.db.WithContext(ctx).Where("teacher_id = ?", id).Find(&sc).Error
+	err := d.getDB().WithContext(ctx).Where("teacher_id = ?", id).Find(&sc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrRecordNotFound
 	}
@@ -250,7 +263,7 @@ func (d *StudentCourseGormDao) GetByTeacherID(ctx context.Context, id uint) ([]m
 
 func (d *StudentCourseGormDao) GetBySubjectID(ctx context.Context, subjectID uint) ([]model.StudentSubject, error) {
 	var sc []model.StudentSubject
-	err := d.db.WithContext(ctx).Where("subject_id = ?", subjectID).Find(&sc).Error
+	err := d.getDB().WithContext(ctx).Where("subject_id = ?", subjectID).Find(&sc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrRecordNotFound
 	}
@@ -262,6 +275,6 @@ func (d *StudentCourseGormDao) GetBySubjectID(ctx context.Context, subjectID uin
 
 func (d *StudentCourseGormDao) DeleteBySubjectID(ctx context.Context, subjectID uint) error {
 	ss := model.StudentSubject{}
-	err := d.db.WithContext(ctx).Where("subject_id = ?", subjectID).Delete(&ss).Error
+	err := d.getDB().WithContext(ctx).Where("subject_id = ?", subjectID).Delete(&ss).Error
 	return err
 }

@@ -191,10 +191,11 @@ func (cm CourseManager) RechargeCourse(ctx context.Context, req *requestx.Rechar
 	db := dao.GetDB()
 	// 3. Recharge (Transaction)
 	err = db.Transaction(func(tx *gorm.DB) error {
-		txCourseDao := dao.NewStudentCourseDao(tx)
+
+		txCourseDao := dao.NewStudentCourseDao(dao.GetDBTarget(tx))
 		txCourseRepo := repository.NewCourseRepository(txCourseDao)
 
-		txRechargeDao := dao.NewRechargeOrderDao(tx)
+		txRechargeDao := dao.NewRechargeOrderDao(dao.GetDBTarget(tx))
 		txRechargeRepo := repository.NewOrderRepository(txRechargeDao)
 
 		// 处理金额符号：充值时为正数，退费时为负数

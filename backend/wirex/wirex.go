@@ -8,15 +8,13 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"gorm.io/gorm"
 )
 
-func NewGormDB() (*gorm.DB, error) {
-	err := dao.InitDB("./data/teaching_manage.db")
-	if err != nil {
+func NewDBGetter() (dao.DBGetter, error) {
+	if err := dao.InitDB("./data/teaching_manage.db"); err != nil {
 		return nil, err
 	}
-	return dao.GetDB(), nil
+	return dao.GetDBProvider(), nil
 }
 
 func InitLogger() logger.Logger {
