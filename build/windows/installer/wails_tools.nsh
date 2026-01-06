@@ -8,16 +8,16 @@
     !define INFO_PROJECTNAME "teaching_manage"
 !endif
 !ifndef INFO_COMPANYNAME
-    !define INFO_COMPANYNAME "teaching_manage"
+    !define INFO_COMPANYNAME "xiaoxina"
 !endif
 !ifndef INFO_PRODUCTNAME
-    !define INFO_PRODUCTNAME "teaching_manage"
+    !define INFO_PRODUCTNAME "teaching manage"
 !endif
 !ifndef INFO_PRODUCTVERSION
     !define INFO_PRODUCTVERSION "1.0.0"
 !endif
 !ifndef INFO_COPYRIGHT
-    !define INFO_COPYRIGHT "Copyright........."
+    !define INFO_COPYRIGHT "Copyright © 2026 He Wenxin. All rights reserved."
 !endif
 !ifndef PRODUCT_EXECUTABLE
     !define PRODUCT_EXECUTABLE "${INFO_PROJECTNAME}.exe"
@@ -204,10 +204,18 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
 !macro wails.associateFiles
     ; Create file associations
     
+      !insertmacro APP_ASSOCIATE "" "" "" "$INSTDIR\appicon.ico" "Open with ${INFO_PRODUCTNAME}" "$INSTDIR\${PRODUCT_EXECUTABLE} $\"%1$\""
+
+      File "..\appicon.ico"
+    
 !macroend
 
 !macro wails.unassociateFiles
     ; Delete app associations
+    
+      !insertmacro APP_UNASSOCIATE "" ""
+
+      Delete "$INSTDIR\appicon.ico"
     
 !macroend
 
