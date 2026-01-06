@@ -5,7 +5,7 @@
         <v-icon color="warning" class="mr-2">mdi-chart-pie</v-icon> 学员账户健康度
       </h3>
       <v-btn variant="text" size="small" color="primary" append-icon="mdi-arrow-right"
-        @click="$emit('navigate', 'students')">
+        @click="$emit('navigate', 'courses')">
         催费管理
       </v-btn>
     </div>
