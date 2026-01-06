@@ -10,7 +10,7 @@ import (
 type Subject struct {
 	gorm.Model
 	SubjectNumber string `gorm:"unique;size:20;not null;comment:科目编号(业务主键)"` // 如：SUBJ0001
-	Name          string `gorm:"unique;size:50;not null;comment:科目名称"`       // 如：钢琴、声乐
+	Name          string `gorm:"size:50;not null;comment:科目名称"`              // 如：钢琴、声乐
 
 	// 一对多关联：一个科目可以被多个学生选修
 	StudentSubjects []StudentSubject `gorm:"foreignKey:SubjectID;references:ID"`
