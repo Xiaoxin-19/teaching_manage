@@ -9,7 +9,6 @@ import {
 } from '../../api/backup'
 import { OpenFileDialogResponse, SetAutoBackupEnabledRequest, SetWebDavConfigRequest } from '../../types/request'
 import { WebDavBackupItem, WebDavConfigResponse } from '../../types/response'
-import { is } from '@babel/types'
 
 export function useSettings() {
   // 使用项目中封装的 toast 钩子
