@@ -47,6 +47,7 @@
         <v-divider></v-divider>
 
         <v-card-text class="pa-6">
+          <div class="text-caption text-medium-emphasis mb-4">如果设置了备份方式，则每次关闭程序都会自动备份，且最多保留最近的7次备份</div>
           <v-row>
             <!-- 左侧：数据备份 -->
             <v-col cols="12" md="6">

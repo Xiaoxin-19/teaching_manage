@@ -182,10 +182,15 @@ func (bm *BackupManager) GetWebDavConfig(ctx context.Context) (responsex.WebDavC
 	if err != nil {
 		lastBackupInt = 0
 	}
+	passwd := DEFAULT_PASS_REPLACE
+
+	if cfg.WebDavPassword == "" {
+		passwd = ""
+	}
 	return responsex.WebDavConfigResponse{
 		WebDavURL:       cfg.WebDavURL,
 		WebDavUserName:  cfg.WebDavUserName,
-		WebDavPassword:  DEFAULT_PASS_REPLACE,
+		WebDavPassword:  passwd,
 		LastCloudBackup: lastBackupInt,
 	}, nil
 }
@@ -485,6 +490,10 @@ func (bm *BackupManager) CreateBackupLocal(ctx context.Context) (string, error) 
 	if err != nil {
 		logger.Error("get backup local path failed", logger.ErrorType(err))
 		return "", err
+	}
+
+	if localPath == "" {
+		return "", fmt.Errorf("本地备份路径未设置")
 	}
 
 	// 获取当前数据库路径
