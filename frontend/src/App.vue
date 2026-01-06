@@ -82,7 +82,12 @@ const handleToggleMax = async () => {
   isMaximized.value = await WindowIsMaximised()
 }
 
-const handleClose = () => Quit()
+const handleClose = async () => {
+  const confirmed = await showConfirm('确认退出', '确定要退出吗？')
+  if (confirmed) {
+    Quit()
+  }
+}
 
 
 // ----------------------------------------------------------------
