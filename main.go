@@ -136,6 +136,13 @@ func main() {
 		Bind: []interface{}{
 			app,
 		},
+		SingleInstanceLock: &options.SingleInstanceLock{
+			// 1. 唯一标识符：必须是一个 UUID，以确保在系统中唯一
+			UniqueId: "5fd2fbe4-2c84-4730-bbc7-b0c2cdd52176",
+
+			// 2. 绑定上面定义的回调函数
+			OnSecondInstanceLaunch: app.onSecondInstanceLaunch,
+		},
 		OnShutdown: func(ctx context.Context) {
 			app.OnShutdown()
 			dao.CloseDB()

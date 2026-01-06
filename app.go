@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"strings"
 	"teaching_manage/backend/pkg/dispatcher"
 	"teaching_manage/backend/pkg/logger"
 	"teaching_manage/backend/service"
+
+	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -84,4 +88,12 @@ func (a *App) OnShutdown() {
 			logger.Info("本地备份成功")
 		}
 	}
+}
+
+func (a *App) onSecondInstanceLaunch(secondInstanceData options.SecondInstanceData) {
+	logger.Info("检测到第二个实例启动", logger.String("args", strings.Join(secondInstanceData.Args, " ")))
+
+	runtime.WindowUnminimise(a.ctx)
+	runtime.Show(a.ctx)
+	go runtime.EventsEmit(a.ctx, "launchArgs", secondInstanceData.Args)
 }
