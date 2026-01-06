@@ -1,5 +1,7 @@
 # README
 
+License: MIT (see LICENSE file)
+
 ## About
 
 This is the official Wails Vue-TS template.
