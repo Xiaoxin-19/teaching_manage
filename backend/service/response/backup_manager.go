@@ -1,10 +1,11 @@
 package responsex
 
 type WebDavConfigResponse struct {
-	WebDavURL       string `json:"url"`
-	WebDavUserName  string `json:"username"`
-	WebDavPassword  string `json:"password"`
-	LastCloudBackup int64  `json:"last_cloud_backup"`
+	WebDavURL        string `json:"url"`
+	WebDavUserName   string `json:"username"`
+	WebDavPassword   string `json:"password"`
+	LastCloudBackup  int64  `json:"last_cloud_backup"`
+	EnableAutoBackup bool   `json:"enable_auto_backup"`
 }
 
 type WebDavBackupItem struct {

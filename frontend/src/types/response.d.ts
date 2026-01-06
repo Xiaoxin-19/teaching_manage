@@ -64,6 +64,7 @@ export interface WebDavConfigResponse {
   username: string
   password: string
   last_cloud_backup: number
+  enable_auto_backup: boolean
 }
 
 export interface WebDavBackupItem {
@@ -152,10 +153,4 @@ export interface GetCourseListResponse {
 export interface GetOrderListResponse {
   orders: Order[];
   total: number;
-}
-
-export interface GetWebDavConfigResponse {
-  url: string;
-  username: string;
-  password: string;
 }

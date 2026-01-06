@@ -30,3 +30,7 @@ type RestoreBackupRequest struct {
 type CreateBackupRequest struct {
 	Type string `json:"type" validate:"required,oneof=local webdav"`
 }
+
+type SetAutoBackupRequest struct {
+	Enabled bool `json:"enabled"`
+}

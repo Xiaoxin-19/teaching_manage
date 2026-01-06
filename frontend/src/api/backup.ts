@@ -1,6 +1,6 @@
 import { Dispatch } from '../../wailsjs/go/main/App'
 import { ResponseWrapper } from '../types/appModels'
-import { OpenFileDialogResponse, SetWebDavConfigRequest } from '../types/request'
+import { OpenFileDialogResponse, SetAutoBackupEnabledRequest, SetWebDavConfigRequest } from '../types/request'
 import { WebDavBackupItem, WebDavConfigResponse } from '../types/response'
 
 export interface SetBackupLocalPathRequest {
@@ -153,6 +153,20 @@ export async function RestoreBackup(req: RestoreBackupRequest): Promise<string> 
     return result.data as string
   } catch (error: any) {
     console.error("API Error [RestoreBackup]:", error);
+    throw error
+  }
+}
+
+export async function SetAutoBackupEnabled(req: SetAutoBackupEnabledRequest): Promise<string> {
+  try {
+    const resultStr = await Dispatch('backup_manager/set_auto_backup_enabled', JSON.stringify(req))
+    const result = JSON.parse(resultStr) as ResponseWrapper<string>
+    if (result.code !== 200) {
+      throw new Error(result.message || '设置自动备份失败')
+    }
+    return result.data as string
+  } catch (error: any) {
+    console.error("API Error [SetAutoBackupEnabled]:", error);
     throw error
   }
 }

@@ -1,10 +1,15 @@
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useToast } from '../../composables/useToast'
 import { useGlobalOverlay } from '../../composables/useGlobalOverlay'
 import { OnFileDrop, OnFileDropOff } from '../../../wailsjs/runtime/runtime'
-import { SetBackupLocalPath, GetBackupLocalPath, SetBackupLocalPathRequest, OpenFileDialog, SetWebDavConfig, GetWebDavConfig, TestWebDavConnection, ListWebDavBackups, CreateBackup, RestoreBackup } from '../../api/backup'
-import { OpenFileDialogResponse, SetWebDavConfigRequest } from '../../types/request'
+import {
+  SetBackupLocalPath, GetBackupLocalPath, SetBackupLocalPathRequest, OpenFileDialog,
+  SetWebDavConfig, GetWebDavConfig, TestWebDavConnection, ListWebDavBackups,
+  CreateBackup, RestoreBackup, SetAutoBackupEnabled
+} from '../../api/backup'
+import { OpenFileDialogResponse, SetAutoBackupEnabledRequest, SetWebDavConfigRequest } from '../../types/request'
 import { WebDavBackupItem, WebDavConfigResponse } from '../../types/response'
+import { is } from '@babel/types'
 
 export function useSettings() {
   // 使用项目中封装的 toast 钩子
@@ -61,6 +66,9 @@ export function useSettings() {
   const localBackupDirDialog = ref(false)
   const savingLocalPath = ref(false)
 
+  // --- 自动备份设置 ---
+  const autoBackupEnabled = ref(false)
+
   // 预设的 WebDAV 提供商，方便用户快速填写
   const providers = [
     { name: '坚果云 (Jianguoyun)', value: 'https://dav.jianguoyun.com/dav/' },
@@ -79,6 +87,11 @@ export function useSettings() {
 
   // --- 方法实现 ---
   const PASSWORD_PLACEHOLDER = "(●'◡'●)"
+
+  const isAllowEnableAutoBackup = computed(() => {
+    console.log('isConfigured:', isConfigured.value, 'localBackupDir:', localBackupDir.value)
+    return !(isConfigured.value || localBackupDir.value != '')
+  })
 
   const openConfig = async () => {
     try {
@@ -123,6 +136,20 @@ export function useSettings() {
       console.error('保存备份路径失败:', err)
     } finally {
       savingLocalPath.value = false
+    }
+  }
+
+  const updateAutoBackupEnabled = async () => {
+    try {
+      let req: SetAutoBackupEnabledRequest = {
+        enabled: autoBackupEnabled.value
+      }
+      await SetAutoBackupEnabled(req)
+      success(autoBackupEnabled.value ? '已开启自动备份' : '已关闭自动备份')
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      error('更新自动备份设置失败: ' + errMsg)
+      console.error('更新自动备份设置失败:', err)
     }
   }
 
@@ -390,13 +417,14 @@ export function useSettings() {
 
     // 尝试读取已保存的 WebDav 配置以设置状态
     try {
-      const saved = await GetWebDavConfig()
+      const saved = await GetWebDavConfig() as WebDavConfigResponse
       console.log('已加载 WebDav 配置:', saved)
       if (saved.url) {
         config.url = saved.url
         config.username = saved.username
         config.password = saved.password
         isConfigured.value = true
+        autoBackupEnabled.value = saved.enable_auto_backup
       }
       if (saved.last_cloud_backup != 0) {
         lastBackupDate.value = new Date(saved.last_cloud_backup * 1000).toLocaleString()
@@ -469,6 +497,9 @@ export function useSettings() {
     localBackupDirDialog,
     savingLocalPath,
 
+    // 自动备份设置
+    autoBackupEnabled,
+    isAllowEnableAutoBackup,
     // Methods
     openConfig,
     testConnection,
@@ -483,6 +514,7 @@ export function useSettings() {
     openLocalBackupDirSetting,
     saveLocalBackupDir,
     selectBackupDir,
+    updateAutoBackupEnabled,
     formatSize
   }
 }

@@ -130,6 +130,31 @@ func (s *SettingService) UpdateLocalBackupPath(path string) error {
 	return nil
 }
 
+func (s *SettingService) GetAutoBackupEnabled() (bool, error) {
+	setting, err := s.getSettingWithCache()
+	if err != nil {
+		return false, err
+	}
+	return setting.AutoBackupEnabled, nil
+}
+
+func (s *SettingService) UpdateAutoBackupEnabled(enabled bool) error {
+	// 1. 构造更新对象
+	setting := &dao.SystemSetting{
+		AutoBackupEnabled: enabled,
+	}
+	// 2. 调用 DAO 更新指定字段
+	err := s.settingDAO.UpdateSystemSetting(setting,
+		&setting.AutoBackupEnabled,
+	)
+	if err != nil {
+		return err
+	}
+	// 3. 失效缓存
+	s.invalidateCache()
+	return nil
+}
+
 // getSettingWithCache 内部辅助方法：带缓存读取
 func (s *SettingService) getSettingWithCache() (*dao.SystemSetting, error) {
 	s.cacheMutex.RLock()

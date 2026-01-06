@@ -20,6 +20,25 @@
         </v-card-item>
       </v-card>
 
+      <!-- 自动备份设置 -->
+      <v-card elevation="1" border class="rounded-lg mb-4">
+        <v-card-item class="py-3 px-6">
+          <div class="d-flex align-center justify-space-between">
+            <div class="d-flex align-center">
+              <v-icon icon="mdi-autorenew" color="primary" class="mr-3"></v-icon>
+              <div>
+                <div class="text-body-2 font-weight-bold">自动备份</div>
+                <div class="text-caption text-medium-emphasis">
+                  退出程序时自动创建备份
+                </div>
+              </div>
+            </div>
+            <v-switch v-model="autoBackupEnabled" :disabled="isAllowEnableAutoBackup" @change="updateAutoBackupEnabled"
+              color="primary" density="compact" class="mr-1"></v-switch>
+          </div>
+        </v-card-item>
+      </v-card>
+
       <!-- 模块：数据管理 -->
       <v-card elevation="2" border class="rounded-lg overflow-hidden">
 
@@ -264,10 +283,11 @@ const {
   restoreTab, restoring, loadingBackups, cloudBackups, selectedBackup, localFile, localFilePath,
   config, providers, rules, testing, saving,
   localBackupDir, localBackupDirDialog, savingLocalPath,
+  autoBackupEnabled, isAllowEnableAutoBackup,
   openConfig, testConnection, saveConfig,
   handleMainBackupAction, exportLocalOnly,
   fetchCloudBackups, selectLocalFile, confirmRestore, executeRestore,
-  openLocalBackupDirSetting, saveLocalBackupDir, selectBackupDir, formatSize
+  openLocalBackupDirSetting, saveLocalBackupDir, selectBackupDir, updateAutoBackupEnabled, formatSize
 } = useSettings()
 </script>
 

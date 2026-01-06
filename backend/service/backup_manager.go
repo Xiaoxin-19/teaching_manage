@@ -188,10 +188,11 @@ func (bm *BackupManager) GetWebDavConfig(ctx context.Context) (responsex.WebDavC
 		passwd = ""
 	}
 	return responsex.WebDavConfigResponse{
-		WebDavURL:       cfg.WebDavURL,
-		WebDavUserName:  cfg.WebDavUserName,
-		WebDavPassword:  passwd,
-		LastCloudBackup: lastBackupInt,
+		WebDavURL:        cfg.WebDavURL,
+		WebDavUserName:   cfg.WebDavUserName,
+		WebDavPassword:   passwd,
+		LastCloudBackup:  lastBackupInt,
+		EnableAutoBackup: cfg.EnableAutoBackup,
 	}, nil
 }
 
@@ -677,6 +678,14 @@ func (bm *BackupManager) cleanOldWebDavBackups(client *gowebdav.Client, baseDir 
 	}
 }
 
+func (bm *BackupManager) SetAutoBackupEnabled(ctx context.Context, req *requestx.SetAutoBackupRequest) (string, error) {
+	if err := bm.settingSvc.UpdateAutoBackupEnabled(req.Enabled); err != nil {
+		logger.Error("update auto backup enabled failed", logger.ErrorType(err))
+		return "", fmt.Errorf("更新自动备份设置失败: %w", err)
+	}
+	return "自动备份设置已更新", nil
+}
+
 func (bm *BackupManager) RegisterRoute(d *dispatcher.Dispatcher) {
 	// 注册设置本地备份路径的路由
 	dispatcher.RegisterTyped(d, "backup_manager/set_backup_local_path", bm.SetBackupLocalPath)
@@ -704,4 +713,7 @@ func (bm *BackupManager) RegisterRoute(d *dispatcher.Dispatcher) {
 
 	// 注册手动创建备份的路由
 	dispatcher.RegisterTyped(d, "backup_manager/create_backup", bm.CreateBackup)
+
+	// 注册更新自动备份设置的路由
+	dispatcher.RegisterTyped(d, "backup_manager/set_auto_backup_enabled", bm.SetAutoBackupEnabled)
 }

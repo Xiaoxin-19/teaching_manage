@@ -19,6 +19,7 @@ type SystemSetting struct {
 	WebDavBaseDir      string `json:"web_dav_base_dir" default:"/TeachingManageBackups"`
 	LastCloudBackup    string `json:"last_cloud_backup" default:""`
 	CurrentDBPath      string `json:"current_db_path" default:"./data/teaching_manage.db"`
+	AutoBackupEnabled  bool   `json:"auto_backup_enabled" default:"false"`
 }
 
 type SettingDAO interface {

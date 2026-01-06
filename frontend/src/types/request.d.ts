@@ -198,3 +198,8 @@ export interface SetWebDavConfigRequest {
   password: string;
 }
 
+
+
+export interface SetAutoBackupEnabledRequest {
+  enabled: boolean
+}
