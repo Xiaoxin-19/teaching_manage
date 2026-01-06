@@ -12,6 +12,10 @@
 - 📊 **数据可视化** - 集成 ECharts 实现数据统计图表展示
 - 🔐 **数据安全** - 支持自动备份功能
 
+## 程序截图
+<img width="2560" height="1440" alt="仪表盘" src="https://github.com/user-attachments/assets/7417cfe6-4a18-4d73-99c2-40d7d4ca111a" />
+<img width="2560" height="1440" alt="数据备份" src="https://github.com/user-attachments/assets/7be94878-aa65-4196-8e44-27ccaae02bc7" />
+
 ## 🏗️ 架构设计
 
 ### 后端架构 (Go)
