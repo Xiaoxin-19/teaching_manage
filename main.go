@@ -95,7 +95,7 @@ func main() {
 	dispatcher := dispatcher.New()
 
 	// Create an instance of the app structure
-	app := NewApp(dispatcher, *settingService, *backupManager)
+	app := NewApp(dispatcher, settingService, backupManager)
 
 	// Create application with options
 	err = wails.Run(&options.App{
@@ -138,6 +138,7 @@ func main() {
 		},
 		OnShutdown: func(ctx context.Context) {
 			app.OnShutdown()
+			dao.CloseDB()
 		},
 		Frameless:                true,
 		EnableDefaultContextMenu: false,

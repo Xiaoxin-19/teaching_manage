@@ -11,12 +11,12 @@ import (
 type App struct {
 	ctx        context.Context
 	dispatcher *dispatcher.Dispatcher
-	setting    service.SettingService
-	backSvc    service.BackupManager
+	setting    *service.SettingService
+	backSvc    *service.BackupManager
 }
 
 // NewApp creates a new App application struct
-func NewApp(dis *dispatcher.Dispatcher, setting service.SettingService, backSvc service.BackupManager) *App {
+func NewApp(dis *dispatcher.Dispatcher, setting *service.SettingService, backSvc *service.BackupManager) *App {
 	return &App{
 		dispatcher: dis,
 		setting:    setting,
