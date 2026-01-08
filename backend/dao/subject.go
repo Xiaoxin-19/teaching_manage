@@ -19,15 +19,15 @@ type SubjectDao interface {
 }
 
 type SubjectGormDao struct {
-	getDB func() *gorm.DB
+	getDB DBGetter
 }
 
-func NewSubjectDao(getDB func() *gorm.DB) SubjectDao {
+func NewSubjectDao(getDB DBGetter) SubjectDao {
 	return &SubjectGormDao{getDB: getDB}
 }
 
 func (d *SubjectGormDao) CreateSubject(ctx context.Context, subject *model.Subject) error {
-	db := d.getDB()
+	db := GetDBFromCtx(ctx, d.getDB())
 	err := gorm.G[model.Subject](db).Create(ctx, subject)
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		return ErrDuplicatedKey
@@ -37,7 +37,7 @@ func (d *SubjectGormDao) CreateSubject(ctx context.Context, subject *model.Subje
 
 func (d *SubjectGormDao) GetSubjectByName(ctx context.Context, name string) (*model.Subject, error) {
 	var subject model.Subject
-	db := d.getDB()
+	db := GetDBFromCtx(ctx, d.getDB())
 	subject, err := gorm.G[model.Subject](db).Where("name = ?", name).First(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -50,7 +50,7 @@ func (d *SubjectGormDao) GetSubjectByName(ctx context.Context, name string) (*mo
 
 func (d *SubjectGormDao) GetSubjectByID(ctx context.Context, id uint) (*model.Subject, error) {
 	var subject model.Subject
-	db := d.getDB()
+	db := GetDBFromCtx(ctx, d.getDB())
 	subject, err := gorm.G[model.Subject](db).Where("id = ?", id).First(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -62,7 +62,7 @@ func (d *SubjectGormDao) GetSubjectByID(ctx context.Context, id uint) (*model.Su
 }
 
 func (d *SubjectGormDao) UpdateSubject(ctx context.Context, subject *model.Subject) error {
-	db := d.getDB()
+	db := GetDBFromCtx(ctx, d.getDB())
 	_, err := gorm.G[model.Subject](db).Select("name").Where("id = ?", subject.ID).
 		Updates(ctx, model.Subject{
 			Name: subject.Name,
@@ -74,7 +74,7 @@ func (d *SubjectGormDao) UpdateSubject(ctx context.Context, subject *model.Subje
 }
 
 func (d *SubjectGormDao) DeleteSubject(ctx context.Context, id uint) error {
-	db := d.getDB()
+	db := GetDBFromCtx(ctx, d.getDB())
 	_, err := gorm.G[model.Subject](db).Where("id = ?", id).Delete(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -87,7 +87,7 @@ func (d *SubjectGormDao) DeleteSubject(ctx context.Context, id uint) error {
 
 func (d *SubjectGormDao) GetSubjectList(ctx context.Context, keyword string, offset int, limit int) ([]model.Subject, int64, error) {
 	var subjects []model.Subject
-	db := d.getDB()
+	db := GetDBFromCtx(ctx, d.getDB())
 	query := gorm.G[model.Subject](db).Preload("StudentSubjects", nil)
 	if keyword != "" {
 		query = query.Where("name LIKE ?", "%"+keyword+"%")
@@ -108,7 +108,7 @@ func (d *SubjectGormDao) GetSubjectList(ctx context.Context, keyword string, off
 
 func (d *SubjectGormDao) GetSubjectListUnscoped(ctx context.Context, keyword string, offset int, limit int) ([]model.Subject, int64, error) {
 	var subjects []model.Subject
-	db := d.getDB()
+	db := GetDBFromCtx(ctx, d.getDB())
 	query := db.Unscoped().WithContext(ctx).Model(&model.Subject{}).Preload("StudentSubjects", func(db *gorm.DB) *gorm.DB {
 		return db.Unscoped()
 	})

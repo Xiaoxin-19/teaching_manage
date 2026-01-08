@@ -18,16 +18,16 @@ type RecordDAO interface {
 	GetAllPendingRecordList(ctx context.Context) ([]model.Record, error)
 }
 
-func NewRecordDao(getDB func() *gorm.DB) RecordDAO {
+func NewRecordDao(getDB DBGetter) RecordDAO {
 	return &RecordGormDAO{getDB: getDB}
 }
 
 type RecordGormDAO struct {
-	getDB func() *gorm.DB
+	getDB DBGetter
 }
 
 func (r *RecordGormDAO) CreateRecord(ctx context.Context, record model.Record) error {
-	db := r.getDB()
+	db := GetDBFromCtx(ctx, r.getDB())
 	convertRecordTimeToUnixMs(&record)
 	err := gorm.G[model.Record](db).Create(ctx, &record)
 	if err != nil {
@@ -51,7 +51,7 @@ func (r *RecordGormDAO) GetRecordList(ctx context.Context, stuIDs []uint, teache
 	var records []model.Record
 
 	// 构建查询，关联学生和教师表以进行模糊搜索
-	db := r.getDB()
+	db := GetDBFromCtx(ctx, r.getDB())
 	query := db.WithContext(ctx).Model(&model.Record{}).Where("records.deleted_at is null")
 	// 使用 Preload 并加上 Unscoped 以加载已软删除的关联数据
 	query = query.Preload("Teacher", func(db *gorm.DB) *gorm.DB {
@@ -108,7 +108,7 @@ func (r *RecordGormDAO) GetRecordList(ctx context.Context, stuIDs []uint, teache
 }
 
 func (r *RecordGormDAO) ActivateRecord(ctx context.Context, recordID uint) error {
-	db := r.getDB()
+	db := GetDBFromCtx(ctx, r.getDB())
 	_, err := gorm.G[model.Record](db).Where("id = ?", recordID).Update(ctx, "active", true)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func (r *RecordGormDAO) ActivateRecord(ctx context.Context, recordID uint) error
 
 func (r *RecordGormDAO) GetRecordByID(ctx context.Context, d uint) (*model.Record, error) {
 	var record model.Record
-	db := r.getDB()
+	db := GetDBFromCtx(ctx, r.getDB())
 	record, err := gorm.G[model.Record](db).Where("id = ?", d).First(ctx)
 	if err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func (r *RecordGormDAO) GetRecordByID(ctx context.Context, d uint) (*model.Recor
 }
 
 func (r *RecordGormDAO) DeleteRecordByID(ctx context.Context, id uint) error {
-	db := r.getDB()
+	db := GetDBFromCtx(ctx, r.getDB())
 	_, err := gorm.G[model.Record](db).Where("id = ?", id).Delete(ctx)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return ErrRecordNotFound
@@ -141,7 +141,7 @@ func (r *RecordGormDAO) DeleteRecordByID(ctx context.Context, id uint) error {
 
 func (r *RecordGormDAO) GetAllPendingRecordList(ctx context.Context) ([]model.Record, error) {
 	var records []model.Record
-	db := r.getDB()
+	db := GetDBFromCtx(ctx, r.getDB())
 	records, err := gorm.G[model.Record](db).Where("active = ?", false).Find(ctx)
 	if err != nil {
 		return nil, err

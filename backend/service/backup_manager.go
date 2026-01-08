@@ -45,7 +45,7 @@ func (bm *BackupManager) SetBackupLocalPath(ctx context.Context, req *requestx.S
 	normalizedPath := pathutil.NormalizePath(req.LocalPath)
 
 	// 调用 SettingService 保存本地备份路径
-	if err := bm.settingSvc.UpdateLocalBackupPath(normalizedPath); err != nil {
+	if err := bm.settingSvc.UpdateLocalBackupPath(ctx, normalizedPath); err != nil {
 		logger.Error("保存备份路径失败", logger.ErrorType(err))
 		return "", fmt.Errorf("保存备份路径失败: %w", err)
 	}
@@ -55,7 +55,7 @@ func (bm *BackupManager) SetBackupLocalPath(ctx context.Context, req *requestx.S
 
 // GetBackupLocalPath 获取本地备份路径
 func (bm *BackupManager) GetBackupLocalPath(ctx context.Context) (string, error) {
-	path, err := bm.settingSvc.GetBackupLocalPath()
+	path, err := bm.settingSvc.GetBackupLocalPath(ctx)
 	if err != nil {
 		return "", fmt.Errorf("获取系统设置失败: %w", err)
 	}
@@ -65,12 +65,12 @@ func (bm *BackupManager) GetBackupLocalPath(ctx context.Context) (string, error)
 
 // resolveWebDavPassword
 // 传入空值或占位符时，返回已保存的密码，否则返回传入的密码
-func (bm *BackupManager) resolveWebDavPassword(pwd string) (string, error) {
+func (bm *BackupManager) resolveWebDavPassword(ctx context.Context, pwd string) (string, error) {
 	if pwd != "" && pwd != DEFAULT_PASS_REPLACE {
 		return pwd, nil
 	}
 
-	cfg, err := bm.settingSvc.GetWebDavConfig()
+	cfg, err := bm.settingSvc.GetWebDavConfig(ctx)
 	if err != nil {
 		return "", fmt.Errorf("读取已保存的 WebDav 配置失败: %w", err)
 	}
@@ -129,7 +129,7 @@ func (bm *BackupManager) OpenPathSelectorDialog(ctx context.Context, req *reques
 
 // 测试 WebDav 连接（不落库，仅校验）
 func (bm *BackupManager) TestWebDavConnection(ctx context.Context, req *requestx.SetWebDavConfigRequest) (string, error) {
-	password, err := bm.resolveWebDavPassword(req.WebDavPassword)
+	password, err := bm.resolveWebDavPassword(ctx, req.WebDavPassword)
 	if err != nil {
 		return "", err
 	}
@@ -150,7 +150,7 @@ func (bm *BackupManager) TestWebDavConnection(ctx context.Context, req *requestx
 }
 
 func (bm *BackupManager) SetWebDavConfig(ctx context.Context, req *requestx.SetWebDavConfigRequest) (string, error) {
-	password, err := bm.resolveWebDavPassword(req.WebDavPassword)
+	password, err := bm.resolveWebDavPassword(ctx, req.WebDavPassword)
 	if err != nil {
 		return "", err
 	}
@@ -161,7 +161,7 @@ func (bm *BackupManager) SetWebDavConfig(ctx context.Context, req *requestx.SetW
 		WebDavPassword: password,
 	}
 	// 调用 SettingService 保存 WebDav 配置
-	if err := bm.settingSvc.UpdateWebDavConfig(cfg); err != nil {
+	if err := bm.settingSvc.UpdateWebDavConfig(ctx, cfg); err != nil {
 		logger.Error("保存 WebDav 配置失败", logger.ErrorType(err))
 		return "", fmt.Errorf("保存 WebDav 配置失败: %w", err)
 	}
@@ -172,7 +172,7 @@ const DEFAULT_PASS_REPLACE = "(●'◡'●)"
 
 func (bm *BackupManager) GetWebDavConfig(ctx context.Context) (responsex.WebDavConfigResponse, error) {
 	// 调用 SettingService 获取 WebDav 配置
-	cfg, err := bm.settingSvc.GetWebDavConfig()
+	cfg, err := bm.settingSvc.GetWebDavConfig(ctx)
 	if err != nil {
 		logger.Error("获取 WebDav 配置失败", logger.ErrorType(err))
 		return responsex.WebDavConfigResponse{}, fmt.Errorf("获取 WebDav 配置失败: %w", err)
@@ -198,7 +198,7 @@ func (bm *BackupManager) GetWebDavConfig(ctx context.Context) (responsex.WebDavC
 
 // ListWebDavBackups 获取 WebDav 上的备份列表（仅返回 .db / .sqlite 文件）
 func (bm *BackupManager) ListWebDavBackups(ctx context.Context) ([]responsex.WebDavBackupItem, error) {
-	cfg, err := bm.settingSvc.GetWebDavConfig()
+	cfg, err := bm.settingSvc.GetWebDavConfig(ctx)
 	if err != nil {
 		logger.Error("读取 WebDav 配置失败", logger.ErrorType(err))
 		return nil, fmt.Errorf("读取 WebDav 配置失败: %w", err)
@@ -323,9 +323,9 @@ func (bm *BackupManager) RestoreBackup(ctx context.Context, req *requestx.Restor
 	})
 }
 
-func (bm *BackupManager) restoreBackupLocal(_ context.Context, path string) (string, error) {
+func (bm *BackupManager) restoreBackupLocal(ctx context.Context, path string) (string, error) {
 	// 覆盖数据库文件, 先备份现有数据库以防万一
-	currentDBPath, err := bm.settingSvc.GetCurrentDBPath()
+	currentDBPath, err := bm.settingSvc.GetCurrentDBPath(ctx)
 	if err != nil {
 		logger.Error("get current database path failed", logger.ErrorType(err))
 		return "", err
@@ -386,9 +386,9 @@ func (bm *BackupManager) restoreBackupLocal(_ context.Context, path string) (str
 	return "已恢复本地备份", nil
 }
 
-func (bm *BackupManager) restoreBackupWebDav(_ context.Context, backupPath string) (string, error) {
+func (bm *BackupManager) restoreBackupWebDav(ctx context.Context, backupPath string) (string, error) {
 	// 获取 WebDav 配置
-	cfg, err := bm.settingSvc.GetWebDavConfig()
+	cfg, err := bm.settingSvc.GetWebDavConfig(ctx)
 	if err != nil {
 		logger.Error("get webdav config failed", logger.ErrorType(err))
 		return "", err
@@ -401,7 +401,7 @@ func (bm *BackupManager) restoreBackupWebDav(_ context.Context, backupPath strin
 	}
 
 	// 覆盖数据库文件, 先备份现有数据库以防万一
-	currentDBPath, err := bm.settingSvc.GetCurrentDBPath()
+	currentDBPath, err := bm.settingSvc.GetCurrentDBPath(ctx)
 	if err != nil {
 		logger.Error("get current database path failed", logger.ErrorType(err))
 		return "", err
@@ -477,7 +477,7 @@ func (bm *BackupManager) CreateBackup(ctx context.Context, req *requestx.CreateB
 
 	// 确保数据库已在 dbReloadWrapper 的 defer 中重连完毕后，再记录最后备份时间
 	if req.Type == "webdav" {
-		if err := bm.settingSvc.UpdateLastWebDavBackupTime(time.Now()); err != nil {
+		if err := bm.settingSvc.UpdateLastWebDavBackupTime(ctx, time.Now()); err != nil {
 			logger.Warn("update last webdav backup time failed", logger.ErrorType(err))
 		}
 	}
@@ -487,7 +487,7 @@ func (bm *BackupManager) CreateBackup(ctx context.Context, req *requestx.CreateB
 
 func (bm *BackupManager) CreateBackupLocal(ctx context.Context) (string, error) {
 	// 获取本地备份路径
-	localPath, err := bm.settingSvc.GetBackupLocalPath()
+	localPath, err := bm.settingSvc.GetBackupLocalPath(ctx)
 	if err != nil {
 		logger.Error("get backup local path failed", logger.ErrorType(err))
 		return "", err
@@ -498,7 +498,7 @@ func (bm *BackupManager) CreateBackupLocal(ctx context.Context) (string, error) 
 	}
 
 	// 获取当前数据库路径
-	currentDBPath, err := bm.settingSvc.GetCurrentDBPath()
+	currentDBPath, err := bm.settingSvc.GetCurrentDBPath(ctx)
 	if err != nil {
 		logger.Error("get current database path failed", logger.ErrorType(err))
 		return "", err
@@ -556,7 +556,7 @@ func (bm *BackupManager) CreateBackupLocal(ctx context.Context) (string, error) 
 func (bm *BackupManager) CreateBackupWebDav(ctx context.Context) (string, error) {
 	logger.Info("start create webdav backup")
 	// 获取 WebDav 配置
-	cfg, err := bm.settingSvc.GetWebDavConfig()
+	cfg, err := bm.settingSvc.GetWebDavConfig(ctx)
 	if err != nil {
 		logger.Error("get webdav config failed", logger.ErrorType(err))
 		return "", err
@@ -571,7 +571,7 @@ func (bm *BackupManager) CreateBackupWebDav(ctx context.Context) (string, error)
 
 	logger.Debug("connected to WebDav server")
 	// 获取当前数据库路径
-	currentDBPath, err := bm.settingSvc.GetCurrentDBPath()
+	currentDBPath, err := bm.settingSvc.GetCurrentDBPath(ctx)
 	if err != nil {
 		logger.Error("get current database path failed", logger.ErrorType(err))
 		return "", err
@@ -679,7 +679,7 @@ func (bm *BackupManager) cleanOldWebDavBackups(client *gowebdav.Client, baseDir 
 }
 
 func (bm *BackupManager) SetAutoBackupEnabled(ctx context.Context, req *requestx.SetAutoBackupRequest) (string, error) {
-	if err := bm.settingSvc.UpdateAutoBackupEnabled(req.Enabled); err != nil {
+	if err := bm.settingSvc.UpdateAutoBackupEnabled(ctx, req.Enabled); err != nil {
 		logger.Error("update auto backup enabled failed", logger.ErrorType(err))
 		return "", fmt.Errorf("更新自动备份设置失败: %w", err)
 	}

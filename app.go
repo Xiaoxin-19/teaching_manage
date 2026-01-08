@@ -46,7 +46,7 @@ func (a *App) Dispatch(router string, payload string) string {
 // OnShutdown 应用关闭时尝试备份数据
 func (a *App) OnShutdown() {
 	// 检查是否开启了自动备份
-	autoBackupEnabled, err := a.setting.GetAutoBackupEnabled()
+	autoBackupEnabled, err := a.setting.GetAutoBackupEnabled(a.ctx)
 	if err != nil {
 		logger.Error("读取自动备份设置失败", logger.ErrorType(err))
 		return
@@ -57,13 +57,13 @@ func (a *App) OnShutdown() {
 		return
 	}
 
-	webDavCfg, err := a.setting.GetWebDavConfig()
+	webDavCfg, err := a.setting.GetWebDavConfig(a.ctx)
 	if err != nil {
 		logger.Error("读取系统配置失败，无法进行 WebDAV 备份", logger.ErrorType(err))
 		return
 	}
 
-	localPath, err := a.setting.GetBackupLocalPath()
+	localPath, err := a.setting.GetBackupLocalPath(a.ctx)
 	if err != nil {
 		logger.Error("读取本地备份路径失败，无法进行本地备份", logger.ErrorType(err))
 		return

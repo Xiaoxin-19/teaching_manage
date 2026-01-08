@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"teaching_manage/backend/model"
@@ -26,26 +27,26 @@ type SettingDAO interface {
 	// GetSystemSetting 获取配置。
 	// setting: 用于接收数据的结构体指针。
 	// targets: 可选。指定要获取的字段指针 (如 &s.WebDavURL)。若不传，则获取所有字段。
-	GetSystemSetting(setting *SystemSetting, targets ...interface{}) error
+	GetSystemSetting(ctx context.Context, setting *SystemSetting, targets ...interface{}) error
 
 	// UpdateSystemSetting 更新配置。
 	// setting: 包含最新数据的结构体指针。
 	// targets: 可选。指定要更新的字段指针 (如 &s.WebDavURL)。若不传，则更新所有字段。
-	UpdateSystemSetting(setting *SystemSetting, targets ...interface{}) error
+	UpdateSystemSetting(ctx context.Context, setting *SystemSetting, targets ...interface{}) error
 }
 
 type SettingGORMDAO struct {
-	getDB func() *gorm.DB
+	getDB DBGetter
 }
 
-func NewSettingDAO(getDB func() *gorm.DB) SettingDAO {
+func NewSettingDAO(getDB DBGetter) SettingDAO {
 	return &SettingGORMDAO{
 		getDB: getDB,
 	}
 }
 
 // GetSystemSetting 实现
-func (dao *SettingGORMDAO) GetSystemSetting(setting *SystemSetting, targets ...interface{}) error {
+func (dao *SettingGORMDAO) GetSystemSetting(ctx context.Context, setting *SystemSetting, targets ...interface{}) error {
 	if setting == nil {
 		return fmt.Errorf("setting cannot be nil")
 	}
@@ -55,7 +56,7 @@ func (dao *SettingGORMDAO) GetSystemSetting(setting *SystemSetting, targets ...i
 
 	// 2. 准备查询
 	var dbSettings []model.Setting
-	db := dao.getDB()
+	db := GetDBFromCtx(ctx, dao.getDB())
 	query := db.Model(&model.Setting{})
 
 	// 如果指定了特定字段，则添加过滤条件
@@ -117,7 +118,7 @@ func (dao *SettingGORMDAO) GetSystemSetting(setting *SystemSetting, targets ...i
 }
 
 // UpdateSystemSetting 实现
-func (dao *SettingGORMDAO) UpdateSystemSetting(setting *SystemSetting, targets ...interface{}) error {
+func (dao *SettingGORMDAO) UpdateSystemSetting(ctx context.Context, setting *SystemSetting, targets ...interface{}) error {
 	if setting == nil {
 		return fmt.Errorf("setting cannot be nil")
 	}
@@ -168,7 +169,7 @@ func (dao *SettingGORMDAO) UpdateSystemSetting(setting *SystemSetting, targets .
 	}
 
 	// 4. 批量 Upsert (插入或更新)
-	db := dao.getDB()
+	db := GetDBFromCtx(ctx, dao.getDB())
 	err := db.Transaction(func(tx *gorm.DB) error {
 		return tx.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "key"}},              // 冲突检测列
