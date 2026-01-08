@@ -11,18 +11,18 @@ import (
 	"teaching_manage/backend/repository"
 	requestx "teaching_manage/backend/service/request"
 	responsex "teaching_manage/backend/service/response"
-
-	"gorm.io/gorm"
 )
 
 type CourseManager struct {
-	Ctx     context.Context
-	repo    repository.CourseRepository
-	stuRepo repository.StudentRepository
+	Ctx       context.Context
+	uw        repository.UnitWork
+	repo      repository.CourseRepository
+	stuRepo   repository.StudentRepository
+	orderRepo repository.OrderRepository
 }
 
-func NewCourseManager(repo repository.CourseRepository, stuRepo repository.StudentRepository) *CourseManager {
-	return &CourseManager{repo: repo, stuRepo: stuRepo}
+func NewCourseManager(uw repository.UnitWork, repo repository.CourseRepository, stuRepo repository.StudentRepository, orderRepo repository.OrderRepository) *CourseManager {
+	return &CourseManager{uw: uw, repo: repo, stuRepo: stuRepo, orderRepo: orderRepo}
 }
 
 func (cm CourseManager) CreateCourse(ctx context.Context, req *requestx.CreateCourseRequest) (string, error) {
@@ -188,16 +188,7 @@ func (cm CourseManager) RechargeCourse(ctx context.Context, req *requestx.Rechar
 		return "", fmt.Errorf("课程已结课，无法充值/扣费")
 	}
 
-	db := dao.GetDB()
-	// 3. Recharge (Transaction)
-	err = db.Transaction(func(tx *gorm.DB) error {
-
-		txCourseDao := dao.NewStudentCourseDao(dao.GetDBTarget(tx))
-		txCourseRepo := repository.NewCourseRepository(txCourseDao)
-
-		txRechargeDao := dao.NewRechargeOrderDao(dao.GetDBTarget(tx))
-		txRechargeRepo := repository.NewOrderRepository(txRechargeDao)
-
+	err = cm.uw.Execute(ctx, func(txCtx context.Context) error {
 		// 处理金额符号：充值时为正数，退费时为负数
 		adjustedAmount := req.Amount
 		if req.Hours < 0 {
@@ -205,7 +196,8 @@ func (cm CourseManager) RechargeCourse(ctx context.Context, req *requestx.Rechar
 			adjustedAmount = -req.Amount
 		}
 
-		if err := txCourseRepo.RechargeCourse(ctx, req.CourseId, req.Hours, adjustedAmount); err != nil {
+		// 更新课程的剩余课时和总价值
+		if err := cm.repo.RechargeCourse(txCtx, req.CourseId, req.Hours, adjustedAmount); err != nil {
 			return err
 		}
 
@@ -215,7 +207,8 @@ func (cm CourseManager) RechargeCourse(ctx context.Context, req *requestx.Rechar
 			Amount:        req.Amount,
 			Remark:        req.Remark,
 		}
-		if err := txRechargeRepo.CreateOrder(ctx, *record); err != nil {
+		// 创建充值订单
+		if err := cm.orderRepo.CreateOrder(txCtx, *record); err != nil {
 			return err
 		}
 		return nil

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"teaching_manage/backend/dao"
 	"teaching_manage/backend/entity"
 	"teaching_manage/backend/model"
 	"teaching_manage/backend/pkg"
@@ -15,17 +14,17 @@ import (
 	"time"
 
 	wails "github.com/wailsapp/wails/v2/pkg/runtime"
-	"gorm.io/gorm"
 )
 
 type StudentManager struct {
 	Ctx        context.Context
+	uw         repository.UnitWork
 	repo       repository.StudentRepository
 	repoCourse repository.CourseRepository
 }
 
-func NewStudentManager(repo repository.StudentRepository, repoCourse repository.CourseRepository) *StudentManager {
-	return &StudentManager{repo: repo, repoCourse: repoCourse}
+func NewStudentManager(uw repository.UnitWork, repo repository.StudentRepository, repoCourse repository.CourseRepository) *StudentManager {
+	return &StudentManager{uw: uw, repo: repo, repoCourse: repoCourse}
 }
 
 func (sm StudentManager) GetStudentList(ctx context.Context, req *requestx.GetStudentListRequest) (*responsex.GetStudentListResponse, error) {
@@ -149,15 +148,12 @@ func (sm StudentManager) DeleteStudent(ctx context.Context, req *requestx.Delete
 	if countEffective > 0 {
 		return "", fmt.Errorf("该学生有正在进行的课程，无法删除")
 	}
-	db := dao.GetDB()
 
-	err = db.Transaction(func(tx *gorm.DB) error {
-		txStuRepo := repository.NewStudentRepository(dao.NewStudentDao(dao.GetDBTarget(tx)))
-		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(dao.GetDBTarget(tx)))
+	err = sm.uw.Execute(ctx, func(txCtx context.Context) error {
 
 		// 删除学生的选课记录
 		logger.Debug("Deleting student courses")
-		err = txCourseRepo.DeleteByStudentID(ctx, req.ID)
+		err = sm.repoCourse.DeleteByStudentID(txCtx, req.ID)
 		if err != nil {
 			logger.Error("failed to delete student courses in transaction", logger.ErrorType(err))
 			return fmt.Errorf("failed to delete student courses: %w", err)
@@ -165,7 +161,7 @@ func (sm StudentManager) DeleteStudent(ctx context.Context, req *requestx.Delete
 
 		logger.Debug("Deleting student record")
 		// 删除学生记录
-		err = txStuRepo.DeleteStudent(ctx, req.ID)
+		err = sm.repo.DeleteStudent(txCtx, req.ID)
 		if err != nil {
 			logger.Error("failed to delete student in transaction", logger.ErrorType(err))
 			return fmt.Errorf("failed to delete student: %w", err)

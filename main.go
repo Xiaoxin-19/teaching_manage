@@ -41,6 +41,7 @@ func main() {
 	orderDao := dao.NewRechargeOrderDao(dbGetter)
 	recordDao := dao.NewRecordDao(dbGetter)
 	settingDao := dao.NewSettingDAO(dbGetter)
+	unitWorkDao := dao.NewUnitWorkDao(dbGetter)
 	// setup repositories
 
 	courseRepository := repository.NewCourseRepository(courseDao)
@@ -49,22 +50,22 @@ func main() {
 	subjectRepository := repository.NewSubjectRepository(subjectDao)
 	recordRepository := repository.NewRecordRepository(recordDao)
 	orderRepository := repository.NewOrderRepository(orderDao)
-
+	unitWorkRepo := repository.NewUnitWork(unitWorkDao)
 	// Setup teacher manager
 
-	teacherManager := service.NewTeacherManager(teacherRepository, courseRepository)
+	teacherManager := service.NewTeacherManager(unitWorkRepo, teacherRepository, courseRepository)
 
 	// Setup student manager
 
-	studentManager := service.NewStudentManager(studentRepository, courseRepository)
+	studentManager := service.NewStudentManager(unitWorkRepo, studentRepository, courseRepository)
 
 	// Set up subject manager
 
-	subjectManager := service.NewSubjectManager(subjectRepository, courseRepository)
-
+	subjectManager := service.NewSubjectManager(unitWorkRepo, subjectRepository, courseRepository)
 	// Set up course manager
 
-	courseManager := service.NewCourseManager(courseRepository, studentRepository)
+	courseManager := service.NewCourseManager(unitWorkRepo, courseRepository, studentRepository, orderRepository)
+	// Set up order manager
 
 	// Setup order manager
 
@@ -72,7 +73,7 @@ func main() {
 
 	// Setup record manager
 
-	recordManager := service.NewRecordManager(recordRepository, courseRepository, subjectRepository, studentRepository)
+	recordManager := service.NewRecordManager(unitWorkRepo, recordRepository, courseRepository, subjectRepository, studentRepository)
 
 	// Setup Dashboard manager
 	dashboardManager := service.NewDashboardManager()

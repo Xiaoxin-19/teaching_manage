@@ -16,17 +16,17 @@ import (
 	"time"
 
 	wails "github.com/wailsapp/wails/v2/pkg/runtime"
-	"gorm.io/gorm"
 )
 
 type TeacherManager struct {
 	Ctx        context.Context
+	uw         repository.UnitWork
 	repo       repository.TeacherRepository
 	repoCourse repository.CourseRepository
 }
 
-func NewTeacherManager(repo repository.TeacherRepository, repoCourse repository.CourseRepository) *TeacherManager {
-	return &TeacherManager{repo: repo, repoCourse: repoCourse}
+func NewTeacherManager(uw repository.UnitWork, repo repository.TeacherRepository, repoCourse repository.CourseRepository) *TeacherManager {
+	return &TeacherManager{uw: uw, repo: repo, repoCourse: repoCourse}
 }
 
 func (tm TeacherManager) CreateTeacher(ctx context.Context, teacher *requestx.CreateTeacherRequest) (string, error) {
@@ -119,20 +119,19 @@ func (tm TeacherManager) DeleteTeacher(ctx context.Context, req *requestx.Delete
 		return "", fmt.Errorf("该教师有正在进行中的课程，无法删除")
 	}
 
-	db := dao.GetDB()
-	err = db.Transaction(func(tx *gorm.DB) error {
-		txRepo := repository.NewTeacherRepository(dao.NewTeacherDao(dao.GetDBTarget(tx)))
-		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(dao.GetDBTarget(tx)))
+	err = tm.uw.Execute(ctx, func(txCtx context.Context) error {
+		txRepo := tm.repo
+		txCourseRepo := tm.repoCourse
 
 		// 删除教师的选课记录
-		err = txCourseRepo.DeleteByTeacherID(ctx, req.Id)
+		err = txCourseRepo.DeleteByTeacherID(txCtx, req.Id)
 		if err != nil {
 			logger.Error("failed to delete teacher courses in transaction", logger.ErrorType(err))
 			return fmt.Errorf("failed to delete teacher courses: %w", err)
 		}
 
 		// 删除教师记录
-		err = txRepo.DeleteTeacher(ctx, req.Id)
+		err = txRepo.DeleteTeacher(txCtx, req.Id)
 		if err != nil {
 			logger.Error("failed to delete teacher in transaction", logger.ErrorType(err))
 			return fmt.Errorf("failed to delete teacher: %w", err)

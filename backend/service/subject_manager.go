@@ -3,25 +3,23 @@ package service
 import (
 	"context"
 	"fmt"
-	"teaching_manage/backend/dao"
 	"teaching_manage/backend/entity"
 	"teaching_manage/backend/pkg/dispatcher"
 	"teaching_manage/backend/pkg/logger"
 	"teaching_manage/backend/repository"
 	requestx "teaching_manage/backend/service/request"
 	responsex "teaching_manage/backend/service/response"
-
-	"gorm.io/gorm"
 )
 
 type SubjectManager struct {
 	Ctx        context.Context
+	uw         repository.UnitWork
 	repo       repository.SubjectRepository
 	repoCourse repository.CourseRepository
 }
 
-func NewSubjectManager(repo repository.SubjectRepository, repoCourse repository.CourseRepository) *SubjectManager {
-	return &SubjectManager{repo: repo, repoCourse: repoCourse}
+func NewSubjectManager(uw repository.UnitWork, repo repository.SubjectRepository, repoCourse repository.CourseRepository) *SubjectManager {
+	return &SubjectManager{uw: uw, repo: repo, repoCourse: repoCourse}
 }
 
 func (sm SubjectManager) GetSubjectList(ctx context.Context, req *requestx.GetSubjectListRequest) (responsex.GetSubjectListResponse, error) {
@@ -125,18 +123,17 @@ func (sm SubjectManager) DeleteSubject(ctx context.Context, req *requestx.Delete
 		return "", fmt.Errorf("无法删除，有 %d 个正在进行中的课程的科目", countEffectiveCourses)
 	}
 
-	db := dao.GetDB()
-	err = db.Transaction(func(tx *gorm.DB) error {
-		txRepo := repository.NewSubjectRepository(dao.NewSubjectDao(dao.GetDBTarget(tx)))
-		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(dao.GetDBTarget(tx)))
+	err = sm.uw.Execute(ctx, func(txCtx context.Context) error {
+		txRepo := sm.repo
+		txCourseRepo := sm.repoCourse
 		// 删除该科目的选课记录
-		err = txCourseRepo.DeleteBySubjectID(ctx, req.ID)
+		err = txCourseRepo.DeleteBySubjectID(txCtx, req.ID)
 		if err != nil {
 			logger.Error("failed to delete subject courses in transaction", logger.ErrorType(err))
 			return fmt.Errorf("failed to delete subject courses: %w", err)
 		}
 		// 删除科目记录
-		err = txRepo.DeleteSubject(ctx, req.ID)
+		err = txRepo.DeleteSubject(txCtx, req.ID)
 		if err != nil {
 			logger.Error("failed to delete subject in transaction", logger.ErrorType(err))
 			return fmt.Errorf("failed to delete subject: %w", err)

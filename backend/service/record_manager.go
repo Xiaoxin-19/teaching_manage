@@ -18,21 +18,21 @@ import (
 
 	wails "github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/xuri/excelize/v2"
-	"gorm.io/gorm"
 )
 
 var template_excel_headers = []string{"学号(选填)", "学生姓名", "科目", "上课日期", "开始时间", "结束时间", "备注"}
 
 type RecordManager struct {
 	Ctx        context.Context
+	uw         repository.UnitWork
 	repo       repository.RecordRepository
 	repoCourse repository.CourseRepository
 	repoSub    repository.SubjectRepository
 	repoStu    repository.StudentRepository
 }
 
-func NewRecordManager(repo repository.RecordRepository, repoCourse repository.CourseRepository, repoSub repository.SubjectRepository, repoStu repository.StudentRepository) *RecordManager {
-	return &RecordManager{repo: repo, repoCourse: repoCourse, repoSub: repoSub, repoStu: repoStu}
+func NewRecordManager(uw repository.UnitWork, repo repository.RecordRepository, repoCourse repository.CourseRepository, repoSub repository.SubjectRepository, repoStu repository.StudentRepository) *RecordManager {
+	return &RecordManager{uw: uw, repo: repo, repoCourse: repoCourse, repoSub: repoSub, repoStu: repoStu}
 }
 
 func (rm RecordManager) CreateRecord(ctx context.Context, req *requestx.CreateRecordRequest) (string, error) {
@@ -152,9 +152,8 @@ func (rm RecordManager) GetRecordList(ctx context.Context, req *requestx.GetReco
 
 func (rm *RecordManager) ActivateRecord(ctx context.Context, req *requestx.ActivateRecordRequest) (string, error) {
 	logger.Info("Activating record", logger.UInt("record_id", req.ID))
-	db := dao.GetDB()
-	err := db.Transaction(func(tx *gorm.DB) error {
-		return activateRecord(ctx, req.ID, tx)
+	err := rm.uw.Execute(ctx, func(txCtx context.Context) error {
+		return rm.activateRecord(txCtx, req.ID)
 	})
 	if err != nil {
 		logger.Error("failed to activate record", logger.UInt("record_id", req.ID), logger.ErrorType(err))
@@ -163,32 +162,29 @@ func (rm *RecordManager) ActivateRecord(ctx context.Context, req *requestx.Activ
 	return "Record activated successfully", nil
 }
 
-func activateRecord(ctx context.Context, recordID uint, db *gorm.DB) error {
-	courseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(dao.GetDBTarget(db)))
-	txRecordRepo := repository.NewRecordRepository(dao.NewRecordDao(dao.GetDBTarget(db)))
-
+func (rm *RecordManager) activateRecord(ctx context.Context, recordID uint) error {
 	// find record
-	record, err := txRecordRepo.GetRecordByID(ctx, recordID)
+	record, err := rm.repo.GetRecordByID(ctx, recordID)
 	if err != nil {
 		logger.Error("failed to get record by ID", logger.UInt("record_id", recordID), logger.ErrorType(err))
 		return err
 	}
 
 	// update hours
-	course, err := courseRepo.GetByStudentIDAndSubjectID(ctx, record.Student.ID, record.Subject.ID)
+	course, err := rm.repoCourse.GetByStudentIDAndSubjectID(ctx, record.Student.ID, record.Subject.ID)
 	if err != nil {
 		logger.Error("failed to get course by student ID and subject ID", logger.UInt("student_id", record.Student.ID), logger.UInt("subject_id", record.Subject.ID), logger.ErrorType(err))
 		return err
 	}
 
-	err = courseRepo.UpdateBalance(ctx, course.ID, -1)
+	err = rm.repoCourse.UpdateBalance(ctx, course.ID, -1)
 	if err != nil {
 		logger.Error("failed to update course balance", logger.UInt("course_id", course.ID), logger.ErrorType(err))
 		return err
 	}
 
 	// activate record
-	err = txRecordRepo.ActivateRecord(ctx, record.ID)
+	err = rm.repo.ActivateRecord(ctx, record.ID)
 	if err != nil {
 		logger.Error("failed to activate record", logger.ErrorType(err))
 		return err
@@ -198,11 +194,9 @@ func activateRecord(ctx context.Context, recordID uint, db *gorm.DB) error {
 
 func (rm *RecordManager) ActivateAllPendingRecords(ctx context.Context) (string, error) {
 	logger.Info("Activating all pending records")
-	db := dao.GetDB()
-	err := db.Transaction(func(tx *gorm.DB) error {
-		txRecordRepo := repository.NewRecordRepository(dao.NewRecordDao(dao.GetDBTarget(tx)))
+	err := rm.uw.Execute(ctx, func(txCtx context.Context) error {
 		// find all pending records
-		pendingRecords, err := txRecordRepo.GetAllPendingRecordList(ctx)
+		pendingRecords, err := rm.repo.GetAllPendingRecordList(txCtx)
 		if err != nil {
 			logger.Error("failed to get pending records", logger.ErrorType(err))
 			return err
@@ -211,7 +205,7 @@ func (rm *RecordManager) ActivateAllPendingRecords(ctx context.Context) (string,
 		for _, record := range pendingRecords {
 			if !record.Active {
 				logger.Info("Activating record", logger.UInt("record_id", record.ID))
-				err = activateRecord(ctx, record.ID, tx)
+				err = rm.activateRecord(txCtx, record.ID)
 				if err != nil {
 					logger.Error("failed to activate record", logger.UInt("record_id", record.ID), logger.ErrorType(err))
 					return err
@@ -231,14 +225,11 @@ func (rm *RecordManager) ActivateAllPendingRecords(ctx context.Context) (string,
 
 func (rm *RecordManager) DeleteRecordByID(ctx context.Context, req *requestx.DeleteRecordRequest) (string, error) {
 	logger.Info("Deleting record", logger.UInt("record_id", req.ID))
-	db := dao.GetDB()
-	err := db.Transaction(func(tx *gorm.DB) error {
-		txCourseRepo := repository.NewCourseRepository(dao.NewStudentCourseDao(dao.GetDBTarget(tx)))
-		txRecRepo := repository.NewRecordRepository(dao.NewRecordDao(dao.GetDBTarget(tx)))
 
+	err := rm.uw.Execute(ctx, func(txCtx context.Context) error {
 		// if record is active ,need to return hours to student
 		// find record
-		record, err := txRecRepo.GetRecordByID(ctx, req.ID)
+		record, err := rm.repo.GetRecordByID(txCtx, req.ID)
 		if err != nil {
 			logger.Error("failed to get record by ID", logger.UInt("record_id", req.ID), logger.ErrorType(err))
 			return err
@@ -248,12 +239,12 @@ func (rm *RecordManager) DeleteRecordByID(ctx context.Context, req *requestx.Del
 		// return hours to student
 		if record.Active {
 			// find course
-			course, err := txCourseRepo.GetByStudentIDAndSubjectID(ctx, record.Student.ID, record.Subject.ID)
+			course, err := rm.repoCourse.GetByStudentIDAndSubjectID(txCtx, record.Student.ID, record.Subject.ID)
 			if err != nil {
 				logger.Error("failed to get course by student ID and subject ID", logger.UInt("student_id", record.Student.ID), logger.UInt("subject_id", record.Subject.ID), logger.ErrorType(err))
 				return err
 			}
-			err = txCourseRepo.UpdateBalance(ctx, course.ID, 1)
+			err = rm.repoCourse.UpdateBalance(txCtx, course.ID, 1)
 			if err != nil {
 				logger.Error("failed to return hours to student before deletion", logger.UInt("student_id", record.Student.ID), logger.ErrorType(err))
 				return fmt.Errorf("fail: return hours to student before deletion failed: %s", err.Error())
@@ -261,13 +252,13 @@ func (rm *RecordManager) DeleteRecordByID(ctx context.Context, req *requestx.Del
 		}
 
 		// delete record
-		err = txRecRepo.DeleteRecordByID(ctx, req.ID)
+		err = rm.repo.DeleteRecordByID(txCtx, req.ID)
 		if errors.Is(err, dao.ErrRecordNotFound) {
 			logger.Warn("record not found", logger.UInt("record_id", req.ID))
 			return nil
 		}
 		if err != nil {
-			logger.Error("failed to activate record before deletion", logger.UInt("record_id", req.ID), logger.ErrorType(err))
+			logger.Error("failed to delete record", logger.UInt("record_id", req.ID), logger.ErrorType(err))
 			return err
 		}
 		return nil
@@ -420,16 +411,13 @@ func (rm *RecordManager) ImportFromExcel(ctx context.Context, req *requestx.Impo
 		}, fmt.Errorf("数据验证失败，请检查错误信息")
 	}
 
-	db := dao.GetDB()
-	err = db.Transaction(func(tx *gorm.DB) error {
-		txRecordRepo := repository.NewRecordRepository(dao.NewRecordDao(dao.GetDBTarget(tx)))
-
+	err = rm.uw.Execute(ctx, func(txCtx context.Context) error {
 		for i, record := range records {
 			// Complete the record information
 			record.Active = false // Imported records are pending by default
 
 			// Create Record
-			err = txRecordRepo.CreateRecord(ctx, &record)
+			err = rm.repo.CreateRecord(txCtx, &record)
 			if err != nil {
 				if errors.Is(err, dao.ErrDuplicatedKey) {
 					logger.Warn("duplicate record found during import", logger.String("student_name", record.Student.Name), logger.ErrorType(err))
@@ -497,6 +485,9 @@ func (rm *RecordManager) validateTeachingRecords(ctx context.Context, f *exceliz
 
 	// validate data rows
 	records := make([]entity.Record, 0, len(rows)-1)
+	// 预编译正则表达式，避免在循环中重复编译
+	studentNumberRegex := regexp.MustCompile(`^S\d{9,}$`)
+
 	for i, row := range rows[1:] {
 		if len(row) < 6 {
 			errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 列数不足6列，信息不足", i+2))
@@ -520,8 +511,7 @@ func (rm *RecordManager) validateTeachingRecords(ctx context.Context, f *exceliz
 
 		if stuNumber != "" {
 			// S202600002
-			matched, _ := regexp.MatchString(`^S\d{9,}$`, stuNumber)
-			if !matched {
+			if !studentNumberRegex.MatchString(stuNumber) {
 				errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 学号格式错误，需为 S+年份+5位序号 格式 (例如 S202600001)", i+2))
 			}
 		}
