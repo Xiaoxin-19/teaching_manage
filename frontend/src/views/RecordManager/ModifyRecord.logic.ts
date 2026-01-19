@@ -1,10 +1,10 @@
 import { ref, reactive, watch, computed, nextTick } from 'vue';
 import { debounce } from 'lodash';
-import { Dispatch } from '../../../wailsjs/go/main/App';
-import { ResponseWrapper } from '../../types/appModels';
-import { GetStudentListResponse } from '../../types/response';
 import { useToast } from '../../composables/useToast';
-import { SaveRecordData, StudentOption } from './types';
+import { SaveRecordData, StudentOption, SubjectOption } from './types';
+import { GetCourseList } from '../../api/course';
+import { GetCourseListRequest, GetStudentListRequest } from '../../types/request';
+import { GetStudentList } from '../../api/student';
 
 export function useModifyRecord(props: { modelValue: boolean }, emit: any) {
   const toast = useToast();
@@ -13,8 +13,12 @@ export function useModifyRecord(props: { modelValue: boolean }, emit: any) {
   const studentOptions = ref<StudentOption[]>([]);
   const loadingStudents = ref(false);
 
+  const subjectOptions = ref<SubjectOption[]>([]);
+  const loadingSubjects = ref(false);
+
   const defaultFormData = {
     student: null as StudentOption | null,
+    subject: null as SubjectOption | null,
     date: new Date().toISOString().substring(0, 10),
     startTime: '09:00',
     endTime: '11:00',
@@ -69,6 +73,7 @@ export function useModifyRecord(props: { modelValue: boolean }, emit: any) {
 
   const isFormValid = computed(() => {
     if (!formData.student) return false;
+    if (!formData.subject) return false;
     if (!formData.date) return false;
     if (!formData.startTime || !formData.endTime) return false;
     const s = parseTimeToMinutes(formData.startTime);
@@ -107,6 +112,7 @@ export function useModifyRecord(props: { modelValue: boolean }, emit: any) {
         });
         studentSearch.value = '';
         studentOptions.value = []; // 打开时可以加载默认列表或者清空
+        subjectOptions.value = [];
         // fetchStudents(''); // 可选：打开时加载初始列表
         // 在下一个 tick 重置字段校验状态，避免旧错误残留
         nextTick(() => {
@@ -127,35 +133,74 @@ export function useModifyRecord(props: { modelValue: boolean }, emit: any) {
 
     loadingStudents.value = true;
     try {
-      let reqData = {
-        Key: keyword,
+      const reqData: GetStudentListRequest = {
+        keyword: keyword,
         Offset: 0,
         Limit: -1,
+        Status_Level: 1, // 仅仅允许正常在读的学生
+        Status_Target: 0
       };
 
       console.log('Fetching students with keyword:', keyword, 'Request data:', reqData);
-      Dispatch('student_manager:get_student_list', JSON.stringify(reqData))
-        .then((result: any) => {
-          const resp = JSON.parse(result) as ResponseWrapper<GetStudentListResponse>
-          if (resp.code === 200) {
-            studentOptions.value = (resp.data.students || []).map((item) => ({
-              id: item.id,
-              name: item.name,
-            }));
-          } else {
-            console.error('获取学生列表失败:', resp.message)
-            toast.error('获取学生列表失败: ' + resp.message, 'top-right')
-          }
-        })
+      const resp = await GetStudentList(reqData);
+      studentOptions.value = (resp.students || []).map((item) => ({
+        id: item.id,
+        name: `${item.name} (${item.student_number})`,
+      }));
     } catch (error) {
       console.error("Failed to fetch students", error);
+      if (error instanceof Error) {
+        toast.error('获取学生列表失败: ' + error.message, 'top-right')
+      }
     } finally {
       loadingStudents.value = false;
     }
   }, 300); // 300ms 防抖
 
+  // 监听学生变化，加载该学生的课程列表
+  watch(() => formData.student, (newStudent) => {
+    formData.subject = null; // 重置选中的科目
+    subjectOptions.value = [];
+    if (newStudent && newStudent.id) {
+      fetchStudentCourses(newStudent.id);
+    }
+  });
+
+  const fetchStudentCourses = async (studentId: number) => {
+    loadingSubjects.value = true;
+    try {
+      const reqData: GetCourseListRequest = {
+        Students: [studentId],
+        Offset: 0,
+        Limit: 100, // 假设一个学生的课程不会超过100门
+      };
+      console.log('Fetching courses for student:', studentId);
+      const resp = await GetCourseList(reqData);
+      subjectOptions.value = (resp.courses || []).map((course) => ({
+        id: course.subject.id,
+        name: `${course.subject.name}`,
+        balance: course.balance,
+      }));
+    } catch (error) {
+      console.error("Failed to fetch courses", error);
+      if (error instanceof Error) {
+        toast.error('获取课程列表失败: ' + error.message, 'top-right');
+      }
+    } finally {
+      loadingSubjects.value = false;
+    }
+  };
+
+  // 移除原有的 fetchSubjects (远程搜索科目)
+  // const fetchSubjects = debounce(...) 
+
   const onStudentSearch = (val: string) => {
     fetchStudents(val);
+  };
+
+  // 科目不再需要远程搜索，前端本地过滤即可
+  const onSubjectSearch = (val: string) => {
+    // fetchSubjects(val); 
   };
 
   const close = () => {
@@ -180,6 +225,8 @@ export function useModifyRecord(props: { modelValue: boolean }, emit: any) {
         const saveData: SaveRecordData = {
           student_id: formData.student!.id,
           student_name: formData.student!.name,
+          subject_id: formData.subject!.id,
+          subject_name: formData.subject!.name,
           teaching_date: formattedDate,
           start_time: formData.startTime,
           end_time: formData.endTime,
@@ -197,6 +244,8 @@ export function useModifyRecord(props: { modelValue: boolean }, emit: any) {
     studentSearch,
     studentOptions,
     loadingStudents,
+    subjectOptions,
+    loadingSubjects,
     formData,
     startTimeRules,
     endTimeRules,

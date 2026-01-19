@@ -16,7 +16,7 @@
           <v-chip size="small" :color="summaryData.newStudentsThisMonth >= 0 ? 'success' : 'error'" variant="tonal"
             label class="font-weight-bold">
             <v-icon start size="small">{{ summaryData.newStudentsThisMonth >= 0 ? 'mdi-arrow-up' : 'mdi-arrow-down'
-              }}</v-icon> {{ summaryData.newStudentsThisMonth }} 本月新增
+            }}</v-icon> {{ summaryData.newStudentsThisMonth }} 本月新增
           </v-chip>
         </div>
       </v-card>
@@ -47,7 +47,7 @@
 
     <!-- 3. 剩余总课时 -->
     <v-col cols="12" sm="6" md="3">
-      <v-card class="rounded-lg elevation-2 h-100 pa-4 kpi-card" hover @click="$emit('navigate', 'students')">
+      <v-card class="rounded-lg elevation-2 h-100 pa-4 kpi-card" hover @click="$emit('navigate', 'courses')">
         <div class="d-flex justify-space-between align-start mb-2">
           <div>
             <div class="text-subtitle-2 text-medium-emphasis font-weight-bold mb-1">剩余总课时 (存量)</div>
@@ -68,7 +68,7 @@
     <!-- 4. 欠费/预警 -->
     <v-col cols="12" sm="6" md="3">
       <v-card class="rounded-lg elevation-2 h-100 pa-4 kpi-card border-error" hover
-        @click="$emit('navigate', 'students')">
+        @click="$emit('navigate', 'courses')">
         <div class="d-flex justify-space-between align-start mb-2">
           <div>
             <div class="text-subtitle-2 text-medium-emphasis font-weight-bold mb-1">欠费预警</div>

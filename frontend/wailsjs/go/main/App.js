@@ -6,6 +6,6 @@ export function Dispatch(arg1, arg2) {
   return window['go']['main']['App']['Dispatch'](arg1, arg2);
 }
 
-export function Greet(arg1) {
-  return window['go']['main']['App']['Greet'](arg1);
+export function OnShutdown() {
+  return window['go']['main']['App']['OnShutdown']();
 }

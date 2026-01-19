@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"embed"
-	"teaching_manage/dao"
-	"teaching_manage/pkg/dispatcher"
-	"teaching_manage/pkg/logger"
-	"teaching_manage/repository"
-	"teaching_manage/service"
-	"teaching_manage/wirex"
+	"teaching_manage/backend/dao"
+	"teaching_manage/backend/pkg/crypto"
+	"teaching_manage/backend/pkg/dispatcher"
+	"teaching_manage/backend/pkg/logger"
+	"teaching_manage/backend/repository"
+	"teaching_manage/backend/service"
+	"teaching_manage/backend/wirex"
 
 	"github.com/wailsapp/wails/v2"
 
@@ -25,41 +26,77 @@ func main() {
 	zaplog := wirex.InitLogger()
 	logger.SetGlobalLogger(zaplog)
 
-	// Setup database
-	db, err := wirex.NewGormDB()
+	// Setup database getter
+	dbGetter, err := wirex.NewDBGetter()
 	if err != nil {
 		logger.Error("failed to connect database", logger.ErrorType(err))
 		panic(err)
 	}
 
-	// Setup teacher manager
-	teacherDao := dao.NewTeacherDao(db)
+	// setup DAOs - 传入 dbGetter 函数，确保 DAO 始终获取最新的 DB 实例
+	teacherDao := dao.NewTeacherDao(dbGetter)
+	studentDao := dao.NewStudentDao(dbGetter)
+	courseDao := dao.NewStudentCourseDao(dbGetter)
+	subjectDao := dao.NewSubjectDao(dbGetter)
+	orderDao := dao.NewRechargeOrderDao(dbGetter)
+	recordDao := dao.NewRecordDao(dbGetter)
+	settingDao := dao.NewSettingDAO(dbGetter)
+	unitWorkDao := dao.NewUnitWorkDao(dbGetter)
+	// setup repositories
+
+	courseRepository := repository.NewCourseRepository(courseDao)
 	teacherRepository := repository.NewTeacherRepository(teacherDao)
-	teacherManager := service.NewTeacherManager(teacherRepository)
+	studentRepository := repository.NewStudentRepository(studentDao)
+	subjectRepository := repository.NewSubjectRepository(subjectDao)
+	recordRepository := repository.NewRecordRepository(recordDao)
+	orderRepository := repository.NewOrderRepository(orderDao)
+	unitWorkRepo := repository.NewUnitWork(unitWorkDao)
+	// Setup teacher manager
+
+	teacherManager := service.NewTeacherManager(unitWorkRepo, teacherRepository, courseRepository)
 
 	// Setup student manager
-	studentDao := dao.NewStudentDao(db)
-	studentRepository := repository.NewStudentRepository(studentDao)
-	studentManager := service.NewStudentManager(studentRepository, teacherRepository)
+
+	studentManager := service.NewStudentManager(unitWorkRepo, studentRepository, courseRepository)
+
+	// Set up subject manager
+
+	subjectManager := service.NewSubjectManager(unitWorkRepo, subjectRepository, courseRepository)
+	// Set up course manager
+
+	courseManager := service.NewCourseManager(unitWorkRepo, courseRepository, studentRepository, orderRepository)
+	// Set up order manager
 
 	// Setup order manager
-	orderDao := dao.NewOrderDao(db)
-	orderRepository := repository.NewOrderRepository(orderDao)
+
 	orderManager := service.NewOrderManager(orderRepository, studentRepository)
 
 	// Setup record manager
-	recordDao := dao.NewRecordDao(db)
-	recordRepository := repository.NewRecordRepository(recordDao)
-	recordManager := service.NewRecordManager(recordRepository, studentRepository)
+
+	recordManager := service.NewRecordManager(unitWorkRepo, recordRepository, courseRepository, subjectRepository, studentRepository)
 
 	// Setup Dashboard manager
 	dashboardManager := service.NewDashboardManager()
+
+	// Setup Setting service
+	// 初始化密码加密器
+	// 在生产环境中，密钥应该从配置文件或环境变量中读取
+	encryptionKey := []byte("0123456789abcdef0123456789abcdef") // 32字节的AES-256密钥
+	if err := crypto.InitGlobalEncryptor(encryptionKey); err != nil {
+		logger.Error("初始化全局加密器失败", logger.ErrorType(err))
+		panic(err)
+	}
+
+	settingService := service.NewSettingService(settingDao)
+
+	// Setup Backup manager
+	backupManager := service.NewBackupManager(settingService)
 
 	// Setup dispatcher
 	dispatcher := dispatcher.New()
 
 	// Create an instance of the app structure
-	app := NewApp(dispatcher)
+	app := NewApp(dispatcher, settingService, backupManager)
 
 	// Create application with options
 	err = wails.Run(&options.App{
@@ -80,20 +117,39 @@ func main() {
 			app.startup(ctx)
 			teacherManager.Ctx = ctx
 			studentManager.Ctx = ctx
+			subjectManager.Ctx = ctx
+			courseManager.Ctx = ctx
 			orderManager.Ctx = ctx
 			recordManager.Ctx = ctx
 			dashboardManager.Ctx = ctx
+			backupManager.Ctx = ctx
 
 			// Register routes
 			studentManager.RegisterRoute(dispatcher)
 			teacherManager.RegisterRoute(dispatcher)
+			subjectManager.RegisterRoute(dispatcher)
+			courseManager.RegisterRoute(dispatcher)
 			orderManager.RegisterRoute(dispatcher)
 			recordManager.RegisterRoute(dispatcher)
 			dashboardManager.RegisterRoute(dispatcher)
+			backupManager.RegisterRoute(dispatcher)
 		},
 		Bind: []interface{}{
 			app,
 		},
+		SingleInstanceLock: &options.SingleInstanceLock{
+			// 1. 唯一标识符：必须是一个 UUID，以确保在系统中唯一
+			UniqueId: "5fd2fbe4-2c84-4730-bbc7-b0c2cdd52176",
+
+			// 2. 绑定上面定义的回调函数
+			OnSecondInstanceLaunch: app.onSecondInstanceLaunch,
+		},
+		OnShutdown: func(ctx context.Context) {
+			app.OnShutdown()
+			dao.CloseDB()
+		},
+		Frameless:                true,
+		EnableDefaultContextMenu: false,
 	})
 
 	if err != nil {

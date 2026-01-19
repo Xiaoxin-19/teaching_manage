@@ -1,0 +1,30 @@
+package requestx
+
+type GetStudentListRequest struct {
+	Keyword      string `json:"keyword" validate:"max=100"`
+	Offset       int    `json:"offset" validate:"gte=0"`
+	Limit        int    `json:"limit" validate:"oneof=10 25 50 100 -1"`
+	StatusLevel  int    `json:"status_level" validate:"oneof= 1 2 3"`   // 状态层级， 只要比这个值 <= 的状态都会被返回
+	StatusTarget int    `json:"status_target" validate:"oneof=1 2 3 0"` // 目标状态筛选, 0表示不筛选
+	ShowDeleted  bool   `json:"show_deleted" validate:""`               // 是否包含已删除的学生
+}
+
+type CreateStudentRequest struct {
+	Name   string `json:"name" validate:"required,max=100"`
+	Gender string `json:"gender" validate:"required,oneof=male female"`
+	Phone  string `json:"phone" validate:"max=20"`
+	Remark string `json:"remark" validate:"max=255"`
+}
+
+type UpdateStudentRequest struct {
+	ID     uint   `json:"id" validate:"required"`
+	Name   string `json:"name" validate:"required,max=100"`
+	Gender string `json:"gender" validate:"required,oneof=male female"`
+	Phone  string `json:"phone" validate:"max=20"`
+	Remark string `json:"remark" validate:"max=255"`
+	Status int    `json:"status" validate:"oneof=1 2 3,required"`
+}
+
+type DeleteStudentRequest struct {
+	ID uint `json:"id" validate:"required"`
+}

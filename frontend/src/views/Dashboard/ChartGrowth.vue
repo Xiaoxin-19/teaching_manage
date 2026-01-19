@@ -1,10 +1,15 @@
 <template>
   <v-card class="rounded-lg elevation-2 h-100 pa-4">
-    <div class="mb-2">
-      <h3 class="text-subtitle-1 font-weight-bold d-flex align-center">
-        <v-icon color="success" class="mr-2">mdi-trending-up</v-icon> 学员增长趋势
-      </h3>
-      <div class="text-caption text-medium-emphasis pl-8">每月新增报名人数</div>
+    <div class="d-flex justify-space-between align-center mb-2">
+      <div>
+        <h3 class="text-subtitle-1 font-weight-bold d-flex align-center">
+          <v-icon color="blue-accent-2" class="mr-2">mdi-trending-up</v-icon>
+          学员增长和流失趋势 (近6个月)
+        </h3>
+        <div class="text-caption text-medium-emphasis mt-1">
+          绿色为新增学员，红色为流失学员，蓝色为净增人数
+        </div>
+      </div>
     </div>
     <div ref="chartRef" class="chart-box"></div>
   </v-card>
@@ -14,60 +19,158 @@
 import { ref, onMounted } from 'vue';
 import * as echarts from 'echarts';
 import { useChart } from '../../composables/useChart';
-import { Dispatch } from '../../../wailsjs/go/main/App';
-import { ResponseWrapper } from '../../types/appModels';
-import { GetStudentGrowthDataResponse } from '../../types/response';
+import { GetStudentGrowthTrendData } from '../../api/dashboard';
+import type { StudentGrowthTrendResponse } from '../../types/response';
 
 const chartRef = ref<HTMLElement | null>(null);
-const chartData = ref<GetStudentGrowthDataResponse>({ x_axis: [], series: [] });
-
-const getOption = (isDark: boolean) => ({
-  tooltip: { trigger: 'axis' },
-  grid: { top: 30, left: 30, right: 20, bottom: 20, containLabel: true },
-  xAxis: {
-    type: 'category',
-    data: chartData.value.x_axis,
-    boundaryGap: false,
-    axisLabel: {
-      color: isDark ? '#eee' : '#666'
-    }
-  },
-  yAxis: {
-    type: 'value',
-    splitLine: {
-      show: true,
-      lineStyle: {
-        type: 'dashed',
-        opacity: 0.3
-      }
-    }
-  },
-  series: [{
-    name: '新增学员', type: 'line', smooth: true,
-    data: chartData.value.series,
-    areaStyle: {
-      color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-        { offset: 0, color: 'rgba(76, 175, 80, 0.5)' },
-        { offset: 1, color: 'rgba(76, 175, 80, 0.0)' }
-      ])
-    },
-    itemStyle: { color: '#4CAF50' },
-    lineStyle: { width: 3 }
-  }]
+const chartData = ref<StudentGrowthTrendResponse>({
+  x_axis: [],
+  growth: [],
+  loss: [],
+  net: []
 });
+
+const getOption = (isDark: boolean) => {
+  const data = chartData.value;
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross' },
+      formatter: (params: any) => {
+        if (!Array.isArray(params)) {
+          params = [params];
+        }
+        let result = `<div>${params[0].axisValue}</div>`;
+        params.forEach((param: any) => {
+          result += `<div><span style="color:${param.color}">●</span> ${param.seriesName}: <strong>${param.value}</strong>人</div>`;
+        });
+        return result;
+      }
+    },
+    legend: {
+      data: ['新增学员', '流失学员', '净增学员'],
+      top: 'top',
+      textStyle: {
+        color: isDark ? '#eee' : '#333'
+      }
+    },
+    grid: {
+      left: '5%',
+      right: '5%',
+      bottom: '10%',
+      top: '12%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: data.x_axis,
+      boundaryGap: false,
+      axisLine: {
+        lineStyle: {
+          color: isDark ? '#444' : '#ddd'
+        }
+      },
+      axisLabel: {
+        color: isDark ? '#aaa' : '#666',
+        fontSize: 11
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '人数',
+      nameTextStyle: {
+        color: isDark ? '#aaa' : '#666'
+      },
+      splitLine: {
+        lineStyle: {
+          type: 'dashed',
+          color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+        }
+      },
+      axisLabel: {
+        color: isDark ? '#aaa' : '#666'
+      }
+    },
+    series: [
+      {
+        name: '新增学员',
+        type: 'line',
+        data: data.growth,
+        smooth: true,
+        itemStyle: {
+          color: '#4CAF50'
+        },
+        lineStyle: {
+          color: '#4CAF50',
+          width: 2
+        },
+        areaStyle: {
+          color: 'rgba(76, 175, 80, 0.2)'
+        },
+        emphasis: {
+          itemStyle: {
+            borderColor: '#4CAF50',
+            borderWidth: 2
+          }
+        },
+        symbol: 'circle',
+        symbolSize: 6
+      },
+      {
+        name: '流失学员',
+        type: 'line',
+        data: data.loss,
+        smooth: true,
+        itemStyle: {
+          color: '#F44336'
+        },
+        lineStyle: {
+          color: '#F44336',
+          width: 2
+        },
+        areaStyle: {
+          color: 'rgba(244, 67, 54, 0.2)'
+        },
+        emphasis: {
+          itemStyle: {
+            borderColor: '#F44336',
+            borderWidth: 2
+          }
+        },
+        symbol: 'circle',
+        symbolSize: 6
+      },
+      {
+        name: '净增学员',
+        type: 'bar',
+        data: data.net,
+        itemStyle: {
+          color: '#2196F3',
+          borderRadius: [6, 6, 0, 0]
+        },
+        emphasis: {
+          itemStyle: {
+            color: '#1976D2'
+          }
+        },
+        barWidth: '40%'
+      }
+    ]
+  };
+};
 
 const { refresh } = useChart(chartRef, getOption);
 
 const loadData = async () => {
   try {
-    const res = await Dispatch("dashboard_manager:get_student_growth", "");
-    const response = JSON.parse(res) as ResponseWrapper<GetStudentGrowthDataResponse>;
-    if (response.code === 200 && response.data) {
-      chartData.value = response.data;
+    const data = await GetStudentGrowthTrendData();
+    if (data) {
+      chartData.value = data;
       refresh();
     }
   } catch (e) {
-    console.error("Failed to load growth data", e);
+    console.error('Failed to load growth trend data', e);
   }
 };
 
@@ -75,12 +178,14 @@ onMounted(() => {
   loadData();
 });
 
-defineExpose({ loadData });
+defineExpose({
+  loadData
+});
 </script>
 
 <style scoped>
 .chart-box {
   width: 100%;
-  height: 320px;
+  height: var(--dashboard-chart-height, 380px);
 }
 </style>

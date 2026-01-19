@@ -16,8 +16,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useChart } from '../../composables/useChart';
-import { Dispatch } from '../../../wailsjs/go/main/App';
-import { ResponseWrapper } from '../../types/appModels';
+import { GetHeatmapData } from '../../api/dashboard';
 
 const chartRef = ref<HTMLElement | null>(null);
 const heatmapData = ref<[number, number, number][]>([]);
@@ -85,12 +84,14 @@ const getOption = (isDark: boolean) => {
       data: data,
       label: { show: false }, // 格子太小，隐藏数字
       itemStyle: {
-        emphasis: {
-          shadowBlur: 10,
-          shadowColor: 'rgba(0, 0, 0, 0.5)'
-        },
         borderColor: isDark ? '#333' : '#fff',
         borderWidth: 1
+      },
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 10,
+          shadowColor: 'rgba(0, 0, 0, 0.5)'
+        }
       }
     }]
   };
@@ -100,12 +101,10 @@ const { refresh } = useChart(chartRef, getOption);
 
 const loadData = async () => {
   try {
-    const res = await Dispatch("dashboard_manager:get_heatmap", "");
-    const response = JSON.parse(res) as ResponseWrapper<number[][]>;
+    const data = await GetHeatmapData();
 
-    if (response.code === 200 && response.data) {
-
-      heatmapData.value = response.data.map((item: number[]) => {
+    if (data && data.length > 0) {
+      heatmapData.value = data.map((item: number[]) => {
         const dayOfWeek = item[0]; // 0(Sun) - 6(Sat)
         const hour = item[1];      // 8 - 21
         const value = item[2];
@@ -140,7 +139,6 @@ defineExpose({
 <style scoped>
 .chart-box {
   width: 100%;
-  height: 400px;
-  /* 热力图需要更高一点 */
+  height: var(--dashboard-chart-height, 380px);
 }
 </style>

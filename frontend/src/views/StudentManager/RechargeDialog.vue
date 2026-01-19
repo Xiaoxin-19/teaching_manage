@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<!-- <script setup lang="ts">
 import { useRechargeDialog } from './RechargeDialog.logic'
 import type { StudentData } from '../../types/appModels'
 
@@ -85,4 +85,4 @@ const {
       </v-card-actions>
     </v-card>
   </v-dialog>
-</template>
+</template> -->

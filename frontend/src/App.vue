@@ -1,55 +1,92 @@
 <template>
-  <v-app :theme="theme">
+  <v-app>
+
+    <v-system-bar style="--wails-draggable: drag" window>
+      <div class="titlebar-left">
+        <span class="titlebar-title">Teaching Manager</span>
+      </div>
+      <v-spacer></v-spacer>
+      <v-btn density="compact" variant="text" @click="toggleTheme" :icon="themeIcon" aria-label="切换主题">
+      </v-btn>
+      <v-btn density="compact" variant="text" @click="handleMinimise" icon="mdi-window-minimize" aria-label="最小化">
+        <v-icon size="18" icon="mdi-window-minimize" />
+      </v-btn>
+      <v-btn density="compact" variant="text" @click="handleToggleMax" icon="mdi-window-maximize" aria-label="最大化/还原">
+      </v-btn>
+      <v-btn density="compact" variant="text" class=" close" @click="handleClose" icon="mdi-close" aria-label="关闭">
+      </v-btn>
+    </v-system-bar>
 
     <!-- 侧边导航组件 -->
-    <NavDrawer v-model="drawer" v-model:rail="rail" :theme="theme" @toggle-theme="toggleTheme" />
+    <NavDrawer v-model="drawer" v-model:rail="rail" @toggle-theme="toggleTheme" />
+
+
 
     <!-- 主内容区域 -->
     <v-main>
-      <div class="main-layout-container">
+      <!-- 动态内容视口 -->
+      <v-container fluid class="pa-0 h-100">
 
-        <!-- 动态内容视口 -->
-        <div class="layout-content bg-background">
-          <v-container fluid class="pa-0 h-100">
+        <router-view v-slot="{ Component }">
+          <transition name="fade-transition" mode="out-in">
+            <keep-alive>
+              <component :is="Component" />
+            </keep-alive>
+          </transition>
+        </router-view>
 
-            <router-view v-slot="{ Component }">
-              <transition name="fade-transition" mode="out-in">
-                <keep-alive>
-                  <component :is="Component" />
-                </keep-alive>
-              </transition>
-            </router-view>
+      </v-container>
 
-          </v-container>
-        </div>
+      <!-- ref="globalSnackbarRef" 用于在 js 中获取组件实例 -->
+      <GlobalSnackBar ref="globalSnackbarRef" />
 
-      </div>
+      <!-- 2. 全局确认对话框 (Confirm Dialog) -->
+      <GlobalConfirmDialog ref="globalConfirmRef" />
+
+      <!-- 3. 全屏遮罩 -->
+      <GlobalOverlay ref="globalOverlayRef" />
     </v-main>
 
-    <!-- ref="globalSnackbarRef" 用于在 js 中获取组件实例 -->
-    <GlobalSnackBar ref="globalSnackbarRef" />
 
-    <!-- 2. 全局确认对话框 (Confirm Dialog) -->
-    <GlobalConfirmDialog ref="globalConfirmRef" />
   </v-app>
 </template>
 
 <script setup lang="ts">
-import { ref, provide } from 'vue'
+import { onMounted, ref, provide, watch, computed } from 'vue'
 import NavDrawer from './components/NavDrawer.vue'
 import GlobalSnackBar from './components/GlobalSnackBar.vue'
 import { registerToast } from './composables/useToast'
 import GlobalConfirmDialog, { ConfirmOptions } from './components/GlobalConfirmDialog.vue'
 import { registerConfirm } from './composables/useConfirm'
+import GlobalOverlay from './components/GlobalOverlay.vue'
+import { registerGlobalOverlay } from './composables/useGlobalOverlay'
+import { WindowMinimise, WindowToggleMaximise, WindowIsMaximised, Quit, WindowSetDarkTheme, WindowSetLightTheme } from '../wailsjs/runtime/runtime'
+import { useTheme } from 'vuetify/lib/composables/theme'
 
 // --- 全局状态 ---
-const theme = ref('light')
+const theme = useTheme()
 const drawer = ref(true)
 const rail = ref(true)
+const isMaximized = ref(false)
+const themeIcon = computed(() => theme.current.value.dark === true ? 'mdi-weather-night' : 'mdi-white-balance-sunny')
 
 // --- 方法 ---
 const toggleTheme = () => {
-  theme.value = theme.value === 'light' ? 'dark' : 'light'
+  theme.cycle()
+}
+
+const handleMinimise = () => WindowMinimise()
+
+const handleToggleMax = async () => {
+  WindowToggleMaximise()
+  isMaximized.value = await WindowIsMaximised()
+}
+
+const handleClose = async () => {
+  const confirmed = await showConfirm('确认退出', '确定要退出吗？')
+  if (confirmed) {
+    Quit()
+  }
 }
 
 
@@ -116,8 +153,105 @@ const showConfirm = (
 // 配合 src/composables/useConfirm.ts 使用
 provide('showConfirm', showConfirm)
 registerConfirm(showConfirm)
+
+
+// ----------------------------------------------------------------
+// 3. 全局遮罩 (全屏禁用操作)
+// ----------------------------------------------------------------
+const globalOverlayRef = ref<InstanceType<typeof GlobalOverlay> | null>(null)
+
+const overlayController = {
+  show: (msg?: string) => {
+    if (globalOverlayRef.value) {
+      globalOverlayRef.value.show(msg)
+    } else {
+      console.warn('GlobalOverlay 组件未挂载！')
+    }
+  },
+  hide: () => {
+    if (globalOverlayRef.value) {
+      globalOverlayRef.value.hide()
+    }
+  },
+  setMessage: (msg: string) => {
+    if (globalOverlayRef.value && globalOverlayRef.value.setMessage) {
+      globalOverlayRef.value.setMessage(msg)
+    }
+  }
+}
+
+provide('globalOverlay', overlayController)
+registerGlobalOverlay(overlayController)
+
+onMounted(async () => {
+  isMaximized.value = await WindowIsMaximised()
+  // 初始化侧边栏宽度
+  const initialWidth = drawer.value ? (rail.value ? '56px' : '210px') : '0px'
+  document.documentElement.style.setProperty('--drawer-width', initialWidth)
+})
+
+
+// Watch drawer/rail state to update computed css var for layout margin
+watch([drawer, rail], ([d, r]) => {
+  const width = d ? (r ? '56px' : '210px') : '0px'
+  document.documentElement.style.setProperty('--drawer-width', width)
+})
 </script>
 <style scoped>
+:global(:root) {
+  --titlebar-height: 36px;
+}
+
+
+
+.titlebar-left {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+.titlebar-title {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.titlebar-subtitle {
+  opacity: 0.7;
+}
+
+/* 禁用所有输入控件的浏览器自动填充 */
+:deep(input),
+:deep(textarea) {
+  -webkit-autocomplete: off;
+  autocomplete: off;
+}
+
+/* 侧边栏适配无边框标题栏高度 */
+:deep(.v-navigation-drawer) {
+  position: fixed !important;
+  top: var(--titlebar-height) !important;
+  left: 0;
+  height: calc(100vh - var(--titlebar-height)) !important;
+  z-index: 9 !important;
+}
+
+/* 主内容区域整体向下错开标题栏高度 */
+:deep(.v-main) {
+  padding-top: var(--titlebar-height);
+}
+
+/* 主内容与侧边栏间距 */
+:global(:root) {
+  --drawer-width: 210px;
+}
+
+:deep(.main-layout-container) {
+  margin-left: var(--drawer-width);
+  transition: margin-left 0.12s ease;
+}
+
 /* 隐藏滚动条 */
 div::-webkit-scrollbar {
   display: none;
@@ -125,7 +259,7 @@ div::-webkit-scrollbar {
 
 /* 右侧主内容容器 */
 .main-layout-container {
-  height: 100vh;
+  min-height: calc(100vh - var(--titlebar-height));
   display: flex;
   flex-direction: column;
   background-color: rgb(var(--v-theme-background));
@@ -137,6 +271,7 @@ div::-webkit-scrollbar {
   flex: 1;
   overflow-y: auto;
   position: relative;
+  min-height: calc(100vh - var(--titlebar-height));
 }
 
 /* 占位符样式 */

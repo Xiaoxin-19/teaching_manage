@@ -3,7 +3,9 @@ module teaching_manage
 go 1.24.0
 
 require (
+	github.com/bwmarrin/snowflake v0.3.0
 	github.com/go-playground/validator/v10 v10.30.1
+	github.com/studio-b12/gowebdav v0.9.0
 	github.com/wailsapp/wails/v2 v2.11.0
 	github.com/xuri/excelize/v2 v2.10.0
 	go.uber.org/zap v1.27.1

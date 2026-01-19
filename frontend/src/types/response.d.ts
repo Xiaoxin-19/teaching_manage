@@ -1,18 +1,22 @@
+import { Teacher, Course, Subject } from "./appModels"
+
 // 后端返回的原始数据结构
 export interface StudentDTO {
   id: number
+  student_number: string
   name: string
   gender: string
-  hours: number
   phone: string
   remark: string
-  teacher_id: number
+  status: number
   created_at: number
   updated_at: number
+  deleted_at?: number
+  lastModified?: string
 }
 
 export interface GetTeacherListResponse {
-  teachers: TeacherDTO[]
+  teachers: Teacher[]
   total: number
 }
 
@@ -28,10 +32,9 @@ export interface GetOrdersByStudentIdResponse {
 
 export interface RecordDTO {
   id: number
-  student_id: number
-  teacher_id: number
-  student_name: string
-  teacher_name: string
+  student: StudentDTO
+  teacher: Teacher
+  subject: Subject
   teaching_date: string
   start_time: string
   end_time: string
@@ -56,6 +59,21 @@ export interface SelectFileResponse {
   filepath: string
 }
 
+export interface WebDavConfigResponse {
+  url: string
+  username: string
+  password: string
+  last_cloud_backup: number
+  enable_auto_backup: boolean
+}
+
+export interface WebDavBackupItem {
+  name: string
+  size: number
+  mod_time: number
+  path: string
+}
+
 export interface GetDashboardSummaryResponse {
   "total_students": number
   "new_students_this_month": number
@@ -68,12 +86,24 @@ export interface GetDashboardSummaryResponse {
 
 export interface GetFinanceChartDataResponse {
   x_axis: string[]
-  recharge_data: number[]
-  consume_data: number[]
+  recharge_data: number[]      // 充值课时
+  recharge_amount: number[]    // 充值金额 (可选显示)
+  consume_data: number[]       // 消课课时
+  consume_amount: number[]     // 消课金额 (可选显示)
   net_data: number[]
 }
 
+export interface SubjectRank {
+  name: string
+  value: number
+}
+
+export interface GetSubjectRankDataResponse {
+  data: SubjectRank[]
+}
+
 export interface EngagementStat {
+  code: string  // 枚举键：Dormant, Lazy, Regular, High
   name: string
   value: number
 }
@@ -99,4 +129,28 @@ export interface BalanceStat {
 
 export interface GetStudentBalanceDataResponse {
   stats: BalanceStat[]
+}
+
+export interface StudentGrowthTrendResponse {
+  x_axis: string[]  // 月份标签 (YYYY-MM)
+  growth: number[]  // 新增学员数
+  loss: number[]    // 流失学员数 (删除)
+  net: number[]     // 净增 (growth - loss)
+}
+
+export interface GetSubjectListResponse {
+  subjects: Subject[];
+  total: number;
+}
+
+// Student Course relate
+
+export interface GetCourseListResponse {
+  courses: Course[];
+  total: number;
+}
+
+export interface GetOrderListResponse {
+  orders: Order[];
+  total: number;
 }

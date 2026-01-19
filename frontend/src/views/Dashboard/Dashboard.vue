@@ -24,7 +24,7 @@
             <ChartFinance ref="chartFinanceRef" />
           </v-col>
           <v-col cols="12" md="6">
-            <ChartHeatmap ref="chartHeatmapRef" />
+            <ChartSubject ref="chartSubjectRef" />
           </v-col>
         </v-row>
 
@@ -39,7 +39,7 @@
 
         <v-row dense>
           <v-col cols="12" md="6">
-            <ChartTeacher ref="chartTeacherRef" />
+            <ChartHeatmap ref="chartHeatmapRef" />
           </v-col>
           <v-col cols="12" md="6">
             <ChartBalance ref="chartBalanceRef" @navigate="navigateTo" />
@@ -55,12 +55,11 @@ import { ref, watch } from 'vue';
 import { useDashboard } from './Dashboard.logic';
 import KpiCards from './KpiCards.vue';
 import ChartFinance from './ChartFinance.vue';
-import ChartTrend from './ChartTrend.vue';
 import ChartGrowth from './ChartGrowth.vue';
-import ChartTeacher from './ChartTeacher.vue';
 import ChartBalance from './ChartBalance.vue';
 import ChartHeatmap from './ChartHeatmap.vue';
 import ChartEngagement from './ChartEngagement.vue';
+import ChartSubject from './ChartSubject.vue';
 
 const {
   loading,
@@ -75,8 +74,8 @@ const chartFinanceRef = ref();
 const chartHeatmapRef = ref();
 const chartEngagementRef = ref();
 const chartGrowthRef = ref();
-const chartTeacherRef = ref();
 const chartBalanceRef = ref();
+const chartSubjectRef = ref();
 const firstLoad = ref(true);
 
 // 监听 loading 状态，第一次加载完成后将 firstLoad 置为 false
@@ -103,9 +102,10 @@ const handleRefresh = async () => {
   if (chartGrowthRef.value) {
     chartGrowthRef.value.loadData();
   }
-  if (chartTeacherRef.value) {
-    chartTeacherRef.value.loadData();
+  if (chartSubjectRef.value) {
+    chartSubjectRef.value.loadData();
   }
+
   if (chartBalanceRef.value) {
     chartBalanceRef.value.loadData();
   }
@@ -113,3 +113,9 @@ const handleRefresh = async () => {
   await dashboardPromise;
 };
 </script>
+
+<style scoped>
+:root {
+  --dashboard-chart-height: 380px;
+}
+</style>

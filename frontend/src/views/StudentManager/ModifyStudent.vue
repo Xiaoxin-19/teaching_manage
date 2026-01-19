@@ -35,28 +35,30 @@
                 density="compact" prepend-inner-icon="mdi-phone" hide-details="auto" class="mb-3"></v-text-field>
             </v-col>
 
-            <v-col cols="12" sm="6">
-              <v-autocomplete v-model="formData.teacher_id" :items="teacherOptions" item-title="name" item-value="id"
-                label="绑定教师" placeholder="输入姓名搜索..." variant="outlined" density="compact"
-                prepend-inner-icon="mdi-account-tie" menu-icon="mdi-chevron-down" hide-details="auto" clearable
-                auto-select-first class="mb-3" :rules="[(v) => !!v || '请选择教师']">
-                <template v-slot:item="{ props, item }">
-                  <v-list-item v-bind="props" :title="item.raw.name" subtitle="点击选择">
-                    <template v-slot:prepend>
-                      <v-icon icon="mdi-account-outline" class="mr-2"></v-icon>
-                    </template>
-                  </v-list-item>
-                </template>
-                <template v-slot:no-data>
-                  <div class="px-4 py-2 text-caption text-medium-emphasis">
-                    未找到匹配的教师
-                  </div>
-                </template>
-              </v-autocomplete>
+            <!-- 状态编辑下拉框 -->
+            <v-col v-show="isEdit" cols="12" sm="6">
+              <v-select v-model="formData.status" :items="[
+                { label: '正常', value: 1 },
+                { label: '停课', value: 2 },
+                { label: '退学', value: 3 }
+              ]" label="学生状态" item-title="label" item-value="value" variant="outlined" density="compact"
+                prepend-inner-icon="mdi-account-check" hide-details="auto" class="mb-3"></v-select>
+              <!-- 状态提示语 -->
+              <div class="text-caption px-1" style="min-height: 20px;">
+                <span v-if="formData.status === 3" class="text-error d-flex align-center">
+                  <v-icon icon="mdi-alert-circle-outline" size="x-small" class="mr-1"></v-icon>
+                  退学状态无法充值和产生教学记录
+                </span>
+                <span v-else-if="formData.status === 2" class="text-warning d-flex align-center">
+                  <v-icon icon="mdi-alert-outline" size="x-small" class="mr-1"></v-icon>
+                  停课状态可以充值，但无法产生教学记录
+                </span>
+              </div>
             </v-col>
 
+
             <v-col cols="12">
-              <v-textarea v-model="formData.note" label="备注信息" variant="outlined" density="compact" rows="3"
+              <v-textarea v-model="formData.remark" label="备注信息" variant="outlined" density="compact" rows="3"
                 hide-details="auto" no-resize prepend-inner-icon="mdi-comment-text-outline"></v-textarea>
             </v-col>
           </v-row>

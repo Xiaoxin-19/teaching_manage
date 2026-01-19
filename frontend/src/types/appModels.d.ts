@@ -4,23 +4,17 @@ export interface TeacherOption {
   name: string
 }
 
-export interface TeacherData {
-  id?: number | string
-  name: string
-  phone: string
-  remark: string
-  gender: string
-  lastModified?: string
-}
-
-export interface StudentItem {
+export interface Student {
   id: number;
+  student_number: string;
   name: string;
   phone: string;
-  balance: number;
   gender: string;
-  teacher_id: number | string | null;
-  note: string;
+  remark: string;
+  status: number;
+  created_at?: number;
+  updated_at?: number;
+  deleted_at?: number;
   lastModified?: string;
 }
 
@@ -28,12 +22,50 @@ export interface StudentData {
   id?: number;
   name: string;
   phone: string;
-  balance: number;
   gender: string;
-  teacher_id: number | string | null;
-  note: string;
+  status: number;
+  remark: string;
   lastModified?: string;
 }
+
+
+export interface Teacher {
+  id: number;
+  teacher_number: string;
+  name: string;
+  phone: string;
+  gender: string;
+  status: number;
+  remark: string;
+  updated_at: string;
+  created_at: string;
+  deleted_at?: number;
+  lastModified?: string;
+}
+
+export interface Subject {
+  id: number;
+  subject_number: string;
+  name: string;
+  student_count: number; // 关联学员数
+  created_at?: number;
+  updated_at?: number;
+  deleted_at?: number;
+  lastModified?: string;
+}
+
+export interface Course {
+  id: number;
+  student: Student;
+  subject: Subject;
+  teacher: Teacher;
+  balance: number;
+  remark: string;
+  status: number;
+  created_at: number;
+  updated_at: number;
+}
+
 
 // 新增：教学记录状态类型
 export type RecordStatus = 'active' | 'pending';
@@ -48,8 +80,10 @@ export interface TeachingRecord {
   endTime: string;
   studentId: number | null;
   studentName: string;
+  studentNumber?: string;
   teacherId: number | null;
   teacherName: string;
+  subjectName: string;
   remark: string;
 }
 
@@ -83,4 +117,24 @@ export interface OrderDTO {
   comment: string;
   created_at: number;
   updated_at: number;
+}
+
+export interface Order {
+  id: number
+  order_number: string
+  student: Student
+  subject: Subject
+  teacher: Teacher
+  type: 'increase' | 'decrease'
+  amount: number
+  hours: number
+  created_at: number
+  updated_at: number
+  remark: string
+  tags: OrderTag[]
+  // 仅用于前端模拟筛选的字段，对接真实后端时不需要
+  _studentId?: number
+  _subjectId?: number
+  _subjectName?: string
+  _studentName?: string
 }

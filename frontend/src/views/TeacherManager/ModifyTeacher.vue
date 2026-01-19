@@ -17,13 +17,17 @@
 
       <!-- 2. 表单内容区 -->
       <v-card-text class="pa-4">
-        <v-form ref="formRef">
+        <v-form ref="formRef" v-model="isFormValid" autocomplete="off">
+          <!-- 防止浏览器自动填充：隐藏凭证字段作为诱饵 -->
+          <input type="text" autocomplete="username" style="display:none" />
+          <input type="password" autocomplete="new-password" style="display:none" />
           <v-row dense>
 
             <!-- 第一行：姓名 + 性别 -->
             <v-col cols="12" sm="6">
               <v-text-field v-model="formData.name" label="教师姓名" variant="outlined" density="compact"
-                prepend-inner-icon="mdi-account" hide-details="auto" class="mb-3"></v-text-field>
+                prepend-inner-icon="mdi-account" hide-details="auto" class="mb-3" :rules="[v => !!v || '姓名为必填项']"
+                required autocomplete="off"></v-text-field>
             </v-col>
 
             <!-- 性别选择 -->
@@ -38,13 +42,20 @@
             <!-- 第二行：手机号 -->
             <v-col cols="12">
               <v-text-field v-model="formData.phone" label="手机号" placeholder="11位手机号" variant="outlined"
-                density="compact" prepend-inner-icon="mdi-phone" hide-details="auto" class="mb-3"></v-text-field>
+                density="compact" prepend-inner-icon="mdi-phone" hide-details="auto" class="mb-3"
+                autocomplete="off"></v-text-field>
+            </v-col>
+
+            <!-- 状态选择 (仅编辑时显示) -->
+            <v-col cols="12" v-if="isEdit">
+              <v-select v-model="formData.status" label="状态" :items="statusOptions" item-title="text" item-value="value"
+                variant="outlined" density="compact" hide-details="auto" class="mb-3"></v-select>
             </v-col>
 
             <!-- 第三行：备注 -->
             <v-col cols="12">
               <v-textarea v-model="formData.remark" label="备注信息" variant="outlined" density="compact" rows="3"
-                hide-details="auto" no-resize></v-textarea>
+                hide-details="auto" no-resize autocomplete="off"></v-textarea>
             </v-col>
           </v-row>
         </v-form>
@@ -65,7 +76,8 @@
         <v-btn variant="text" class="mr-2" @click="close">
           取消
         </v-btn>
-        <v-btn prepend-icon="mdi-check" color="primary" variant="elevated" elevation="1" @click="save">
+        <v-btn prepend-icon="mdi-check" color="primary" variant="elevated" elevation="1" @click="save"
+          :disabled="!isFormValid">
           保存
         </v-btn>
       </v-card-actions>
@@ -76,26 +88,35 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
-import type { TeacherData } from '../../types/appModels'
+import type { Teacher } from '../../types/appModels'
 
 
 // Props
 const props = defineProps<{
   modelValue: boolean
   isEdit?: boolean
-  initialData?: TeacherData
+  initialData?: Teacher
 }>()
 
 // Emits
 const emit = defineEmits(['update:modelValue', 'save'])
 
+// 表单引用
+const formRef = ref<any>(null)
+const isFormValid = ref<boolean | null>(null)
+
+const statusOptions = [
+  { text: '在职', value: 1 },
+  { text: '离职', value: 2 },
+]
+
 // 本地表单数据
-const formData = ref<TeacherData>({
+const formData = ref<Teacher>({
   name: '',
   phone: '',
   remark: '',
   gender: ''
-})
+} as Teacher)
 
 // 监听弹窗开启，重置或填充数据
 watch(() => props.modelValue, (val) => {
@@ -109,8 +130,18 @@ watch(() => props.modelValue, (val) => {
         name: '',
         phone: '',
         remark: '',
-        gender: 'male'
-      }
+        gender: 'male',
+        status: 1
+      } as Teacher
+    }
+    // 重置表单验证状态（避免之前的错误状态影响当前弹窗）
+    if (formRef.value) {
+      setTimeout(() => {
+        formRef.value.resetValidation()
+        isFormValid.value = null
+      }, 0)
+    } else {
+      isFormValid.value = null
     }
   }
 })
@@ -119,8 +150,12 @@ const close = () => {
   emit('update:modelValue', false)
 }
 
-const save = () => {
-  // 可以在此处添加表单校验逻辑，例如检查姓名是否为空
+const save = async () => {
+  // 执行表单验证，确保姓名等必填项通过
+  if (formRef.value) {
+    const { valid } = await formRef.value.validate()
+    if (!valid) return
+  }
   emit('save', formData.value)
   close()
 }

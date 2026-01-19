@@ -9,9 +9,8 @@ export function useModifyStudent(props: { modelValue?: boolean, isEdit?: boolean
     name: '',
     phone: '',
     gender: 'male',
-    balance: 0,
-    teacher_id: null,
-    note: ''
+    status: 1,
+    remark: ''
   })
 
   const formData = ref<StudentData>(defaultData())
