@@ -3,6 +3,7 @@ package dao
 import (
 	"context"
 	"errors"
+	"fmt"
 	"teaching_manage/backend/model"
 	"teaching_manage/backend/pkg/logger"
 
@@ -212,6 +213,7 @@ func (s StudentCourseGormDao) GetByStudentIDAndSubjectID(ctx context.Context, st
 		Preload("Student").Preload("Teacher").Preload("Subject").
 		First(&sc).Error
 
+	logger.Debug("teacher info:", logger.String("teacher_name", fmt.Sprintf("%v", sc.Teacher)))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrRecordNotFound
 	}

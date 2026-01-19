@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"teaching_manage/backend/dao"
 	"teaching_manage/backend/entity"
 	"teaching_manage/backend/model"
+	"teaching_manage/backend/pkg/logger"
 )
 
 type CourseRepository interface {
@@ -139,11 +141,13 @@ func (cr CourseRepositoryImpl) GetByStudentIDAndSubjectID(ctx context.Context, s
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Debug("GetByStudentIDAndSubjectID", logger.UInt("studentID", studentID), logger.UInt("subjectID", subjectID), logger.String("course", fmt.Sprintf("%v", sc)))
 	return &entity.StudentSubject{
 		ID:        sc.ID,
 		Student:   entity.Student{ID: sc.Student.ID, Name: sc.Student.Name, StudentNumber: sc.Student.StudentNumber, Status: int(sc.Student.Status)},
 		Subject:   entity.Subject{ID: sc.Subject.ID, Name: sc.Subject.Name},
-		Teacher:   entity.Teacher{ID: sc.Teacher.ID, Name: sc.Teacher.Name, TeacherNumber: sc.Teacher.TeacherNumber},
+		Teacher:   entity.Teacher{ID: sc.Teacher.ID, Name: sc.Teacher.Name, TeacherNumber: sc.Teacher.TeacherNumber, Status: int(sc.Teacher.Status), DeletedAt: sc.Teacher.DeletedAt.Time},
 		Status:    entity.StudentSubjectStatus(sc.Status),
 		Balance:   sc.Balance,
 		AvgPrice:  sc.AvgPrice,

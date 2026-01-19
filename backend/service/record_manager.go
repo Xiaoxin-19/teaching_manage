@@ -586,11 +586,13 @@ func (rm *RecordManager) validateTeachingRecords(ctx context.Context, f *exceliz
 					if course.Status != 1 {
 						errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 学生 '%s' 报名的科目 '%s' 状态异常，无法导入上课记录", i+2, stuName, subjectName))
 					}
+					logger.Debug("found course for student and subject", logger.String("teacher", fmt.Sprintf("%v", course.Teacher)))
 					teacher = course.Teacher
 				}
 			}
 		}
 
+		logger.Debug("验证教师信息", logger.String("teacher", fmt.Sprintf("%v", teacher)))
 		// 验证老师信息
 		if teacher.ID == 0 {
 			errInfo[i] = append(errInfo[i], fmt.Sprintf("第 %d 行: 无法获取学生 '%s' 报名科目 '%s' 的授课教师信息", i+2, stuName, subjectName))
