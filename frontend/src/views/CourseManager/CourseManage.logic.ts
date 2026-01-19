@@ -2,7 +2,7 @@ import { ref, reactive, computed, onMounted, onActivated, watch, nextTick } from
 import { debounce } from 'lodash'
 import { useToast } from '../../composables/useToast'
 import {
-  GetCourseList, CreateCourse, RechargeCourse, ToggleCourseStatus, DeleteCourse, UpdateCourse,
+  GetCourseList, CreateCourse, RechargeCourse, ToggleCourseStatus, DeleteCourse, UpdateCourse, ExportCoursesToExcel
 } from '../../api/course'
 import { GetStudentList } from '../../api/student'
 import { GetSubjectList } from '../../api/subject'
@@ -12,7 +12,7 @@ import { CreateCourseRequest, GetCourseListRequest, GetStudentListRequest } from
 import { Course } from '../../types/appModels'
 
 export function useCourseManage() {
-  const { success, error } = useToast()
+  const { success, error, info } = useToast()
 
   // --- 状态定义 ---
   const loading = ref(false)
@@ -452,6 +452,31 @@ export function useCourseManage() {
     }
   }
 
+  const exportCourses = async () => {
+    try {
+      info('正在导出课程数据，请稍候...')
+      const req: GetCourseListRequest = {
+        Students: filters.studentId ? [filters.studentId] : undefined,
+        Subjects: filters.subjects.length ? filters.subjects : undefined,
+        Teachers: filters.teachers.length ? filters.teachers : undefined,
+        Balance_Min: filters.balanceMin !== null && filters.balanceMin !== '' as any ? Number(filters.balanceMin) : undefined,
+        Balance_Max: filters.balanceMax !== null && filters.balanceMax !== '' as any ? Number(filters.balanceMax) : undefined,
+        Status: filters.status.length ? filters.status : undefined,
+        Offset: 0,
+        Limit: -1
+      }
+
+      const path = await ExportCoursesToExcel(req)
+      if (path === 'cancel') {
+        info('已取消导出')
+        return
+      }
+      success('课程数据已导出到: ' + path)
+    } catch (e: any) {
+      error(e.message)
+    }
+  }
+
   // --- UI Helpers ---
 
   const getEffectiveStatus = (item: Partial<Course>) => {
@@ -530,6 +555,7 @@ export function useCourseManage() {
     toggleStatus,
     openDelete, handleDeleteConfirm,
     openForceDelete, handleForceDeleteConfirm,
+    exportCourses,
     getEffectiveStatus, getBalanceColor, getBalanceLabel, formatBalance
   }
 }

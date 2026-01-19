@@ -5,6 +5,8 @@
       <!-- 1. 顶部工具栏 -->
       <div class="d-flex justify-end align-end mb-4">
         <div class="d-flex align-center">
+          <v-btn prepend-icon="mdi-microsoft-excel" color="success" variant="outlined" class="mr-3"
+            @click="exportCourses">导出列表</v-btn>
           <v-btn color="primary" prepend-icon="mdi-book-plus" elevation="2" @click="openEnroll">新课报名</v-btn>
         </div>
       </div>
@@ -211,6 +213,7 @@ const {
   toggleStatus,
   openDelete, handleDeleteConfirm,
   openForceDelete, handleForceDeleteConfirm,
+  exportCourses,
   getEffectiveStatus, getBalanceColor, getBalanceLabel, formatBalance
 } = useCourseManage()
 </script>

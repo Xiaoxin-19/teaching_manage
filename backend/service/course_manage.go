@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"teaching_manage/backend/dao"
 	"teaching_manage/backend/entity"
+	"teaching_manage/backend/pkg"
 	"teaching_manage/backend/pkg/dispatcher"
 	"teaching_manage/backend/pkg/logger"
 	"teaching_manage/backend/repository"
 	requestx "teaching_manage/backend/service/request"
 	responsex "teaching_manage/backend/service/response"
+	"time"
+
+	wails "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type CourseManager struct {
@@ -222,6 +226,55 @@ func (cm CourseManager) RechargeCourse(ctx context.Context, req *requestx.Rechar
 	return "course recharged", nil
 }
 
+func (cm CourseManager) Export2Excel(ctx context.Context, req *requestx.ExportCourseListRequest) (string, error) {
+	filepath, err := wails.SaveFileDialog(ctx, wails.SaveDialogOptions{
+		Title:           "选择导出文件位置",
+		DefaultFilename: fmt.Sprintf("courses_%s.xlsx", time.Now().Format("20060102_150405")),
+		Filters:         []wails.FileFilter{{DisplayName: "Excel 文件", Pattern: "*.xlsx"}},
+	})
+	if err != nil {
+		return "", err
+	}
+	if filepath == "" {
+		return "cancel", nil
+	}
+
+	// Override Limit to -1 to get all records
+	req.Limit = -1
+	req.Offset = 0
+
+	courses, _, err := cm.repo.GetCourseList(ctx,
+		req.StudentIds, req.SubjectIds, req.TeacherIds, req.BalanceMin, req.BalanceMax, req.Statuses, req.Keyword, req.Offset, req.Limit)
+	if err != nil {
+		return "", fmt.Errorf("failed to get course list for export: %w", err)
+	}
+
+	// Export
+	err = cm.exportToExcel(filepath, courses)
+	if err != nil {
+		return "", fmt.Errorf("导出失败:请检查文件是否被占用或有读写权限")
+	}
+
+	return filepath, nil
+}
+
+func (cm CourseManager) exportToExcel(path string, courses []entity.StudentSubject) error {
+	headers := []string{"学员姓名", "学号", "科目", "授课老师", "剩余课时", "状态", "备注"}
+	rows := make([][]string, 0, len(courses))
+	for _, c := range courses {
+		rows = append(rows, []string{
+			c.Student.Name,
+			c.Student.StudentNumber,
+			c.Subject.Name,
+			c.Teacher.Name,
+			fmt.Sprintf("%d", c.Balance),
+			c.Status.ZhString(),
+			c.Remark,
+		})
+	}
+	return pkg.ExportToExcel(path, headers, rows)
+}
+
 func (cm CourseManager) RegisterRoute(d *dispatcher.Dispatcher) {
 	dispatcher.RegisterTyped(d, "course_manager/create_course", cm.CreateCourse)
 	dispatcher.RegisterTyped(d, "course_manager/get_course_list", cm.GetCourseList)
@@ -229,4 +282,5 @@ func (cm CourseManager) RegisterRoute(d *dispatcher.Dispatcher) {
 	dispatcher.RegisterTyped(d, "course_manager/delete", cm.DeleteCourse)
 	dispatcher.RegisterTyped(d, "course_manager/update", cm.UpdateCourse)
 	dispatcher.RegisterTyped(d, "course_manager/recharge", cm.RechargeCourse)
+	dispatcher.RegisterTyped(d, "course_manager/export_courses", cm.Export2Excel)
 }

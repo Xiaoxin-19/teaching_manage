@@ -70,3 +70,16 @@ export async function UpdateCourse(data: UpdateCourseRequest): Promise<void> {
     if (resp.code !== 200) throw new Error(resp.message);
   } catch (error: any) { throw error; }
 }
+
+export async function ExportCoursesToExcel(req: GetCourseListRequest): Promise<string> {
+  try {
+    const reqStr = JSON.stringify(req);
+    const resultStr = await Dispatch('course_manager/export_courses', reqStr);
+    const resp = JSON.parse(resultStr) as ResponseWrapper<string>;
+    if (resp.code !== 200) throw new Error(resp.message || '导出课程数据失败');
+    return resp.data;
+  } catch (error: any) {
+    console.error("API Error [ExportCoursesToExcel]:", error);
+    throw error;
+  }
+}

@@ -41,3 +41,6 @@ type GetCourseListRequest struct {
 	Statuses   []int  `json:"status" validate:"omitempty,dive,oneof=1 2 3 4 5"`
 	Keyword    string `json:"keyword" validate:"max=100"`
 }
+
+
+type ExportCourseListRequest = GetCourseListRequest
